@@ -7,7 +7,7 @@ Cloudflare-Utils is a Python toolset for managing DNS configurations using Cloud
 - **DNS Record Management**: Update DNS records easily using Cloudflare's API.
 - **Flexible Configuration**: Easily configurable to suit different DNS management needs.
 
-to install on Ubuntu server:
+# install on Ubuntu server:
 
 ```
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/username/repository/main/setup.sh)"
