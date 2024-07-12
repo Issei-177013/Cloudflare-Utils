@@ -20,26 +20,30 @@ install_packages() {
 # Clone GitHub repository
 clone_repository() {
     echo "Cloning GitHub repository..."
-    sudo mkdir -p /opt/update_dns
-    sudo chown $USER:$USER /opt/update_dns
-    git clone https://github.com/username/repository.git /opt/update_dns
+    sudo mkdir -p /opt/Cloudflare-Utils
+
+    sudo chown $USER:$USER /opt/Cloudflare-Utils
+
+    git clone https://github.com/Issei-177013/Cloudflare-Utils.git /opt/Cloudflare-Utils
+
 }
 
 # Create the Bash script to run Python script
 create_bash_script() {
     echo "Creating Bash script..."
-    cat << 'EOF' > /opt/update_dns/run.sh
+    cat << 'EOF' > /opt/Cloudflare-Utils
+/run.sh
 #!/bin/bash
 source ~/.bashrc
-python3 /opt/update_dns/change_dns.py
+python3 /opt/Cloudflare-Utils/change_dns.py
 EOF
-    chmod +x /opt/update_dns/run.sh
+    chmod +x /opt/Cloudflare-Utils/run.sh
 }
 
 # Setup Cron Job
 setup_cron() {
     echo "Setting up cron job..."
-    (crontab -l 2>/dev/null; echo "*/30 * * * * /opt/update_dns/run.sh >> /opt/update_dns/log_file.log 2>&1") | crontab -
+    (crontab -l 2>/dev/null; echo "*/30 * * * * /opt/Cloudflare-Utils/run.sh >> /opt/Cloudflare-Utils/log_file.log 2>&1") | crontab -
 }
 
 # Main setup function
@@ -57,7 +61,7 @@ main_setup() {
     create_bash_script
     setup_cron
 
-    echo "Setup complete. Please check the log file at /opt/update_dns/log_file.log for execution logs."
+    echo "Setup complete. Please check the log file at /opt/Cloudflare-Utils/log_file.log for execution logs."
 }
 
 main_setup
