@@ -10,9 +10,9 @@ Cloudflare-Utils is a Python toolset for managing DNS configurations using Cloud
 ## install on Ubuntu server:
 
 ```
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/install.sh)"
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
 ```
 or 
 ```
-sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/install.sh)"
+sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
 ```
