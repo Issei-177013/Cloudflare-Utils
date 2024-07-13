@@ -2,6 +2,16 @@
 
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
+ASCII_ART_FILE="$PROGRAM_DIR/asset/Issei.txt"
+
+# Function to display ASCII art
+display_ascii_art() {
+    if [ -f "$ASCII_ART_FILE" ]; then
+        cat "$ASCII_ART_FILE"
+    else
+        echo -e "\e[1;31mASCII art file not found!\e[0m"
+    fi
+}
 
 # Function to ask for user input securely
 ask_user_input() {
@@ -84,73 +94,65 @@ setup_cron() {
     echo -e "\e[1;32mCron job setup completed.\e[0m"
 }
 
-# Remove the program and clean up
+# Function to remove the program and cron jobs
 remove_program() {
-    echo -e "\e[1;34mRemoving program and cleaning up...\e[0m"
+    echo -e "\e[1;34mRemoving the program and cron jobs...\e[0m"
     
-    # Remove the cron jobs
-    crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab - || {
-        echo -e "\e[1;31mFailed to remove cron jobs.\e[0m" >&2
-        exit 1
-    }
+    sudo rm -rf $PROGRAM_DIR
+    crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
     
-    # Remove the program directory
-    sudo rm -rf $PROGRAM_DIR || {
-        echo -e "\e[1;31mFailed to remove program directory $PROGRAM_DIR.\e[0m" >&2
-        exit 1
-    }
-    
-    echo -e "\e[1;32mProgram removed and cleanup completed.\e[0m"
+    echo -e "\e[1;32mProgram and cron jobs removed successfully.\e[0m"
+}
+
+# Display menu
+display_menu() {
+    echo -e "\e[1;33m1. Install Cloudflare-Utils\e[0m"
+    echo -e "\e[1;33m2. Remove Cloudflare-Utils\e[0m"
+    echo -e "\e[1;33m3. Exit\e[0m"
 }
 
 # Main setup function
 main_setup() {
-    install_packages
-
-    # Ask for user inputs
-    ask_user_input "Enter your Cloudflare API token" "CLOUDFLARE_API_TOKEN"
-    ask_user_input "Enter your Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID"
-    ask_user_input "Enter your Cloudflare Record Name" "CLOUDFLARE_RECORD_NAME"
-    ask_user_input "Enter your servers IP Addresses (comma separated)" "CLOUDFLARE_IP_ADDRESSES"
-
-    # Reload ~/.bashrc to load the new environment variables
-    source ~/.bashrc
-
-    clone_repository
-    create_bash_script
-    setup_cron
-
-    echo -e "\e[1;32mSetup complete.\e[0m Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."
+    display_ascii_art
     
-    echo -e "\e[1;34mRunning the program...\e[0m"
-    bash $PROGRAM_DIR/run.sh
-    echo -e "\e[1;32mCompletion.\e[0m"
+    PS3='Please enter your choice: '
+    options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
+    select opt in "${options[@]}"
+    do
+        case $opt in
+            "Install Cloudflare-Utils")
+                install_packages
+
+                # Ask for user inputs
+                ask_user_input "Enter your Cloudflare API token" "CLOUDFLARE_API_TOKEN"
+                ask_user_input "Enter your Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID"
+                ask_user_input "Enter your Cloudflare Record Name" "CLOUDFLARE_RECORD_NAME"
+                ask_user_input "Enter your servers IP Addresses (comma separated)" "CLOUDFLARE_IP_ADDRESSES"
+
+                # Reload ~/.bashrc to load the new environment variables
+                source ~/.bashrc
+
+                clone_repository
+                create_bash_script
+                setup_cron
+
+                echo -e "\e[1;32mSetup complete.\e[0m Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."
+                
+                echo -e "\e[1;34mRunning the program...\e[0m"
+                bash $PROGRAM_DIR/run.sh
+                echo -e "\e[1;32mCompletion.\e[0m"
+                break
+                ;;
+            "Remove Cloudflare-Utils")
+                remove_program
+                break
+                ;;
+            "Exit")
+                break
+                ;;
+            *) echo -e "\e[1;31mInvalid option $REPLY\e[0m";;
+        esac
+    done
 }
 
-# Display menu options
-show_menu() {
-    echo -e "\e[1;34mSelect an option:\e[0m"
-    echo "1) Install and setup"
-    echo "2) Remove program and cleanup"
-    echo "3) Exit"
-    read -p "Enter your choice [1-3]: " choice
-    
-    case $choice in
-        1)
-            main_setup
-            ;;
-        2)
-            remove_program
-            ;;
-        3)
-            echo -e "\e[1;34mExiting...\e[0m"
-            exit 0
-            ;;
-        *)
-            echo -e "\e[1;31mInvalid choice, please try again.\e[0m"
-            show_menu
-            ;;
-    esac
-}
-
-show_menu
+main_setup
