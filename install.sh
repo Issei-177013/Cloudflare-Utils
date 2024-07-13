@@ -2,15 +2,10 @@
 
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
-ASCII_ART_FILE="curl -sSL https://raw.githubusercontent.com/Issei-177013/$PROGRAM_NAME/main/asset/Issei.txt"
 
 # Function to display ASCII art
 display_ascii_art() {
-    if [ -f "$ASCII_ART_FILE" ]; then
-        cat "$ASCII_ART_FILE"
-    else
-        echo -e "\e[1;31mASCII art file not found!\e[0m"
-    fi
+    curl -sSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/asset/Issei.txt
 }
 
 # Function to ask for user input securely
