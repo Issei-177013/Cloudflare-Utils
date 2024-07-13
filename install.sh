@@ -113,7 +113,7 @@ display_menu() {
 
 # Main setup function
 main_setup() {  
-    # display_ascii_art  
+    display_ascii_art  
     PS3='Please enter your choice: '
     options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
     select opt in "${options[@]}"
