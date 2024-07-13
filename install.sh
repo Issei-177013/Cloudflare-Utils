@@ -45,14 +45,13 @@ install_packages() {
 
 # Clone GitHub repository
 clone_repository() {
-    display_ascii_art
     echo -e "\e[1;34mCloning GitHub repository...\e[0m"
     sudo mkdir -p $PROGRAM_DIR
     sudo chown $USER:$USER $PROGRAM_DIR || {
         echo -e "\e[1;31mFailed to create directory $PROGRAM_DIR.\e[0m" >&2
         exit 1
     }
-    
+    display_ascii_art
     if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
         echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
         exit 1
