@@ -44,7 +44,7 @@ EOF
 setup_cron() {
     echo "Setting up cron job..."
     (crontab -l 2>/dev/null; echo "*/30 * * * * $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab -
-    (crontab -l ; echo "$CRON_SCHEDULE $PROGRAM_PATH $PROGRAM_NAME" ) | crontab - 
+    (crontab -l 2>/dev/null; echo "@reboot $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab -
 }
 
 # Main setup function
