@@ -51,7 +51,7 @@ clone_repository() {
         echo -e "\e[1;31mFailed to create directory $PROGRAM_DIR.\e[0m" >&2
         exit 1
     }
-    display_ascii_art
+
     if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
         echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
         exit 1
@@ -112,7 +112,9 @@ display_menu() {
 }
 
 # Main setup function
-main_setup() {    
+main_setup() {  
+    clone_repository
+    display_ascii_art  
     PS3='Please enter your choice: '
     options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
     select opt in "${options[@]}"
@@ -130,7 +132,6 @@ main_setup() {
                 # Reload ~/.bashrc to load the new environment variables
                 source ~/.bashrc
 
-                clone_repository
                 create_bash_script
                 setup_cron
 
