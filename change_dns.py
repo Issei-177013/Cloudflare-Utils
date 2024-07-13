@@ -2,11 +2,6 @@ import os
 import json
 from cloudflare import Cloudflare, APIError
 
-# os.environ['CLOUDFLARE_API_TOKEN'] = 'qygRTTjNOELiofGToh5xsr9vsKZqWWRaWMA2afQL'
-# os.environ['CLOUDFLARE_ZONE_ID'] = 'dac991aa3c4aacb5ea5c80eae3e1afba'
-# os.environ['CLOUDFLARE_RECORD_NAME'] = 'tv.niannian.ir'
-# os.environ['CLOUDFLARE_IP_ADDRESSES'] = '193.39.9.26,185.218.139.30'
-
 # Fetch the environment variables
 api_token = os.getenv('CLOUDFLARE_API_TOKEN')
 zone_id = os.getenv('CLOUDFLARE_ZONE_ID')
