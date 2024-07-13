@@ -84,6 +84,25 @@ setup_cron() {
     echo -e "\e[1;32mCron job setup completed.\e[0m"
 }
 
+# Remove the program and clean up
+remove_program() {
+    echo -e "\e[1;34mRemoving program and cleaning up...\e[0m"
+    
+    # Remove the cron jobs
+    crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab - || {
+        echo -e "\e[1;31mFailed to remove cron jobs.\e[0m" >&2
+        exit 1
+    }
+    
+    # Remove the program directory
+    sudo rm -rf $PROGRAM_DIR || {
+        echo -e "\e[1;31mFailed to remove program directory $PROGRAM_DIR.\e[0m" >&2
+        exit 1
+    }
+    
+    echo -e "\e[1;32mProgram removed and cleanup completed.\e[0m"
+}
+
 # Main setup function
 main_setup() {
     install_packages
@@ -108,4 +127,30 @@ main_setup() {
     echo -e "\e[1;32mCompletion.\e[0m"
 }
 
-main_setup
+# Display menu options
+show_menu() {
+    echo -e "\e[1;34mSelect an option:\e[0m"
+    echo "1) Install and setup"
+    echo "2) Remove program and cleanup"
+    echo "3) Exit"
+    read -p "Enter your choice [1-3]: " choice
+    
+    case $choice in
+        1)
+            main_setup
+            ;;
+        2)
+            remove_program
+            ;;
+        3)
+            echo -e "\e[1;34mExiting...\e[0m"
+            exit 0
+            ;;
+        *)
+            echo -e "\e[1;31mInvalid choice, please try again.\e[0m"
+            show_menu
+            ;;
+    esac
+}
+
+show_menu
