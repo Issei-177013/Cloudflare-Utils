@@ -2,7 +2,8 @@
 
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
-ASCII_ART_FILE="$PROGRAM_DIR/asset/Issei.txt"
+ASCII_ART_FILE="curl -sSL https://raw.githubusercontent.com/Issei-177013/$PROGRAM_NAME/main/asset/Issei.txt
+"
 
 # Function to display ASCII art
 display_ascii_art() {
@@ -113,7 +114,6 @@ display_menu() {
 
 # Main setup function
 main_setup() {  
-    clone_repository
     display_ascii_art  
     PS3='Please enter your choice: '
     options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
@@ -132,6 +132,7 @@ main_setup() {
                 # Reload ~/.bashrc to load the new environment variables
                 source ~/.bashrc
 
+                clone_repository
                 create_bash_script
                 setup_cron
 
