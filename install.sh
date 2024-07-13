@@ -45,6 +45,7 @@ install_packages() {
 
 # Clone GitHub repository
 clone_repository() {
+    display_ascii_art
     echo -e "\e[1;34mCloning GitHub repository...\e[0m"
     sudo mkdir -p $PROGRAM_DIR
     sudo chown $USER:$USER $PROGRAM_DIR || {
@@ -112,9 +113,7 @@ display_menu() {
 }
 
 # Main setup function
-main_setup() {
-    display_ascii_art
-    
+main_setup() {    
     PS3='Please enter your choice: '
     options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
     select opt in "${options[@]}"
