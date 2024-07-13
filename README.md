@@ -1,8 +1,3 @@
-برای ایجاد مستندات دقیق جهت نصب و استفاده از اسکریپت‌ها، می‌توانیم فایل `README.md` را به شکلی طراحی کنیم که شامل دستورالعمل‌های نصب، استفاده و توضیحات مربوط به هر قسمت از پروژه باشد.
-
-### محتوای فایل `README.md`
-
-```markdown
 # Cloudflare Utils
 
 This project contains utilities to interact with Cloudflare DNS records, allowing for automated updates of DNS records using a specified set of IP addresses.
@@ -84,18 +79,3 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 If you encounter any issues or have any questions, please open an issue in the GitHub repository.
 
-```
-
-### توضیحات
-
-- **Features**: ویژگی‌های کلیدی پروژه را توضیح می‌دهد.
-- **Prerequisites**: پیش‌نیازهای مورد نیاز برای نصب و راه‌اندازی پروژه.
-- **Installation**: دستورالعمل‌های نصب با استفاده از `cURL` و `wget`.
-- **Configuration**: توضیحاتی در مورد ورودی‌های لازم در حین نصب.
-- **Usage**: نحوه استفاده از اسکریپت‌ها و اجرای دستی آن‌ها.
-- **Logs**: محل ذخیره‌سازی لاگ‌ها.
-- **Contributing**: دستورالعمل‌های مشارکت در پروژه.
-- **License**: اطلاعات مربوط به مجوز پروژه.
-- **Support**: راهنمایی برای دریافت پشتیبانی.
-
-با استفاده از این مستندات، کاربران می‌توانند به راحتی پروژه را نصب و استفاده کنند و در صورت نیاز به پشتیبانی یا مشارکت در پروژه، اطلاعات لازم را دریافت کنند.
