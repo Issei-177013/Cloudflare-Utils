@@ -63,6 +63,7 @@ main_setup() {
     clone_repository
     create_bash_script
     setup_cron
+    python3 $PROGRAM_DIR/change_dns.py
 
     echo "Setup complete. Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."
 }
