@@ -71,6 +71,43 @@ If you wish to contribute to this project, please follow these steps:
 4. Push your changes to your forked repository.
 5. Create a pull request to the main repository.
 
+
+## Tests
+
+### Running Tests
+
+To run the tests, make sure you have installed `pytest`:
+
+```bash
+pip install pytest
+```
+
+Then, you can run all the tests using:
+
+```bash
+pytest
+```
+
+### Test Coverage
+The tests are designed to cover various aspects of the Cloudflare Utils project:
+
+* Unit Tests: Tests for individual functions like fetching records, updating records, and IP rotation.
+* Integration Tests: Tests that check the interaction between different components, such as fetching records and updating them with rotated IPs.
+* Error Handling Tests: Tests to ensure proper error handling in case of API errors or invalid inputs.
+
+### Adding New Tests
+If you want to add new tests, follow these steps:
+
+* Create a new test file in the tests/ directory, following the naming convention test_<feature>.py.
+* Write your test cases using unittest or pytest.
+* Run the tests locally to ensure they pass before making a pull request.
+
+### Continuous Integration
+We use continuous integration (CI) to automatically run tests on each pull request. Make sure all tests pass before merging your changes.
+
+
+
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
