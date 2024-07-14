@@ -155,11 +155,7 @@ main_setup() {
                 create_bash_script
                 setup_cron
 
-                echo -e "\e[1;32mSetup complete.\e[0m Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."
-                
-                echo -e "\e[1;34mRunning the program...\e[0m"
-                bash $PROGRAM_DIR/run.sh
-                echo -e "\e[1;32mCompletion.\e[0m"
+                echo -e "\e[1;32mSetup complete.\e[0m Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."        
                 break
                 ;;
             "Remove Cloudflare-Utils")
