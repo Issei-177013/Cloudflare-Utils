@@ -116,3 +116,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 If you encounter any issues or have any questions, please open an issue in the GitHub repository.
 
+
+---
+
+#### Thanks to [roshdsupp](https://t.me/roshdsupp) for the project idea 🩵
