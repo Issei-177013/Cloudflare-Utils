@@ -96,8 +96,6 @@ setup_cron() {
     echo -e "\e[1;32mCron job setup completed.\e[0m"
 }
 
-
-
 # Function to remove the program and cron jobs
 remove_program() {
     echo -e "\e[1;34mRemoving the program and cron jobs...\e[0m"
@@ -126,11 +124,29 @@ main_setup() {
             "Install Cloudflare-Utils")
                 install_packages
 
-                # Ask for user inputs
-                ask_user_input "Enter your Cloudflare API token" "CLOUDFLARE_API_TOKEN"
-                ask_user_input "Enter your Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID"
-                ask_user_input "Enter your Cloudflare Record Name" "CLOUDFLARE_RECORD_NAME"
-                ask_user_input "Enter your servers IP Addresses (comma separated)" "CLOUDFLARE_IP_ADDRESSES"
+                # Check if the variables are already set in ~/.bashrc
+                source ~/.bashrc
+
+                if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+                    ask_user_input "Enter your Cloudflare API Token" "CLOUDFLARE_API_TOKEN"
+                fi
+
+                if [ -z "$CLOUDFLARE_ZONE_ID" ]; then
+                    ask_user_input "Enter your Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID"
+                fi
+
+                if [ -z "$CLOUDFLARE_RECORD_NAME" ]; then
+                    ask_user_input "Enter your Cloudflare Record Name" "CLOUDFLARE_RECORD_NAME"
+                fi
+
+                if [ -z "$CLOUDFLARE_IP_ADDRESSES" ]; then
+                    ask_user_input "Enter your Cloudflare IP Addresses (comma-separated)" "CLOUDFLARE_IP_ADDRESSES"
+                fi
+
+                # Source the ~/.bashrc to ensure variables are available in the current session
+                source ~/.bashrc
+
+                echo -e "\e[1;32mAll necessary variables have been set.\e[0m"
 
                 # Reload ~/.bashrc to load the new environment variables
                 source ~/.bashrc
