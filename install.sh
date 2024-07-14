@@ -76,18 +76,20 @@ EOF
 # Setup Cron Job
 setup_cron() {
     echo -e "\e[1;34mSetting up cron job...\e[0m"
-    (crontab -l 2>/dev/null; echo "*/30 * * * * $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
+    
+    (crontab -l 2>/dev/null; echo "*/30 * * * * . /home/$USER/.bashrc; $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
         echo -e "\e[1;31mFailed to add cron job for regular execution.\e[0m" >&2
         exit 1
     }
     
-    (crontab -l 2>/dev/null; echo "@reboot $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
+    (crontab -l 2>/dev/null; echo "@reboot . /home/$USER/.bashrc; $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
         echo -e "\e[1;31mFailed to add cron job for reboot execution.\e[0m" >&2
         exit 1
     }
     
     echo -e "\e[1;32mCron job setup completed.\e[0m"
 }
+
 
 # Function to remove the program and cron jobs
 remove_program() {
