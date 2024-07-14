@@ -2,6 +2,15 @@ import os
 import json
 from cloudflare import Cloudflare, APIError
 
+# Load environment variables from .bashrc
+bashrc_path = os.path.expanduser('~/.bashrc')
+if os.path.exists(bashrc_path):
+    with open(bashrc_path) as f:
+        for line in f:
+            if line.startswith('export '):
+                var, value = line.replace('export ', '', 1).strip().split('=', 1)
+                os.environ[var] = value.strip('"')
+
 # Fetch the environment variables
 api_token = os.getenv('CLOUDFLARE_API_TOKEN')
 zone_id = os.getenv('CLOUDFLARE_ZONE_ID')
