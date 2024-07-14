@@ -62,8 +62,12 @@ create_bash_script() {
 #!/bin/bash
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
+
 source ~/.bashrc
-python3 $PROGRAM_DIR/change_dns.py
+
+echo "$(date) - Starting script" >> $PROGRAM_DIR/log_file.log
+python3 $PROGRAM_DIR/change_dns.py >> $PROGRAM_DIR/log_file.log 2>&1
+echo "$(date) - Finished script" >> $PROGRAM_DIR/log_file.log
 EOF
     chmod +x $PROGRAM_DIR/run.sh || {
         echo -e "\e[1;31mFailed to set executable permission on $PROGRAM_DIR/run.sh.\e[0m" >&2
