@@ -14,6 +14,8 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 - Git
 - Python 3 and pip
 
+---
+
 ## Installation
 
 To install and set up the Cloudflare Utils on an Ubuntu server, follow these steps:
@@ -33,6 +35,8 @@ Alternatively, you can use `wget` to download and execute the installation scrip
 ```bash
 sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
 ```
+
+---
 
 ## Configuration
 
@@ -61,6 +65,8 @@ If you need to manually trigger the DNS update, you can run the following comman
 
 The output of the cron job and the script executions will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
 
+---
+
 ## Contributing
 
 If you wish to contribute to this project, please follow these steps:
@@ -71,6 +77,7 @@ If you wish to contribute to this project, please follow these steps:
 4. Push your changes to your forked repository.
 5. Create a pull request to the main repository.
 
+---
 
 ## Tests
 
@@ -105,24 +112,11 @@ If you want to add new tests, follow these steps:
 ### Continuous Integration
 We use continuous integration (CI) to automatically run tests on each pull request. Make sure all tests pass before merging your changes.
 
-
-
+---
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
-
-## Support
-
-If you encounter any issues or have any questions, please open an issue in the GitHub repository.
-
-
----
-
-#### Thanks to [roshdsupp](https://t.me/roshdsupp) for the project idea 🩵
-
-
-
 ```
 # Copyright 2024 [Issei-177013]
 #
@@ -138,3 +132,16 @@ If you encounter any issues or have any questions, please open an issue in the G
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ```
+
+---
+
+## Support
+
+If you encounter any issues or have any questions, please open an issue in the GitHub repository.
+
+
+---
+
+#### Thanks to [roshdsupp](https://t.me/roshdsupp) for the project idea 🩵
+
+
