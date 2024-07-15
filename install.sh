@@ -120,13 +120,6 @@ remove_program() {
     echo -e "\e[1;32mProgram and cron jobs removed successfully.\e[0m"
 }
 
-# Display menu
-display_menu() {
-    echo -e "\e[1;33m1. Install Cloudflare-Utils\e[0m"
-    echo -e "\e[1;33m2. Remove Cloudflare-Utils\e[0m"
-    echo -e "\e[1;33m3. Exit\e[0m"
-}
-
 # Main setup function
 main_setup() {  
     # display_ascii_art  
