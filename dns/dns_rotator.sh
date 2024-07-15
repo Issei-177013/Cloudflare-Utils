@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Define colors
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+RESET='\033[0m'
 
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
-
-# Function to display ASCII art
-display_ascii_art() {
-    curl -sSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/asset/Issei.txt
-}
 
 # Function to ask for user input securely
 ask_user_input() {
@@ -31,76 +31,38 @@ ask_user_input() {
     export $var_name="$input"
 }
 
+# Create the Bash script to run Python script
+run_dns_rotator() {
+    source ~/.bashrc
 
+    {
+        echo "$(date) - Starting script"
+        python3 $PROGRAM_DIR/change_dns.py
+        echo "$(date) - Finished script"
+    } >> $PROGRAM_DIR/log_file.log 2>&1
 
-# Install necessary packages
-install_packages() {
-    echo -e "\e[1;34mInstalling necessary packages...\e[0m"
-    if ! sudo apt-get update; then
-        echo -e "\e[1;31mFailed to update apt repositories.\e[0m" >&2
-        exit 1
-    fi
-    
-    if ! sudo apt-get install -y git python3-pip; then
-        echo -e "\e[1;31mFailed to install required packages.\e[0m" >&2
-        exit 1
-    fi
-    
-    if ! pip3 install cloudflare; then
-        echo -e "\e[1;31mFailed to install Python package 'cloudflare'.\e[0m" >&2
-        exit 1
-    fi
-    
-    echo -e "\e[1;32mPackages installed successfully.\e[0m"
 }
 
-# Clone GitHub repository
-clone_repository() {
-    echo -e "\e[1;34mCloning GitHub repository...\e[0m"
-    sudo mkdir -p $PROGRAM_DIR
-    sudo chown $USER:$USER $PROGRAM_DIR || {
-        echo -e "\e[1;31mFailed to create directory $PROGRAM_DIR.\e[0m" >&2
+# Setup Cron Job
+setup_cron() {
+    echo -e "\e[1;34mSetting up cron job...\e[0m"
+    
+    (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
+        echo -e "\e[1;31mFailed to add cron job for regular execution.\e[0m" >&2
         exit 1
     }
-
-    if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
-        echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
+    
+    (crontab -l 2>/dev/null; echo "@reboot /bin/bash $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
+        echo -e "\e[1;31mFailed to add cron job for reboot execution.\e[0m" >&2
         exit 1
-    fi
+    }
     
-    echo -e "\e[1;32mRepository cloned successfully.\e[0m"
+    echo -e "\e[1;32mCron job setup completed.\e[0m"
 }
 
-
-
-
-
-# Function to remove the program and cron jobs
-remove_program() {
-    echo -e "\e[1;34mRemoving the program and cron jobs...\e[0m"
-    
-    sudo rm -rf $PROGRAM_DIR
-    crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
-    
-    echo -e "\e[1;32mProgram and cron jobs removed successfully.\e[0m"
-}
-
-# Display menu
-display_menu() {
-    echo -e "\e[1;33m1. Install Cloudflare-Utils\e[0m"
-    echo -e "\e[1;33m2. Remove Cloudflare-Utils\e[0m"
-    echo -e "\e[1;33m3. Exit\e[0m"
-}
-
-# Main setup function
-main_setup() {  
-    # display_ascii_art  
-    PS3='Please enter your choice: '
-    options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
-    select opt in "${options[@]}"
+main(){
     do
-        case $opt in
-            "Install Cloudflare-Utils")
+        case $opt in)
                 install_packages
 
                 # Check if the variables are already set in ~/.bashrc
@@ -149,4 +111,4 @@ main_setup() {
     done
 }
 
-main_setup
+main

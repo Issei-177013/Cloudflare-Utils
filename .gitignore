@@ -177,3 +177,4 @@ pyrightconfig.json
 
 .vscode
 tests/
+test.py
