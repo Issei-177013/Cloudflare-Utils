@@ -1,0 +1,9 @@
+{
+    "scripts": {
+        "release": "semantic-release"
+    },
+    "devDependencies": {
+        "@semantic-release/changelog": "^6.0.3",
+        "semantic-release": "^22.0.12"
+    }
+}
