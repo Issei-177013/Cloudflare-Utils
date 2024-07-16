@@ -34,7 +34,7 @@ record_name = os.getenv('CLOUDFLARE_RECORD_NAME')
 ip_addresses = os.getenv('CLOUDFLARE_IP_ADDRESSES')
 
 if not api_token or not zone_id or not record_name or not ip_addresses:
-    raise ValueError("CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_RECORD_NAME and CLOUDFLARE_IP_ADDRESSES must be set")
+    raise ValueError("change_dns: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_RECORD_NAME and CLOUDFLARE_IP_ADDRESSES must be set")
 
 # Convert the comma-separated string of IP addresses to a list
 ip_addresses = ip_addresses.split(',')

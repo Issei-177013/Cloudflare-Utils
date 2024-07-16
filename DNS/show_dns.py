@@ -17,7 +17,6 @@ import json
 from cloudflare import Cloudflare, APIError
 from tabulate import tabulate
 
-
 # Load environment variables from .bashrc
 bashrc_path = os.path.expanduser('~/.bashrc')
 if os.path.exists(bashrc_path):
@@ -28,10 +27,8 @@ if os.path.exists(bashrc_path):
                 os.environ[var] = value.strip('"')
 
 # Fetch the environment variables
-# api_token = os.getenv('CLOUDFLARE_API_TOKEN')
-# zone_id = os.getenv('CLOUDFLARE_ZONE_ID')
-api_token = 'qygRTTjNOELiofGToh5xsr9vsKZqWWRaWMA2afQL'
-zone_id = 'dac991aa3c4aacb5ea5c80eae3e1afba'
+api_token = os.getenv('CLOUDFLARE_API_TOKEN')
+zone_id = os.getenv('CLOUDFLARE_ZONE_ID')
 
 if not api_token or not zone_id:
     raise ValueError("show_dns: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID must be set")
@@ -67,15 +64,15 @@ headers = ["#", "Name", "Type", "Content", "Comment"]
 print(tabulate(table_data, headers=headers, tablefmt="fancy_grid", numalign="center"))
 
 
-try:
-    row_index = int(input("Enter the index of the row to get its content (or 0 to exit): "))
+# try:
+#     row_index = int(input("Enter the index of the row to get its content (or 0 to exit): "))
     
-    if 1 <= row_index <= len(records['result']):
-        selected_record = records['result'][row_index - 1]
-        print(f"Content of the selected row ({row_index}): {selected_record['content']}")
-    elif row_index == 0:
-        print("Exiting...")
-    else:
-        print("Invalid row index. Please enter a valid index.")
-except ValueError:
-    print("Invalid input. Please enter a valid number.")
+#     if 1 <= row_index <= len(records['result']):
+#         selected_record = records['result'][row_index - 1]
+#         print(f"Content of the selected row ({row_index}): {selected_record['content']}")
+#     elif row_index == 0:
+#         print("Exiting...")
+#     else:
+#         print("Invalid row index. Please enter a valid index.")
+# except ValueError:
+#     print("Invalid input. Please enter a valid number.")
