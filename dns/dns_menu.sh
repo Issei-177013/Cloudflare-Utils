@@ -44,13 +44,13 @@ while true; do
         1)
             clear
             echo "Show all DNS Records"
-            python3 "$(pwd)/show_dns.py"
+            python3 "$PROGRAM_DIR/dns/show_dns.py"
             read -n 1 -s -r -p "Press any key to continue..."
             ;;
         2)
             clear
             echo "IP rotator"
-            bash "$(pwd)/rotator/dns_rotator.sh"
+            bash "$PROGRAM_DIR/dns/rotator/dns_rotator.sh"
             break
             ;;
         3)
