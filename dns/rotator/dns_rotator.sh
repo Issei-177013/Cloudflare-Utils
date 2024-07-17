@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright 2024 [Issei-177013]
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Apaccreate_dns_rotator_run_scripthe License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -35,7 +35,7 @@ ask_user_input() {
 }
 
 # Create the Bash script to run Python script
-create_dns_rotator_run_script() {
+() {
     echo -e "\e[1;34mCreating Bash script...\e[0m"
     cat << 'EOF' > $SCRIPT_DIR/run.sh
 #!/bin/bash
@@ -74,7 +74,6 @@ setup_dns_rotator(){
 
   # Check if the variables are already set in ~/.bashrc
   source ~/.bashrc
-
   if [ -z "$CLOUDFLARE_RECORD_NAME" ]; then
     ask_user_input "Enter IP of your record to be rotate" "CLOUDFLARE_RECORD_NAME"
   fi
@@ -82,24 +81,22 @@ setup_dns_rotator(){
   if [ -z "$CLOUDFLARE_IP_ADDRESSES" ]; then
     ask_user_input "Give me your list of IPs to start rotating (comma-separated)" "CLOUDFLARE_IP_ADDRESSES"
   fi
-
   # Source the ~/.bashrc to ensure variables are available in the current session
   source ~/.bashrc
-
   echo -e "${GREEN}All necessary variables have been set.${RESET}"
 
-  echo -e "${BLUE}Setting up cron job...${RESET}"
+  echo -e "${GREEN}Create run script${RESET}"
+  create_dns_rotator_run_script
 
+  echo -e "${BLUE}Setting up cron job...${RESET}"
   (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash $SCRIPT_DIR/run.sh >> $SCRIPT_DIR/log_file.log 2>&1") | crontab - || {
     echo -e "${RED}Failed to add cron job for regular execution.${RESET}" >&2
     exit 1
   }
-
   (crontab -l 2>/dev/null; echo "@reboot /bin/bash $SCRIPT_DIR/run.sh >> $SCRIPT_DIR/log_file.log 2>&1") | crontab - || {
     echo -e "${RED}Failed to add cron job for reboot execution.${RESET}" >&2
     exit 1
   }
-
   echo -e "${GREEN}Cron job setup completed.${RESET}"
 
   echo -e "${GREEN}DNS rotator setup complete.${RESET} Please check the log file at $SCRIPT_DIR/log_file.log for execution logs."
