@@ -54,6 +54,7 @@ while true; do
       clear
       echo "DNS utils"
       bash "$PROGRAM_DIR/dns/dns_menu.sh"
+      break
       ;;
     2)
       clear

@@ -51,6 +51,7 @@ while true; do
             clear
             echo "IP rotator"
             bash "$(pwd)/rotator/dns_rotator.sh"
+            break
             ;;
         3)
             clear
