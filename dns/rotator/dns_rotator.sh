@@ -102,7 +102,7 @@ setup_dns_rotator(){
 
   echo -e "${GREEN}Cron job setup completed.${RESET}"
 
-  echo -e "${GREEN}DNS rotator setup complete.${RESET} Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."
+  echo -e "${GREEN}DNS rotator setup complete.${RESET} Please check the log file at $SCRIPT_DIR/log_file.log for execution logs."
 
 }
 
