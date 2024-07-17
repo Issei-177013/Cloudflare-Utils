@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+python3 /opt/Cloudflare-Utils/dns/rotator/dns_rotator.py
 
 
 PROGRAM_NAME="Cloudflare-Utils"
@@ -52,6 +53,11 @@ create_dns_rotator_run_script() {
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+PROGRAM_NAME="Cloudflare-Utils"
+PROGRAM_DIR="/opt/$PROGRAM_NAME"
+DNS_DIR="$PROGRAM_DIR/dns"
+SCRIPT_DIR="$DNS_DIR/rotator"
 
 {
     echo "$(date) - Starting script"
