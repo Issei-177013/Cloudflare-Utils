@@ -35,7 +35,7 @@ ask_user_input() {
 }
 
 # Create the Bash script to run Python script
-() {
+create_dns_rotator_run_script() {
     echo -e "\e[1;34mCreating Bash script...\e[0m"
     cat << 'EOF' > $SCRIPT_DIR/run.sh
 #!/bin/bash
