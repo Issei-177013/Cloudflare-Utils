@@ -86,7 +86,7 @@ clone_repository() {
 
 # Main setup function
 main_setup() {  
-    display_ascii_art  
+    # display_ascii_art  
     echo " "
     PS3='Please enter your choice: '
     options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
