@@ -62,3 +62,4 @@ remove_cronjobs(){
 remove_cronjobs
 remove_env_vars
 remove_program
+cd
