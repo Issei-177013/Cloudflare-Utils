@@ -66,13 +66,24 @@ clone_repository() {
         exit 1
     }
 
-    if ! git clone -b alpha https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
+    if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
         echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
         exit 1
     fi
+
+    cd $PROGRAM_DIR || {
+        echo -e "\e[1;31mFailed to change directory to $PROGRAM_DIR.\e[0m" >&2
+        exit 1
+    }
+
+    if ! git checkout alpha; then
+        echo -e "\e[1;31mFailed to checkout branch 'alpha'.\e[0m" >&2
+        exit 1
+    fi
     
-    echo -e "\e[1;32mRepository cloned successfully.\e[0m"
+    echo -e "\e[1;32mRepository cloned and switched to branch 'alpha' successfully.\e[0m"
 }
+
 
 
 
