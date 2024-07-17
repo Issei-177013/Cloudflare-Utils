@@ -75,7 +75,7 @@ setup_dns_rotator(){
   # Check if the variables are already set in ~/.bashrc
   source ~/.bashrc
   if [ -z "$CLOUDFLARE_RECORD_NAME" ]; then
-    ask_user_input "Enter IP of your record to be rotate" "CLOUDFLARE_RECORD_NAME"
+    ask_user_input "Enter name of your record to be rotate" "CLOUDFLARE_RECORD_NAME"
   fi
 
   if [ -z "$CLOUDFLARE_IP_ADDRESSES" ]; then

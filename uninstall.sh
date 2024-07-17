@@ -27,9 +27,38 @@ remove_program() {
     echo -e "\e[1;34mRemoving the program and cron jobs...\e[0m"
     
     sudo rm -rf $PROGRAM_DIR
-    crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
     
-    echo -e "\e[1;32mProgram and cron jobs removed successfully.\e[0m"
+    echo -e "\e[1;32mProgram removed successfully.\e[0m"
 }
 
+
+remove_env_vars(){
+# List of variables you want to remove
+vars=("CLOUDFLARE_API_TOKEN" "CLOUDFLARE_ZONE_ID" "CLOUDFLARE_RECORD_NAME" "CLOUDFLARE_IP_ADDRESSES")
+
+# Path to the bashrc file
+bashrc_file="$HOME/.bashrc"
+
+# Create a temporary file
+temp_file=$(mktemp)
+
+# Copy the contents of the bashrc file to the temporary file,
+# excluding lines that contain the specified variables
+grep -v -E "$(IFS="|"; echo "${vars[*]}")" "$bashrc_file" > "$temp_file"
+
+# Replace the original bashrc file with the temporary file
+mv "$temp_file" "$bashrc_file"
+
+echo "The specified variables have been removed from the ~/.bashrc file."
+}
+
+remove_cronjobs(){
+    crontab -l | grep -v '/opt/Cloudflare-Utils/dns/rotator/run.sh' | crontab -
+    echo -e "\e[1;32mCronjobs removed successfully.\e[0m"
+
+}
+
+
+remove_cronjobs
+remove_env_vars
 remove_program
