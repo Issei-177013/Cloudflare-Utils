@@ -53,8 +53,6 @@ create_dns_rotator_run_script() {
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source ~/.bashrc
-
 {
     echo "$(date) - Starting script"
     python3 $SCRIPT_DIR/dns_rotator.py
@@ -89,11 +87,11 @@ setup_dns_rotator(){
   create_dns_rotator_run_script
 
   echo -e "${BLUE}Setting up cron job...${RESET}"
-  (crontab -l 2>/dev/null; echo "*/30 * * * * python3 $SCRIPT_DIR/run.sh >> $SCRIPT_DIR/log_file.log 2>&1") | crontab - || {
+  (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash $SCRIPT_DIR/run.sh >> $SCRIPT_DIR/log_file.log 2>&1") | crontab - || {
     echo -e "${RED}Failed to add cron job for regular execution.${RESET}" >&2
     exit 1
   }
-  (crontab -l 2>/dev/null; echo "@reboot python3 $SCRIPT_DIR/run.sh >> $SCRIPT_DIR/log_file.log 2>&1") | crontab - || {
+  (crontab -l 2>/dev/null; echo "@reboot /bin/bash $SCRIPT_DIR/run.sh >> $SCRIPT_DIR/log_file.log 2>&1") | crontab - || {
     echo -e "${RED}Failed to add cron job for reboot execution.${RESET}" >&2
     exit 1
   }
