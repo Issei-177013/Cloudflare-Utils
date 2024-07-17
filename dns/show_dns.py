@@ -14,7 +14,7 @@
 
 import os
 import json
-from cloudflare import cloudflare, APIError
+from cloudflare import Cloudflare, APIError
 from tabulate import tabulate
 
 # Load environment variables from .bashrc
