@@ -66,7 +66,7 @@ clone_repository() {
         exit 1
     }
 
-    if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
+    if ! git clone -b alpha https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
         echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
         exit 1
     fi
