@@ -16,7 +16,8 @@
 
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
-SCRIPT_DIR="$PROGRAM_DIR/dns/rotator"
+DNS_DIR="$PROGRAM_DIR/dns"
+SCRIPT_DIR="$DNS_DIR/rotator"
 
 # Define colors
 BLUE='\033[0;34m'
@@ -60,8 +61,8 @@ source ~/.bashrc
     echo "$(date) - Finished script"
 } >> $PROGRAM_DIR/log_file.log 2>&1
 EOF
-    chmod +x $PROGRAM_DIR/run.sh || {
-        echo -e "\e[1;31mFailed to set executable permission on $PROGRAM_DIR/run.sh.\e[0m" >&2
+    chmod +x $SCRIPT_DIR/run.sh || {
+        echo -e "\e[1;31mFailed to set executable permission on $SCRIPT_DIR/run.sh.\e[0m" >&2
         exit 1
     }
     
@@ -69,7 +70,7 @@ EOF
 }
 
 setup_dns_rotator(){
-  python3 "$(pwd)/show_dns.py"
+  python3 "$DNS_DIR/show_dns.py"
 
   # Check if the variables are already set in ~/.bashrc
   source ~/.bashrc
