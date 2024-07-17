@@ -59,7 +59,7 @@ source ~/.bashrc
     echo "$(date) - Starting script"
     python3 $SCRIPT_DIR/dns_rotator.py
     echo "$(date) - Finished script"
-} >> $PROGRAM_DIR/log_file.log 2>&1
+} >> $SCRIPT_DIR/log_file.log 2>&1
 EOF
     chmod +x $SCRIPT_DIR/run.sh || {
         echo -e "\e[1;31mFailed to set executable permission on $SCRIPT_DIR/run.sh.\e[0m" >&2
