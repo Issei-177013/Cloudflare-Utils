@@ -84,19 +84,6 @@ clone_repository() {
     echo -e "\e[1;32mRepository cloned and switched to branch 'alpha' successfully.\e[0m"
 }
 
-
-
-
-# Function to remove the program and cron jobs
-remove_program() {
-    echo -e "\e[1;34mRemoving the program and cron jobs...\e[0m"
-    
-    sudo rm -rf $PROGRAM_DIR
-    crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
-    
-    echo -e "\e[1;32mProgram and cron jobs removed successfully.\e[0m"
-}
-
 # Main setup function
 main_setup() {  
     display_ascii_art  
@@ -129,11 +116,11 @@ main_setup() {
                 source ~/.bashrc
 
                 clone_repository
-                bash "$(pwd)/menu.sh"
+                bash "$PROGRAM_DIR/menu.sh"
                 break
                 ;;
             "Remove Cloudflare-Utils")
-                remove_program
+                bash "$PROGRAM_DIR/uninstall.sh"
                 break
                 ;;
             "Exit")
