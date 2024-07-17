@@ -144,7 +144,7 @@ while true; do
             ;;
         0)
             echo "back"
-            bash "$(pwd)/dns_menu.sh"
+            bash "$DNS_DIR/dns_menu.sh"
             break
             ;;
         *)
