@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 
@@ -23,3 +22,14 @@ YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 RESET='\033[0m'
 
+# Function to remove the program and cron jobs
+remove_program() {
+    echo -e "\e[1;34mRemoving the program and cron jobs...\e[0m"
+    
+    sudo rm -rf $PROGRAM_DIR
+    crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
+    
+    echo -e "\e[1;32mProgram and cron jobs removed successfully.\e[0m"
+}
+
+remove_program

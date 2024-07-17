@@ -23,51 +23,6 @@ YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 RESET='\033[0m'
 
-# Function to ask for user input securely
-ask_user_input() {
-    local prompt=$1
-    local var_name=$2
-    read -p "$(echo -e "${GREEN}${prompt}: ${RESET}")" input
-    echo "export $var_name=\"$input\"" >> ~/.bashrc
-    export $var_name="$input"
-}
-
-setup_dns_rotator() {
-    python3 "$(pwd)/show_dns.py"
-
-    # Check if the variables are already set in ~/.bashrc
-    source ~/.bashrc
-
-    if [ -z "$CLOUDFLARE_RECORD_NAME" ]; then
-        ask_user_input "Enter your Cloudflare Record Name" "CLOUDFLARE_RECORD_NAME"
-    fi
-
-    if [ -z "$CLOUDFLARE_IP_ADDRESSES" ]; then
-        ask_user_input "Enter your Cloudflare IP Addresses (comma-separated)" "CLOUDFLARE_IP_ADDRESSES"
-    fi
-
-    # Source the ~/.bashrc to ensure variables are available in the current session
-    source ~/.bashrc
-
-    echo -e "${GREEN}All necessary variables have been set.${RESET}"
-
-    echo -e "${BLUE}Setting up cron job...${RESET}"
-
-    (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
-        echo -e "${RED}Failed to add cron job for regular execution.${RESET}" >&2
-        exit 1
-    }
-
-    (crontab -l 2>/dev/null; echo "@reboot /bin/bash $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
-        echo -e "${RED}Failed to add cron job for reboot execution.${RESET}" >&2
-        exit 1
-    }
-
-    echo -e "${GREEN}Cron job setup completed.${RESET}"
-
-    echo -e "${GREEN}DNS rotator setup complete.${RESET} Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."
-}
-
 # Function to display the menu
 show_menu() {
     clear  # Clear the terminal screen
@@ -90,11 +45,12 @@ while true; do
             clear
             echo "Show all DNS Records"
             python3 "$(pwd)/show_dns.py"
+            read -n 1 -s -r -p "Press any key to continue..."
             ;;
         2)
             clear
             echo "IP rotator"
-            setup_dns_rotator
+            bash "$(pwd)/rotator/dns_rotator.sh"
             ;;
         3)
             clear
@@ -102,8 +58,8 @@ while true; do
             read -n 1 -s -r -p "Press any key to continue..."
             ;;
         0)
-            echo "Exiting..."
-            bash "$PROGRAM_DIR/install.sh"
+            echo "Back to main menu..."
+            bash "$PROGRAM_DIR/menu.sh"
             break
             ;;
         *)

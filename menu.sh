@@ -35,10 +35,10 @@ ask_user_input() {
 show_menu() {
   clear  # Clear the terminal screen
   echo -e "${BLUE}Select an option:${RESET}"
-  echo -e "${YELLOW}1)${RESET} ${GREEN}Show all DNS Records${RESET}"
-  echo -e "${YELLOW}2)${RESET} ${GREEN}Setup IP rotator${RESET}"
-  echo -e "${YELLOW}3)${RESET} ${GREEN}Settings${RESET}"
-  echo -e "${YELLOW}3)${RESET} ${GREEN}Uninstall Cloudflare-Utils${RESET}"
+  echo -e "${YELLOW}1)${RESET} ${GREEN}DNS utils${RESET}"
+  echo -e "${YELLOW}2)${RESET} ${GREEN}noting${RESET}"
+  echo -e "${YELLOW}3)${RESET} ${GREEN}noting${RESET}"
+  echo -e "${YELLOW}4)${RESET} ${GREEN}Uninstall Cloudflare-Utils${RESET}"
   echo -e "${YELLOW}0)${RESET} ${GREEN}Exit${RESET}"
 }
 
@@ -52,17 +52,23 @@ while true; do
   case $choice in
     1)
       clear
-      echo "Option 1: Show all DNS Records"
-      read -n 1 -s -r -p "Press any key to continue..."
+      echo "DNS utils"
+      bash "$PROGRAM_DIR/dns/dns_menu.sh"
       ;;
     2)
       clear
-      echo "Option 2: IP rotator"
+      echo "Option 2: noting"
       read -n 1 -s -r -p "Press any key to continue..."
       ;;
     3)
       clear
-      echo "Option 3: Settings"
+      echo "Option 3: noting"
+      read -n 1 -s -r -p "Press any key to continue..."
+      ;;
+    4)
+      clear
+      echo "Option 3: Uninstall Cloudflare-Utils"
+      bash "$PROGRAM_DIR/uninstall.sh"
       read -n 1 -s -r -p "Press any key to continue..."
       ;;
     0)

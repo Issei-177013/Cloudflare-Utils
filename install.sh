@@ -48,6 +48,11 @@ install_packages() {
         echo -e "\e[1;31mFailed to install Python package 'cloudflare'.\e[0m" >&2
         exit 1
     fi
+
+    if ! pip3 install tabulate; then
+        echo -e "\e[1;31mFailed to install Python package 'tabulate'.\e[0m" >&2
+        exit 1
+    fi
     
     echo -e "\e[1;32mPackages installed successfully.\e[0m"
 }
@@ -69,46 +74,7 @@ clone_repository() {
     echo -e "\e[1;32mRepository cloned successfully.\e[0m"
 }
 
-# Create the Bash script to run Python script
-create_bash_script() {
-    echo -e "\e[1;34mCreating Bash script...\e[0m"
-    cat << 'EOF' > $PROGRAM_DIR/run.sh
-#!/bin/bash
-PROGRAM_NAME="Cloudflare-Utils"
-PROGRAM_DIR="/opt/$PROGRAM_NAME"
 
-source ~/.bashrc
-
-{
-    echo "$(date) - Starting script"
-    python3 $PROGRAM_DIR/change_dns.py
-    echo "$(date) - Finished script"
-} >> $PROGRAM_DIR/log_file.log 2>&1
-EOF
-    chmod +x $PROGRAM_DIR/run.sh || {
-        echo -e "\e[1;31mFailed to set executable permission on $PROGRAM_DIR/run.sh.\e[0m" >&2
-        exit 1
-    }
-    
-    echo -e "\e[1;32mBash script created successfully.\e[0m"
-}
-
-# Setup Cron Job
-setup_cron() {
-    echo -e "\e[1;34mSetting up cron job...\e[0m"
-    
-    (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
-        echo -e "\e[1;31mFailed to add cron job for regular execution.\e[0m" >&2
-        exit 1
-    }
-    
-    (crontab -l 2>/dev/null; echo "@reboot /bin/bash $PROGRAM_DIR/run.sh >> $PROGRAM_DIR/log_file.log 2>&1") | crontab - || {
-        echo -e "\e[1;31mFailed to add cron job for reboot execution.\e[0m" >&2
-        exit 1
-    }
-    
-    echo -e "\e[1;32mCron job setup completed.\e[0m"
-}
 
 # Function to remove the program and cron jobs
 remove_program() {
@@ -122,7 +88,8 @@ remove_program() {
 
 # Main setup function
 main_setup() {  
-    # display_ascii_art  
+    display_ascii_art  
+    echo " "
     PS3='Please enter your choice: '
     options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
     select opt in "${options[@]}"
@@ -142,14 +109,6 @@ main_setup() {
                     ask_user_input "Enter your Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID"
                 fi
 
-                if [ -z "$CLOUDFLARE_RECORD_NAME" ]; then
-                    ask_user_input "Enter your Cloudflare Record Name" "CLOUDFLARE_RECORD_NAME"
-                fi
-
-                if [ -z "$CLOUDFLARE_IP_ADDRESSES" ]; then
-                    ask_user_input "Enter your Cloudflare IP Addresses (comma-separated)" "CLOUDFLARE_IP_ADDRESSES"
-                fi
-
                 # Source the ~/.bashrc to ensure variables are available in the current session
                 source ~/.bashrc
 
@@ -159,10 +118,7 @@ main_setup() {
                 source ~/.bashrc
 
                 clone_repository
-                create_bash_script
-                setup_cron
-
-                echo -e "\e[1;32mSetup complete.\e[0m Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."        
+                bash "$(pwd)/menu.sh"
                 break
                 ;;
             "Remove Cloudflare-Utils")
