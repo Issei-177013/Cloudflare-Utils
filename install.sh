@@ -136,7 +136,7 @@ main_setup() {
                 # Reload ~/.bashrc to load the new environment variables
                 source ~/.bashrc
 
-                # clone_repository
+                clone_repository
                 bash "$PROGRAM_DIR/menu.sh"
                 break
                 ;;
