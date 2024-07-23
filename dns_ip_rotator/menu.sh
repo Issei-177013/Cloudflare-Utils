@@ -111,7 +111,6 @@ while true; do
             clear
             echo -e "${GREEN}Setup DNS IP rotator${RESET}"
             setup_dns_ip_rotator
-            read -n 1 -s -r -p "Press any key to continue..."
             ;;
         2)
             clear
@@ -122,7 +121,6 @@ while true; do
             clear
             echo -e "${GREEN}Stop and Uninstall Script${RESET}"
             uninstall
-            read -n 1 -s -r -p "Press any key to continue..."
             ;;
         0)
             clear
