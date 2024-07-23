@@ -80,8 +80,8 @@ while true; do
     1)
       clear
       log_message "Selected DNS utils"
-      echo -e "${BLUE}DNS utils${RESET}"
-      bash "$PROGRAM_DIR/dns/dns_menu.sh" || log_error "Failed to execute DNS utils script."
+      echo -e "${BLUE}DNS IPs rotator${RESET}"
+      bash "$PROGRAM_DIR/dns_ip_rotator/menu.sh" || log_error "Failed to execute DNS IPs rotator script."
       read -n 1 -s -r -p "$(echo -e "${YELLOW}Press any key to continue...${RESET}")"
       ;;
     2)
