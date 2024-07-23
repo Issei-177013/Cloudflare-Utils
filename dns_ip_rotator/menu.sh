@@ -63,7 +63,7 @@ run_show_dns_record() {
   log_message "Starting Python script: $python_script"
 
   # Execute the Python script and redirect both stdout and stderr to the log file
-  python3 "$python_script" >> "$LOG_FILE" 2>&1
+  python3 "$python_script"
 
   # Check the exit status of the Python script
   if [ $? -ne 0 ]; then

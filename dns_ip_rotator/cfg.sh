@@ -57,7 +57,7 @@ run_show_dns_record() {
 
   log_message "Starting Python script: $python_script"
 
-  python3 "$python_script" >> "$LOG_FILE" 2>&1
+  python3 "$python_script"
 
   if [ $? -ne 0 ]; then
     log_error "Python script $python_script failed. Check the log file for details."
