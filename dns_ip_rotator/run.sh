@@ -29,14 +29,13 @@ RESET='\033[0m'
 # Function to log messages with timestamps
 log_message() {
   local message=$1
-  echo "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$LOG_FILE"
+  echo -e "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$LOG_FILE"
 }
 
 # Function to log errors and exit
 log_error() {
   local error_message=$1
-  echo -e "${RED}ERROR: $error_message${RESET}" | tee -a "$LOG_FILE"
-  echo -e "${RED}ERROR: $error_message${RESET}"
+  echo -e "${RED}ERROR: $error_message${RESET}" >> "$LOG_FILE"
   exit 1
 }
 
