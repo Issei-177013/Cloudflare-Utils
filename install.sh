@@ -85,6 +85,29 @@ install_packages() {
 
 # Clone GitHub repository
 clone_repository() {
+    if [ -d "$PROGRAM_DIR" ]; then
+        echo -e "${YELLOW}Cloudflare-Utils is already installed.${RESET}"
+        log_message "Cloudflare-Utils is already installed."
+
+        read -p "$(echo -e "${YELLOW}Do you want to reinstall? This will remove all existing data. (yes/no): ${RESET}")" response
+        if [[ "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
+            read -p "$(echo -e "${RED}Are you sure? This action is irreversible. (yes/no): ${RESET}")" confirm
+            if [[ "$confirm" =~ ^[Yy][Ee][Ss]$ ]]; then
+                log_message "User confirmed reinstallation."
+                echo -e "${RED}Reinstalling...${RESET}"
+                bash "$PROGRAM_DIR/uninstall.sh" || log_error "Failed to uninstall existing installation."
+            else
+                log_message "User canceled reinstallation."
+                echo -e "${GREEN}Reinstallation canceled.${RESET}"
+                return
+            fi
+        else
+            log_message "User chose not to reinstall."
+            echo -e "${GREEN}Installation aborted.${RESET}"
+            return
+        fi
+    fi
+
     echo -e "${BLUE}Cloning GitHub repository...${RESET}"
     log_message "Cloning GitHub repository..."
     
@@ -104,6 +127,7 @@ clone_repository() {
     echo -e "${GREEN}Repository cloned and switched to branch 'alpha' successfully.${RESET}"
     log_message "Repository cloned and switched to branch 'alpha' successfully."
 }
+
 
 # Main setup function
 main_setup() {
