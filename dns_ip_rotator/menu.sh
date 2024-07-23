@@ -85,26 +85,17 @@ show_menu() {
 
 # Function to call the setup_dns_ip_rotator function from setup.sh
 setup_dns_ip_rotator() {
-    if ! source "$SCRIPT_DIR/setup.sh"; then
-        log_error "Failed to source setup.sh"
-    fi
-    setup_dns_ip_rotator  # Call the setup_dns_ip_rotator function defined in setup.sh
+  bash "$SCRIPT_DIR/setup.sh" setup_dns_ip_rotator || log_error "Failed to execute setup_dns_ip_rotator"
 }
 
 # Function to change the DNS record by calling cfg.sh
 change_config() {
-    if ! source "$SCRIPT_DIR/cfg.sh"; then
-        log_error "Failed to source cfg.sh"
-    fi
-    cfg_menu  # Call the cfg_menu function defined in cfg.sh
+  bash "$SCRIPT_DIR/cfg.sh" menu || log_error "Failed to execute cfg_menu"
 }
 
 # Function to stop the DNS rotator service by calling uninstall.sh
 uninstall() {
-    if ! source "$SCRIPT_DIR/uninstall.sh"; then
-        log_error "Failed to source uninstall.sh"
-    fi
-    uninstall  # Call the stop_service function defined in uninstall.sh
+  bash "$SCRIPT_DIR/uninstall.sh" uninstall || log_error "Failed to execute uninstall"
 }
 
 # Main loop to display menu and handle user input
