@@ -83,27 +83,27 @@ install_packages() {
     log_message "Packages installed successfully."
 }
 
-# # Clone GitHub repository
-# clone_repository() {
-#     echo -e "${BLUE}Cloning GitHub repository...${RESET}"
-#     log_message "Cloning GitHub repository..."
+# Clone GitHub repository
+clone_repository() {
+    echo -e "${BLUE}Cloning GitHub repository...${RESET}"
+    log_message "Cloning GitHub repository..."
     
-#     sudo mkdir -p "$PROGRAM_DIR"
-#     sudo chown $USER:$USER "$PROGRAM_DIR" || log_error "Failed to create directory $PROGRAM_DIR."
+    sudo mkdir -p "$PROGRAM_DIR"
+    sudo chown $USER:$USER "$PROGRAM_DIR" || log_error "Failed to create directory $PROGRAM_DIR."
 
-#     if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git "$PROGRAM_DIR"; then
-#         log_error "Failed to clone repository."
-#     fi
+    if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git "$PROGRAM_DIR"; then
+        log_error "Failed to clone repository."
+    fi
 
-#     cd "$PROGRAM_DIR" || log_error "Failed to change directory to $PROGRAM_DIR."
+    cd "$PROGRAM_DIR" || log_error "Failed to change directory to $PROGRAM_DIR."
 
-#     if ! git checkout alpha; then
-#         log_error "Failed to checkout branch 'alpha'."
-#     fi
+    if ! git checkout alpha; then
+        log_error "Failed to checkout branch 'alpha'."
+    fi
     
-#     echo -e "${GREEN}Repository cloned and switched to branch 'alpha' successfully.${RESET}"
-#     log_message "Repository cloned and switched to branch 'alpha' successfully."
-# }
+    echo -e "${GREEN}Repository cloned and switched to branch 'alpha' successfully.${RESET}"
+    log_message "Repository cloned and switched to branch 'alpha' successfully."
+}
 
 # Main setup function
 main_setup() {
