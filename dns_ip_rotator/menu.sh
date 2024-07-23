@@ -18,7 +18,6 @@ PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 SCRIPT_DIR="$PROGRAM_DIR/dns_ip_rotator"
 LOG_FILE="$SCRIPT_DIR/log.log"
-DNS_DIR="$PROGRAM_DIR/dns_ip_rotator"
 
 # Define colors
 BLUE='\033[0;34m'
@@ -137,7 +136,7 @@ while true; do
         0)
             clear
             echo -e "${YELLOW}Returning to main menu...${RESET}"
-            bash "$DNS_DIR/dns_menu.sh"
+            bash "$PROGRAM_DIR/menu.sh"
             break
             ;;
         *)
