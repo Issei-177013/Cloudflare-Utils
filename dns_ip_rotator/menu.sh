@@ -75,7 +75,6 @@ run_show_dns_record() {
 
 # Function to display the menu
 show_menu() {
-    clear  # Clear the terminal screen
     echo -e "${BLUE}Select an option:${RESET}"
     echo -e "${YELLOW}1)${RESET} ${GREEN}Setup DNS IP rotator${RESET}"
     echo -e "${YELLOW}2)${RESET} ${GREEN}Change Config${RESET}"
