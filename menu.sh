@@ -13,20 +13,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Define program and directory variables
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
+LOG_FILE="$PROGRAM_DIR/log.log"
 
 # Define colors
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
+RED='\033[0;31m'
 RESET='\033[0m'
+
+# Function to log messages with timestamps
+log_message() {
+  local message=$1
+  echo -e "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$LOG_FILE"
+}
+
+# Function to log errors and exit
+log_error() {
+  local error_message=$1
+  echo -e "${RED}ERROR: $error_message${RESET}" | tee -a "$LOG_FILE"
+  exit 1
+}
+
+# Ensure the log file's directory exists
+mkdir -p "$PROGRAM_DIR" || log_error "Failed to create directory $PROGRAM_DIR"
+
+# Ensure the log file exists and is writable
+touch "$LOG_FILE" || log_error "Cannot create or write to log file $LOG_FILE"
+
+# Ensure ~/.bashrc exists
+if [ ! -f ~/.bashrc ]; then
+  log_error "~/.bashrc does not exist. Please create it before running this script."
+fi
 
 # Function to ask for user input securely
 ask_user_input() {
     local prompt=$1
     local var_name=$2
-    read -p "$(echo -e "\e[1;32m$prompt: \e[0m")" input
+    read -p "$(echo -e "${GREEN}$prompt: ${RESET}")" input
     echo "export $var_name=\"$input\"" >> ~/.bashrc
     export $var_name="$input"
 }
@@ -52,33 +79,39 @@ while true; do
   case $choice in
     1)
       clear
-      echo "DNS utils"
-      bash "$PROGRAM_DIR/dns/dns_menu.sh"
-      break
+      log_message "Selected DNS utils"
+      echo -e "${BLUE}DNS utils${RESET}"
+      bash "$PROGRAM_DIR/dns/dns_menu.sh" || log_error "Failed to execute DNS utils script."
+      read -n 1 -s -r -p "$(echo -e "${YELLOW}Press any key to continue...${RESET}")"
       ;;
     2)
       clear
-      echo "Option 2: noting"
-      read -n 1 -s -r -p "Press any key to continue..."
+      log_message "Selected Option 2: noting"
+      echo -e "${YELLOW}Option 2: noting${RESET}"
+      read -n 1 -s -r -p "$(echo -e "${YELLOW}Press any key to continue...${RESET}")"
       ;;
     3)
       clear
-      echo "Option 3: noting"
-      read -n 1 -s -r -p "Press any key to continue..."
+      log_message "Selected Option 3: noting"
+      echo -e "${YELLOW}Option 3: noting${RESET}"
+      read -n 1 -s -r -p "$(echo -e "${YELLOW}Press any key to continue...${RESET}")"
       ;;
     4)
       clear
-      echo "Option 3: Uninstall Cloudflare-Utils"
-      bash "$PROGRAM_DIR/uninstall.sh"
-      read -n 1 -s -r -p "Press any key to continue..."
+      log_message "Selected Uninstall Cloudflare-Utils"
+      echo -e "${RED}Uninstall Cloudflare-Utils${RESET}"
+      bash "$PROGRAM_DIR/uninstall.sh" || log_error "Failed to execute uninstall script."
+      read -n 1 -s -r -p "$(echo -e "${YELLOW}Press any key to continue...${RESET}")"
       ;;
     0)
-      echo "Exiting..."
+      log_message "Exiting script"
+      echo -e "${GREEN}Exiting...${RESET}"
       break
       ;;
     *)
-      echo "Invalid option. Please select a valid option."
-      read -n 1 -s -r -p "Press any key to continue..."
+      log_message "Invalid option selected: $choice"
+      echo -e "${RED}Invalid option. Please select a valid option.${RESET}"
+      read -n 1 -s -r -p "$(echo -e "${YELLOW}Press any key to continue...${RESET}")"
       ;;
   esac
 done

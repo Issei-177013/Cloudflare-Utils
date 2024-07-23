@@ -46,19 +46,19 @@ mkdir -p "$SCRIPT_DIR" || log_error "Failed to create directory $SCRIPT_DIR"
 # Ensure the log file exists and is writable
 touch "$LOG_FILE" || log_error "Cannot create or write to log file $LOG_FILE"
 
-# Function to remove the program and cron jobs
-remove_program() {
-  log_message "Removing the program and cron jobs..."
-  echo -e "${BLUE}Removing the program and cron jobs...${RESET}"
+# # Function to remove the program and cron jobs
+# remove_program() {
+#   log_message "Removing the program and cron jobs..."
+#   echo -e "${BLUE}Removing the program and cron jobs...${RESET}"
 
-  sudo rm -rf "$PROGRAM_DIR" || log_error "Failed to remove $PROGRAM_DIR"
-  log_message "Program removed successfully."
-  echo -e "${GREEN}Program removed successfully.${RESET}"
-}
+#   sudo rm -rf "$PROGRAM_DIR" || log_error "Failed to remove $PROGRAM_DIR"
+#   log_message "Program removed successfully."
+#   echo -e "${GREEN}Program removed successfully.${RESET}"
+# }
 
 # Function to remove environment variables
 remove_env_vars() {
-  local vars=("CLOUDFLARE_API_TOKEN" "CLOUDFLARE_ZONE_ID" "CLOUDFLARE_RECORD_NAME" "CLOUDFLARE_IP_ADDRESSES")
+  local vars=("CLOUDFLARE_RECORD_NAME" "CLOUDFLARE_IP_ADDRESSES")
   local bashrc_file="$HOME/.bashrc"
 
   # Create a temporary file
@@ -88,7 +88,7 @@ remove_cronjobs() {
 uninstall() {
   log_message "Starting the uninstallation process..."
 
-  remove_program
+  # remove_program
   remove_env_vars
   remove_cronjobs
 
