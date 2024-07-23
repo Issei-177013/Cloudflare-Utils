@@ -138,6 +138,7 @@ main_setup() {
     do
         case $opt in
             "Install Cloudflare-Utils")
+                clone_repository
                 install_packages
 
                 # Check if the variables are already set in ~/.bashrc
@@ -160,7 +161,6 @@ main_setup() {
                 # Reload ~/.bashrc to load the new environment variables
                 source ~/.bashrc
 
-                clone_repository
                 bash "$PROGRAM_DIR/menu.sh"
                 break
                 ;;
