@@ -95,7 +95,7 @@ clone_repository() {
             if [[ "$confirm" =~ ^[Yy][Ee][Ss]$ ]]; then
                 log_message "User confirmed reinstallation."
                 echo -e "${RED}Reinstalling...${RESET}"
-                bash "$PROGRAM_DIR/uninstall.sh" || log_error "Failed to uninstall existing installation."
+                sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/alpha/uninstall.sh)" || log_error "Failed to uninstall existing installation."
             else
                 log_message "User canceled reinstallation."
                 echo -e "${GREEN}Reinstallation canceled.${RESET}"
