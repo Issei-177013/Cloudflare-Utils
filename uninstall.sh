@@ -28,13 +28,13 @@ RESET='\033[0m'
 # Function to log messages with timestamps
 log_message() {
   local message=$1
-  echo -e "$(date '+%Y-%m-%d %H:%M:%S') - $message" | tee -a "$LOG_FILE"
+  echo -e "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$LOG_FILE"
 }
 
 # Function to log errors and exit
 log_error() {
   local error_message=$1
-  echo -e "${RED}ERROR: $error_message${RESET}" | tee -a "$LOG_FILE"
+  echo -e "${RED}ERROR: $error_message${RESET}" >> "$LOG_FILE"
   exit 1
 }
 
@@ -57,7 +57,6 @@ remove_program() {
     sudo rm -rf "$PROGRAM_DIR" || log_error "Failed to remove $PROGRAM_DIR"
     
     echo -e "${GREEN}Program removed successfully.${RESET}"
-    log_message "Program removed successfully."
 }
 
 remove_env_vars() {
@@ -92,6 +91,5 @@ remove_env_vars
 remove_program
 
 echo -e "${GREEN}Cleanup complete.${RESET}"
-log_message "Cleanup complete."
 
-cd || log_error "Failed to change directory to home"
+cd || echo -e "Failed to change directory to home"
