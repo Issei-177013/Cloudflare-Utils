@@ -11,8 +11,6 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 ## Prerequisites
 
 - Ubuntu Server
-- Git
-- Python 3 and pip
 
 ---
 
