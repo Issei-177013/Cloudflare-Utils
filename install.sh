@@ -13,10 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Define program and directory variables
-PROGRAM_NAME="Cloudflare-Utils"
-PROGRAM_DIR="/opt/$PROGRAM_NAME"
-LOG_FILE="$PROGRAM_DIR/log.log"
+Issei_ID="@Isseidesu"
 
 # Define colors
 BLUE='\033[0;34m'
@@ -26,27 +23,34 @@ RED='\033[0;31m'
 RESET='\033[0m'
 
 # Function to log messages with timestamps
-log_message() {
-  local message=$1
-  echo -e "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$LOG_FILE"
-}
+# log_message() {
+#   local message=$1
+#   echo -e "$(date '+%Y-%m-%d %H:%M:%S') - $message" >> "$LOG_FILE"
+# }
 
-# Function to log errors and exit
-log_error() {
-  local error_message=$1
-  echo -e "${RED}ERROR: $error_message${RESET}" >> "$LOG_FILE"
+# Function to display error messages and exit
+function display_error_and_exit() {
+  echo -e "${RED}Error: $1${RESET}"
+  echo -e "${YELLOW}${Issei_ID}${RESET}"
   exit 1
 }
 
+# Function to log errors and exit
+# log_error() {
+#   local error_message=$1
+#   echo -e "${RED}ERROR: $error_message${RESET}" >> "$LOG_FILE"
+#   exit 1
+# }
+
 # Ensure the log file's directory exists
-mkdir -p "$PROGRAM_DIR" || log_error "Failed to create directory $PROGRAM_DIR"
+# mkdir -p "$PROGRAM_DIR" || log_error "Failed to create directory $PROGRAM_DIR"
 
 # Ensure the log file exists and is writable
-touch "$LOG_FILE" || log_error "Cannot create or write to log file $LOG_FILE"
+# touch "$LOG_FILE" || log_error "Cannot create or write to log file $LOG_FILE"
 
 # Ensure ~/.bashrc exists
 if [ ! -f ~/.bashrc ]; then
-  log_error "~/.bashrc does not exist. Please create it before running this script."
+  display_error_and_exit "~/.bashrc does not exist. Please create it before running this script."
 fi
 
 # Function to ask for user input securely
@@ -58,122 +62,247 @@ ask_user_input() {
     export $var_name="$input"
 }
 
-# Install necessary packages
-install_packages() {
-    echo -e "${BLUE}Installing necessary packages...${RESET}"
-    log_message "Installing necessary packages..."
-    
-    if ! sudo apt-get update; then
-        log_error "Failed to update apt repositories."
-    fi
-    
-    if ! sudo apt-get install -y git python3-pip; then
-        log_error "Failed to install required packages."
-    fi
-    
-    if ! pip3 install cloudflare; then
-        log_error "Failed to install Python package 'cloudflare'."
+# Function to install Git if not already installed
+install_git_if_needed() {
+  if ! command -v git &>/dev/null; then
+    echo -e "${BLUE}Git is not installed. Installing Git...${RESET}"
+
+    # Install Git based on the operating system (Linux)
+    if [ -f /etc/os-release ]; then
+      source /etc/os-release
+      if [ "$ID" == "ubuntu" ] || [ "$ID" == "debian" ]; then
+        sudo apt update
+        sudo apt install -y git
+      elif [ "$ID" == "centos" ] || [ "$ID" == "rhel" ]; then
+        sudo yum install -y git
+      fi
+    elif [ "$(uname -s)" == "Darwin" ]; then # macOS
+      if ! command -v brew &>/dev/null; then
+        echo -e "${RED}Homebrew is not installed. Installing Homebrew...${RESET}"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      fi
+      brew install git
+    else
+      echo -e "${RED}Unsupported operating system. Please install Git manually and try again.${RESET}"
+      exit 1
     fi
 
-    if ! pip3 install tabulate; then
-        log_error "Failed to install Python package 'tabulate'."
+    if ! command -v git &>/dev/null; then
+      echo -e "${RED}Failed to install Git. Please install Git manually and try again.${RESET}"
+      exit 1
     fi
-    
-    echo -e "${GREEN}Packages installed successfully.${RESET}"
-    log_message "Packages installed successfully."
+
+    echo -e "${GREEN}Git has been installed successfully.${RESET}"
+  fi
 }
 
-# Clone GitHub repository
-clone_repository() {
-    if [ -d "$PROGRAM_DIR" ]; then
-        echo -e "${YELLOW}Cloudflare-Utils is already installed.${RESET}"
-        log_message "Cloudflare-Utils is already installed."
+# Function to install Python 3 and pip if they are not already installed
+install_python3_and_pip_if_needed() {
+  if ! command -v python3 &>/dev/null || ! command -v pip3 &>/dev/null; then
+    echo -e "${BLUE}Python 3 and pip are required. Installing Python 3 and pip...${RESET}"
 
-        read -p "$(echo -e "${YELLOW}Do you want to reinstall? This will remove all existing data. (yes/no): ${RESET}")" response
-        if [[ "$response" =~ ^[Yy][Ee][Ss]$ ]]; then
-            read -p "$(echo -e "${RED}Are you sure? This action is irreversible. (yes/no): ${RESET}")" confirm
-            if [[ "$confirm" =~ ^[Yy][Ee][Ss]$ ]]; then
-                log_message "User confirmed reinstallation."
-                echo -e "${RED}Reinstalling...${RESET}"
-                sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/alpha/uninstall.sh)" || log_error "Failed to uninstall existing installation."
-            else
-                log_message "User canceled reinstallation."
-                echo -e "${GREEN}Reinstallation canceled.${RESET}"
-                return
+    # Install Python 3 and pip based on the operating system (Linux)
+    if [ -f /etc/os-release ]; then
+      source /etc/os-release
+      if [ "$ID" == "ubuntu" ] || [ "$ID" == "debian" ]; then
+        sudo apt update
+        sudo apt install -y python3 python3-pip
+      elif [ "$ID" == "centos" ] || [ "$ID" == "rhel" ]; then
+        sudo yum install -y python3 python3-pip
+      fi
+    elif [ "$(uname -s)" == "Darwin" ]; then # macOS
+      if ! command -v brew &>/dev/null; then
+        echo -e "${RED}Homebrew is not installed. Installing Homebrew...${RESET}"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      fi
+      brew install python@3
+    else
+      echo -e "${RED}Unsupported operating system. Please install Python 3 and pip manually and try again.${RESET}"
+      exit 1
+    fi
+
+    if ! command -v python3 &>/dev/null || ! command -v pip3 &>/dev/null; then
+      echo -e "${RED}Failed to install Python 3 and pip. Please install Python 3 and pip manually and try again.${RESET}"
+      exit 1
+    fi
+
+    echo -e "${GREEN}Python 3 and pip have been installed successfully.${RESET}"
+  fi
+}
+
+# Function to install necessary packages
+install_requirements() {
+    echo -e "${BLUE}Checking and installing necessary packages...${RESET}"
+
+    # Read each line from requirements.txt
+    while IFS= read -r package || [ -n "$package" ]; do
+        # Extract package name without version (in case version is specified)
+        package_name=$(echo $package | cut -d'=' -f1)
+        
+        # Check if the package is installed
+        if ! pip3 show "$package_name" &>/dev/null; then
+            echo -e "${BLUE}Installing Python package '$package_name'...${RESET}"
+            if ! pip3 install "$package"; then
+                echo -e "${RED}Failed to install Python package '$package_name'.${RESET}"
+                exit 1
             fi
         else
-            log_message "User chose not to reinstall."
-            echo -e "${GREEN}Installation aborted.${RESET}"
-            return
+            echo -e "${GREEN}Python package '$package_name' is already installed.${RESET}"
         fi
-    fi
+    done < requirements.txt
 
-    echo -e "${BLUE}Cloning GitHub repository...${RESET}"
-    log_message "Cloning GitHub repository..."
-    
-    sudo mkdir -p "$PROGRAM_DIR"
-    sudo chown $USER:$USER "$PROGRAM_DIR" || log_error "Failed to create directory $PROGRAM_DIR."
-
-    if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git "$PROGRAM_DIR"; then
-        log_error "Failed to clone repository."
-    fi
-
-    cd "$PROGRAM_DIR" || log_error "Failed to change directory to $PROGRAM_DIR."
-
-    if ! git checkout alpha; then
-        log_error "Failed to checkout branch 'alpha'."
-    fi
-    
-    echo -e "${GREEN}Repository cloned and switched to branch 'alpha' successfully.${RESET}"
-    log_message "Repository cloned and switched to branch 'alpha' successfully."
+    echo -e "${GREEN}All requirements are installed.${RESET}"
 }
 
+# Final check to ensure all requirements are installed
+requirements_check() {
+    # Read each line from requirements.txt and check if it's installed
+    while IFS= read -r package || [ -n "$package" ]; do
+        package_name=$(echo $package | cut -d'=' -f1)
+
+        if ! pip3 show "$package_name" &>/dev/null; then
+            echo -e "${RED}Package '$package_name' is not installed properly.${RESET}"
+            exit 1
+        fi
+    done < requirements.txt
+}
+
+echo -e "${BLUE}Step 0: Checking requirements...${RESET}"
+install_git_if_needed
+install_python3_and_pip_if_needed
+
+# Check if Git is installed
+if ! command -v git &>/dev/null; then
+  echo -e "${RED}Git is not installed. Please install Git and try again.${RESET}"
+  exit 1
+fi
+
+# Check if Python 3 and pip are installed
+if ! command -v python3 &>/dev/null || ! command -v pip3 &>/dev/null; then
+  echo -e "${RED}Python 3 and pip are required. Please install them and try again.${RESET}"
+  exit 1
+fi
+
+echo -e "${BLUE}Step 1: Cloning the repository and changing directory...${RESET}"
+
+repository_url="https://github.com/Issei-177013/Cloudflare-Utils.git"
+install_dir="/opt/Cloudflare-Utils"
+
+branch="main"
+
+if [ "$0" == "--dev" ]; then
+    branch="dev"
+fi
+
+echo "${GREEN}Selected branch: $branch ${RESET}"
+
+if [ -d "$install_dir" ]; then
+    echo "Directory $install_dir exists."
+else
+    git clone -b "$branch" "$repository_url" "$install_dir" || display_error_and_exit "${RED}Failed to clone the repository.${RESET}"
+fi
+
+cd "$install_dir" || display_error_and_exit "Failed to change directory."
+
+echo -e "${BLUE}Step 2: Installing requirements...${RESET}"
+install_requirements
+requirements_check
+
+echo -e "${BLUE}Step 3: Preparing ...${RESET}"
+logs_dir="$install_dir/Logs"
+
+create_directory_if_not_exists() {
+  if [ ! -d "$1" ]; then
+    echo "${BLUE}Creating directory $1 ${RESET}"
+    mkdir -p "$1"
+  fi
+}
+
+create_directory_if_not_exists "$logs_dir"
+
+# chmod +x "$install_dir/restart.sh"
+# chmod +x "$install_dir/update.sh"
+
+# echo -e "${BLUE}Step 4: Running config.py to generate config.json...${RESET}"
+# python3 config.py || display_error_and_exit "${RED}Failed to run config.py.${RESET}"
+
+# echo -e "${BLUE}Step 5: Running Script${RESET}"
+# nohup python3 ****** >>$install_dir/***** 2>&1 &
+
+# echo -e "${BLUE}Step 6: Adding cron jobs...${RESET}"
+
+# add_cron_job_if_not_exists() {
+#   local cron_job="$1"
+#   local current_crontab
+#
+#   # Normalize the cron job formatting (remove extra spaces)
+#   cron_job=$(echo "$cron_job" | sed -e 's/^[ \t]*//' -e 's/[ \t]*$//')
+#
+#   # Check if the cron job already exists in the current user's crontab
+#   current_crontab=$(crontab -l 2>/dev/null || true)
+#
+#   if [[ -z "$current_crontab" ]]; then
+#     # No existing crontab, so add the new cron job
+#     (echo "$cron_job") | crontab -
+#   elif ! (echo "$current_crontab" | grep -Fq "$cron_job"); then
+#     # Cron job doesn't exist, so append it to the crontab
+#     (echo "$current_crontab"; echo "$cron_job") | crontab -
+#   fi
+# }
+
+echo -e "${YELLOW}Waiting for a few seconds...${RESET}"
+echo -e "${GREEN}Install successfully${RESET}"
+sleep 7
+
+# if pgrep -f "python3 ***.py" >/dev/null; then
+#   echo -e "${GREEN}The *** has been started successfully.${RESET}"
+# else
+#   display_error_and_exit "Failed to start the ***. Please check for errors and try again."
+# fi
 
 # Main setup function
-main_setup() {
-    echo -e "${BLUE}Cloudflare-Utils Setup${RESET}"
-    PS3='Please enter your choice: '
-    options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
-    select opt in "${options[@]}"
-    do
-        case $opt in
-            "Install Cloudflare-Utils")
-                clone_repository
-                install_packages
-
-                # Check if the variables are already set in ~/.bashrc
-                source ~/.bashrc
-
-                if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
-                    ask_user_input "Enter your Cloudflare API Token" "CLOUDFLARE_API_TOKEN"
-                fi
-
-                if [ -z "$CLOUDFLARE_ZONE_ID" ]; then
-                    ask_user_input "Enter your Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID"
-                fi
-
-                # Source the ~/.bashrc to ensure variables are available in the current session
-                source ~/.bashrc
-
-                echo -e "${GREEN}All necessary variables have been set.${RESET}"
-                log_message "All necessary variables have been set."
-
-                # Reload ~/.bashrc to load the new environment variables
-                source ~/.bashrc
-
-                bash "$PROGRAM_DIR/menu.sh"
-                break
-                ;;
-            "Remove Cloudflare-Utils")
-                bash "$PROGRAM_DIR/uninstall.sh"
-                break
-                ;;
-            "Exit")
-                break
-                ;;
-            *) echo -e "${RED}Invalid option $REPLY${RESET}";;
-        esac
-    done
-}
-
-main_setup
+# main_setup() {
+#     echo -e "${BLUE}Cloudflare-Utils Setup${RESET}"
+#     PS3='Please enter your choice: '
+#     options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
+#     select opt in "${options[@]}"
+#     do
+#         case $opt in
+#             "Install Cloudflare-Utils")
+#                 clone_repository
+#                 install_packages
+#
+#                 # Check if the variables are already set in ~/.bashrc
+#                 source ~/.bashrc
+#
+#                 if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+#                     ask_user_input "Enter your Cloudflare API Token" "CLOUDFLARE_API_TOKEN"
+#                 fi
+#
+#                 if [ -z "$CLOUDFLARE_ZONE_ID" ]; then
+#                     ask_user_input "Enter your Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID"
+#                 fi
+#
+#                 # Source the ~/.bashrc to ensure variables are available in the current session
+#                 source ~/.bashrc
+#
+#                 echo -e "${GREEN}All necessary variables have been set.${RESET}"
+#                 log_message "All necessary variables have been set."
+#
+#                 # Reload ~/.bashrc to load the new environment variables
+#                 source ~/.bashrc
+#
+#                 bash "$PROGRAM_DIR/menu.sh"
+#                 break
+#                 ;;
+#             "Remove Cloudflare-Utils")
+#                 bash "$PROGRAM_DIR/uninstall.sh"
+#                 break
+#                 ;;
+#             "Exit")
+#                 break
+#                 ;;
+#             *) echo -e "${RED}Invalid option $REPLY${RESET}";;
+#         esac
+#     done
+# }
