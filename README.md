@@ -88,12 +88,25 @@ In non-interactive mode, the installer defaults to using **cron** for scheduling
 
 You can install a specific branch (e.g., `dev`) for testing purposes. This will create an isolated installation.
 
-1.  **Download `install.sh`**:
+**One-Liner for Interactive `dev` Branch Installation:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh | sudo bash -s -- --branch dev
+```
+This command fetches `install.sh` directly from the `dev` branch and executes it, passing the `--branch dev` argument to the script for an interactive setup of the `dev` version.
+
+**Manual Steps for Branch Installation (Interactive or Non-Interactive):**
+
+1.  **Download `install.sh` from the desired branch**: 
+    *   For `dev` branch:
+        ```bash
+        curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh
+        ```
+    *   For `main` branch (if you want the main installer script but intend to install a different feature branch):
+        ```bash
+        curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh
+        ```
+    Then make it executable:
     ```bash
-    curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh
-    # Note: This always fetches install.sh from main. To test changes in install.sh from a dev branch,
-    # you'd need to download install.sh specifically from that dev branch:
-    # curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh
     chmod +x /tmp/install.sh
     ```
 
@@ -108,7 +121,9 @@ You can install a specific branch (e.g., `dev`) for testing purposes. This will 
         ```bash
         sudo /tmp/install.sh --non-interactive --action install --branch dev \
           --api-token "YOUR_DEV_CLOUDFLARE_API_TOKEN" \
-          # ... other parameters ...
+          --zone-id "YOUR_DEV_ZONE_ID" \
+          --record-name "dev.example.com" \
+          --ip-addresses "1.2.3.4,::1" 
         ```
 
 **Managing Branch Installations:**
