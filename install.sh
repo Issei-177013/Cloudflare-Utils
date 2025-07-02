@@ -197,28 +197,32 @@ create_bash_script() {
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PROGRAM_NAME="Cloudflare-Utils"
-PROGRAM_DIR="/opt/\$PROGRAM_NAME" # Escaped $PROGRAM_NAME to be literal in heredoc
-ENV_FILE="\$PROGRAM_DIR/.env"
+# Determine the script's own directory to reliably locate the virtual environment
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+VENV_PATH="\$SCRIPT_DIR/.venv" # Path to virtual environment
 
 # Activate virtual environment
-source "\$PROGRAM_DIR/.venv/bin/activate"
+if [ -f "\$VENV_PATH/bin/activate" ]; then
+    source "\$VENV_PATH/bin/activate"
+else
+    echo "\$(date) - ERROR: Virtual environment not found at \$VENV_PATH" >> "\$SCRIPT_DIR/log_file.log" 2>&1
+    exit 1
+fi
 
-# The python script change_dns.py will load variables from .env using python-dotenv
-# So, explicit sourcing of .env in run.sh is not strictly necessary for the python script itself,
-# but can be useful if other bash commands in this script needed them.
-# For now, we'll rely on python-dotenv.
+# The cloudflare-utils CLI script (from the Python package) should now be in PATH.
+# It handles loading .env from its installation directory ($SCRIPT_DIR/.env) via python-dotenv.
+# The log file path is also relative to $SCRIPT_DIR (or /opt/Cloudflare-Utils... as defined in python script)
 
 {
     echo "\$(date) - Starting script execution via cloudflare-utils command"
-    # Execute the installed CLI command
-    # Arguments for the CLI can be passed here if needed, or rely on .env file
-    cloudflare-utils
+    cloudflare-utils # Execute the installed CLI command
     echo "\$(date) - Finished script execution via cloudflare-utils command"
-} >> "\$PROGRAM_DIR/log_file.log" 2>&1
+} >> "\$SCRIPT_DIR/log_file.log" 2>&1 # Log to file in script's own directory
 
-# Deactivate virtual environment
-deactivate
+# Deactivate virtual environment, if deactivate command exists
+if type deactivate >/dev/null 2>&1; then
+    deactivate
+fi
 EOF
     chmod +x $PROGRAM_DIR/run.sh || {
         echo -e "\e[1;31mFailed to set executable permission on $PROGRAM_DIR/run.sh.\e[0m" >&2
