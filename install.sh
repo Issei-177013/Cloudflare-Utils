@@ -440,10 +440,21 @@ main_setup() {
             exit 1
         fi
     else
-        # Interactive mode (original menu)
+        # Interactive mode
+        if ! [ -t 0 ] && [ "$NON_INTERACTIVE" = false ]; then # Check if stdin is a TTY if not explicitly non-interactive
+            echo -e "\e[1;31mError: Interactive mode cannot be used when input is not a terminal (e.g., when piping to 'sudo bash -s').\e[0m"
+            echo -e "For interactive installation, please download the script first and then run it directly:"
+            echo -e "Example for 'dev' branch:"
+            echo -e "  1. curl -fsSL -o install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh"
+            echo -e "  2. chmod +x install.sh"
+            echo -e "  3. sudo ./install.sh --branch dev" # Add other flags like --branch as needed
+            echo -e "\nAlternatively, use the --non-interactive flag with all required parameters for a fully automated setup via one-liner."
+            exit 1
+        fi
+
         # display_ascii_art # Uncomment if you want ASCII art in interactive mode
         PS3='Please enter your choice: '
-        options=("Install Cloudflare-Utils" "Remove Cloudflare-Utils" "Exit")
+        options=("Install $PROGRAM_NAME" "Remove $PROGRAM_NAME" "Exit") # Use $PROGRAM_NAME
         select opt in "${options[@]}"
         do
             case $opt in

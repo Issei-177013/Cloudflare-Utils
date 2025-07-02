@@ -12,6 +12,7 @@ Cloudflare Utils is a Python-based command-line tool designed to automate the ro
 -   **Virtual Environment**: Uses a Python virtual environment for isolated dependencies.
 -   **Choice of Scheduler**: Interactive installer allows choosing between cron and systemd for scheduled tasks.
 -   **Non-Interactive Installation**: Supports automated setup via CLI arguments.
+-   **Branch-Specific Installations**: Install and test development branches in isolated environments.
 -   **Logging**: Comprehensive logging to both file and console (for CLI usage).
 -   **(Planned) Debian Package**: For easier deployment on Debian/Ubuntu systems.
 -   **(Planned) GitHub Action**: For cloud-based execution.
@@ -27,119 +28,141 @@ Cloudflare Utils is a Python-based command-line tool designed to automate the ro
 
 ---
 
-## Installation
+## Installation Methods
 
-The primary installation method is using the `install.sh` script, which sets up the tool in `/opt/Cloudflare-Utils`, including a Python virtual environment and necessary configurations.
+The `install.sh` script is the primary way to install Cloudflare-Utils. It handles:
+* Cloning the repository (default `main` branch or a specified branch).
+* Setting up a Python virtual environment.
+* Installing the `cloudflare-utils` package and its dependencies.
+* Creating necessary configuration files (e.g., `.env`).
+* Setting up a scheduler (cron or systemd timer) for periodic execution.
 
-### Interactive Installation (Recommended for most users)
+**Important Notes on Running `install.sh`:**
 
-This method will guide you through the setup process and prompt for necessary information.
+*   **Interactive Installations:** If the script needs to prompt you for input (e.g., for API keys, scheduler choice), you **must** download `install.sh` first and then run it directly with `sudo`. Piping `curl` directly to `sudo bash -s` (e.g., `curl ... | sudo bash -s`) will prevent interactive prompts from working correctly.
+    ```bash
+    # Correct way for interactive installs:
+    curl -fsSL -o install.sh <URL_to_install.sh>
+    chmod +x install.sh
+    sudo ./install.sh [flags_like_--branch_dev_if_needed]
+    ```
 
-**Using cURL:**
+*   **Non-Interactive Installations (One-Liners):** One-liner `curl ... | sudo bash -s -- ...args...` commands are suitable **only** if you provide the `--non-interactive` flag and all other required arguments for a fully automated setup. The `install.sh` script will exit with an error if it attempts to run an interactive menu when input is not a TTY.
 
-```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
-```
+---
 
-**Using wget:**
+### 1. Standard Installation (Main Branch - Interactive)
 
-```bash
-sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
-```
+This method installs the latest stable version from the `main` branch into `/opt/Cloudflare-Utils/`. It will guide you through the setup process.
 
-During interactive installation, you will be asked for:
-1.  Cloudflare API Token
-2.  Cloudflare Zone ID
-3.  Cloudflare Record Name(s) (comma-separated for multiple records)
-4.  Cloudflare IP Addresses (comma-separated list of IPv4 and/or IPv6 addresses)
-5.  Preferred scheduler (Cron or Systemd Timer)
+1.  **Download `install.sh` from the `main` branch:**
+    ```bash
+    curl -fsSL -o install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh
+    chmod +x install.sh
+    ```
+2.  **Run the script with `sudo`:**
+    ```bash
+    sudo ./install.sh
+    ```
+    You will be prompted for:
+    *   Cloudflare API Token
+    *   Cloudflare Zone ID
+    *   Cloudflare Record Name(s) (comma-separated)
+    *   Cloudflare IP Addresses (comma-separated list)
+    *   Preferred scheduler (Cron or Systemd Timer)
 
-These details will be saved to `/opt/Cloudflare-Utils/.env`.
+    These details will be saved to `/opt/Cloudflare-Utils/.env`.
 
-### Non-Interactive Installation
+---
 
-For automated deployments, you can provide all necessary information as command-line arguments to `install.sh`.
+### 2. Non-Interactive Installation (Main Branch)
 
-```bash
-# Example:
-# First, download the script:
-# curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh
-# chmod +x /tmp/install.sh
-#
-# Then run with sudo:
-sudo /tmp/install.sh --non-interactive --action install \
-  --api-token "YOUR_CLOUDFLARE_API_TOKEN" \
-  --zone-id "YOUR_CLOUDFLARE_ZONE_ID" \
-  --record-name "record1.example.com,record2.example.com" \
-  --ip-addresses "1.1.1.1,2.2.2.2,2606:4700::1,2606:4700::2"
-```
+For automated deployments of the `main` branch, provide all necessary information as command-line arguments.
 
-**Non-interactive arguments for `install.sh`:**
+*   **Using a downloaded `install.sh`:**
+    ```bash
+    # Download main branch's install.sh first (if not already done)
+    # curl -fsSL -o install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh
+    # chmod +x install.sh
+    
+    sudo ./install.sh --non-interactive --action install \
+      --api-token "YOUR_CLOUDFLARE_API_TOKEN" \
+      --zone-id "YOUR_CLOUDFLARE_ZONE_ID" \
+      --record-name "record1.example.com,record2.example.com" \
+      --ip-addresses "1.1.1.1,2.2.2.2,2606:4700::1,2606:4700::2"
+    ```
+
+*   **Using a one-liner (for fully non-interactive setup only):**
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh | sudo bash -s -- \
+      --non-interactive --action install \
+      --api-token "YOUR_CLOUDFLARE_API_TOKEN" \
+      --zone-id "YOUR_CLOUDFLARE_ZONE_ID" \
+      --record-name "record1.example.com" \
+      --ip-addresses "1.1.1.1,::1"
+    ```
+
+**Required non-interactive arguments for `install.sh --action install`:**
 *   `--non-interactive`: Flag to enable non-interactive mode.
-*   `--action <install|remove>`: Specifies the action to perform.
-*   `--api-token "<token>"`: Your Cloudflare API Token.
-*   `--zone-id "<zone_id>"`: Your Cloudflare Zone ID.
-*   `--record-name "<name1,name2>"`: Comma-separated DNS record names.
-*   `--ip-addresses "<ip1,ip2>"`: Comma-separated IP addresses.
+*   `--api-token "<token>"`
+*   `--zone-id "<zone_id>"`
+*   `--record-name "<name1,name2>"`
+*   `--ip-addresses "<ip1,ip2>"`
+*   (Optional) `--branch <branch_name>`: Defaults to `main` if not specified.
 
 In non-interactive mode, the installer defaults to using **cron** for scheduling.
 
-### Installing from a Specific Branch (for Development/Testing)
+---
 
-You can install a specific branch (e.g., `dev`) for testing purposes. This will create an isolated installation.
+### 3. Installing from a Specific Branch (e.g., `dev`)
 
-**One-Liner for Interactive `dev` Branch Installation:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh | sudo bash -s -- --branch dev
-```
-This command fetches `install.sh` directly from the `dev` branch and executes it, passing the `--branch dev` argument to the script for an interactive setup of the `dev` version.
+This allows you to install a specific branch (e.g., `dev`) into an isolated environment (e.g., `/opt/Cloudflare-Utils-dev/`) for testing or development.
 
-**Manual Steps for Branch Installation (Interactive or Non-Interactive):**
-
-1.  **Download `install.sh` from the desired branch**: 
-    *   For `dev` branch:
+*   **Interactive Installation of a Branch:**
+    1.  **Download `install.sh` *from that specific branch*:**
         ```bash
-        curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh
+        # Example for 'dev' branch
+        curl -fsSL -o install-dev.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh
+        chmod +x install-dev.sh
         ```
-    *   For `main` branch (if you want the main installer script but intend to install a different feature branch):
+    2.  **Run the downloaded script with `sudo` and the `--branch` flag:**
         ```bash
-        curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh
+        sudo ./install-dev.sh --branch dev
         ```
-    Then make it executable:
+        The script will then guide you through the interactive setup for the `dev` branch version. Configuration will be saved to `/opt/Cloudflare-Utils-dev/.env`.
+
+*   **Non-Interactive Installation of a Branch (One-Liner or Downloaded Script):**
     ```bash
-    chmod +x /tmp/install.sh
+    # Example one-liner for NON-INTERACTIVE 'dev' branch install:
+    curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh | sudo bash -s -- \
+      --non-interactive --action install --branch dev \
+      --api-token "YOUR_DEV_API_TOKEN" \
+      --zone-id "YOUR_DEV_ZONE_ID" \
+      --record-name "dev.example.com" \
+      --ip-addresses "1.2.3.4,::1"
+    ```
+    Alternatively, download `install-dev.sh` as above, then run:
+    ```bash
+    sudo ./install-dev.sh --non-interactive --action install --branch dev \
+      --api-token "YOUR_DEV_API_TOKEN" \
+      # ... other parameters ...
     ```
 
-2.  **Run `install.sh` with the `--branch` argument**:
-    *   **Interactive example for `dev` branch:**
-        ```bash
-        sudo /tmp/install.sh --branch dev
-        ```
-        This will install into `/opt/Cloudflare-Utils-dev/`, use systemd units like `cloudflare-utils-dev.service`, etc. You'll be prompted for configuration as usual, which will be saved to `/opt/Cloudflare-Utils-dev/.env`.
-
-    *   **Non-interactive example for `dev` branch:**
-        ```bash
-        sudo /tmp/install.sh --non-interactive --action install --branch dev \
-          --api-token "YOUR_DEV_CLOUDFLARE_API_TOKEN" \
-          --zone-id "YOUR_DEV_ZONE_ID" \
-          --record-name "dev.example.com" \
-          --ip-addresses "1.2.3.4,::1" 
-        ```
-
 **Managing Branch Installations:**
-*   Each branch installation is isolated in its own directory (e.g., `/opt/Cloudflare-Utils-dev`).
-*   Logs, `.env` files, and scheduler entries (cron/systemd) are specific to that branched installation.
-*   To **remove** a branched installation, use `install.sh` with the same `--branch` name and `--action remove`:
+*   Each branch installation is isolated (e.g., directory `/opt/Cloudflare-Utils-dev`, systemd units `cloudflare-utils-dev.service`).
+*   To **remove** a branched installation, download `install.sh` (preferably from the same branch it was installed from, or `main`), make it executable, and then run:
     ```bash
-    sudo /tmp/install.sh --action remove --branch dev 
+    # Example for 'dev' branch removal (interactive confirmation):
+    sudo ./install.sh --action remove --branch dev 
     ```
     Or for non-interactive removal:
     ```bash
-    sudo /tmp/install.sh --non-interactive --action remove --branch dev
+    sudo ./install.sh --non-interactive --action remove --branch dev
     ```
 *   Running `install.sh` without `--branch` targets the main installation (`/opt/Cloudflare-Utils`).
 
-### Debian Package (Planned)
+---
+### 4. Debian Package (Planned)
 
 Instructions for installing via a `.deb` package will be added here once available.
 
@@ -147,79 +170,94 @@ Instructions for installing via a `.deb` package will be added here once availab
 
 ## Configuration
 
-Cloudflare Utils is configured via environment variables, typically stored in `/opt/Cloudflare-Utils/.env`. The script can also accept these as CLI arguments, which will override `.env` values.
+Cloudflare Utils is configured via environment variables. When installed using `install.sh`, these are typically stored in `/opt/Cloudflare-Utils/.env` (or `/opt/Cloudflare-Utils-<branch>/.env` for branched installs). The script can also accept these as CLI arguments, which will override `.env` values.
 
 **Configuration Variables:**
 
 *   **`CLOUDFLARE_API_TOKEN`** (Required)
-    *   Description: Your Cloudflare API token. This token needs permissions to read and edit DNS records for the specified zone.
+    *   Description: Your Cloudflare API token. Needs permissions to read and edit DNS records for the specified zone.
     *   Example: `"your_api_token_here"`
 
 *   **`CLOUDFLARE_ZONE_ID`** (Required)
-    *   Description: The ID of the Cloudflare zone containing the DNS records you want to update.
+    *   Description: The ID of the Cloudflare zone containing the DNS records.
     *   Example: `"your_zone_id_here"`
 
 *   **`CLOUDFLARE_RECORD_NAME`** (Required)
-    *   Description: A comma-separated list of the DNS record names (FQDNs) to update.
+    *   Description: Comma-separated list of DNS record names (FQDNs) to update.
     *   Example: `"example.com,sub.example.com"`
 
 *   **`CLOUDFLARE_IP_ADDRESSES`** (Required)
-    *   Description: A comma-separated list of IP addresses (both IPv4 and IPv6 are supported) to rotate through for the specified records. The script will automatically select appropriate IP types for A (IPv4) and AAAA (IPv6) records.
+    *   Description: Comma-separated list of IP addresses (IPv4 and/or IPv6) to rotate through. The script automatically selects appropriate IP types for A (IPv4) and AAAA (IPv6) records.
     *   Example: `"192.0.2.1,198.51.100.5,2001:db8::1,2001:db8::2"`
 
 ---
 
 ## Usage
 
-Once installed and configured, Cloudflare Utils primarily runs via the scheduler (cron or systemd) chosen during installation.
+Once installed and configured, Cloudflare Utils primarily runs via the scheduler (cron or systemd) chosen during installation. The `run.sh` script in the installation directory (e.g., `/opt/Cloudflare-Utils/run.sh`) handles virtual environment activation and execution.
 
 ### Manual Execution (CLI)
 
-You can also run the tool manually using the `cloudflare-utils` command. This is useful for immediate updates or testing. The command must be run from within the activated virtual environment or by specifying the full path to the executable within the venv (`/opt/Cloudflare-Utils/.venv/bin/cloudflare-utils`). If using cron/systemd, they handle the venv activation via `run.sh`.
+You can run the tool manually using the `cloudflare-utils` command *after* activating its virtual environment, or by directly executing the `run.sh` script for that installation.
 
-```bash
-# If venv is active or cloudflare-utils is in PATH:
-cloudflare-utils [OPTIONS]
-```
+*   **Using `run.sh` (handles venv activation):**
+    ```bash
+    # For main installation:
+    sudo /opt/Cloudflare-Utils/run.sh 
+    # For a 'dev' branch installation:
+    # sudo /opt/Cloudflare-Utils-dev/run.sh 
+    ```
+    This is the recommended way to manually trigger what cron/systemd would do.
 
-**CLI Options:**
+*   **Direct CLI (if venv is active):**
+    ```bash
+    # First, activate the venv for the specific installation:
+    # source /opt/Cloudflare-Utils/.venv/bin/activate 
+    # Or for dev: source /opt/Cloudflare-Utils-dev/.venv/bin/activate
+    
+    # Then run:
+    cloudflare-utils [OPTIONS]
+    
+    # Deactivate venv when done:
+    # deactivate
+    ```
+
+**CLI Options for `cloudflare-utils`:**
 
 *   `--api-token TEXT`: Cloudflare API Token.
 *   `--zone-id TEXT`: Cloudflare Zone ID.
 *   `--record-names TEXT`: Comma-separated DNS record names.
 *   `--ip-addresses TEXT`: Comma-separated IP addresses.
-*   `--env-file TEXT`: Path to .env file (default: `/opt/Cloudflare-Utils/.env`).
+*   `--env-file TEXT`: Path to .env file (default: `<INSTALL_DIR>/.env`).
 *   `--log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]`: Set logging level (default: INFO).
 *   `--version`: Show program version and exit.
 *   `--help`: Show help message and exit.
 
-**Example CLI Usage:**
-
+**Example CLI Usage (assuming venv active):**
 ```bash
-# Run using configuration from /opt/Cloudflare-Utils/.env
-sudo /opt/Cloudflare-Utils/run.sh 
+# Run using configuration from the installation's .env file
+cloudflare-utils
 
-# Or, if the venv is activated and in PATH:
-# cloudflare-utils
-
-# Override .env file and run with specific record and IPs:
-# cloudflare-utils --record-names "new.example.com" --ip-addresses "5.5.5.5"
+# Override record names and IPs for a specific run:
+cloudflare-utils --record-names "new.example.com" --ip-addresses "5.5.5.5"
 
 # Run with debug logging:
-# cloudflare-utils --log-level DEBUG
+cloudflare-utils --log-level DEBUG
 ```
 
 ### Scheduled Execution
 
-*   **Cron**: If selected, a cron job is set up to run `/opt/Cloudflare-Utils/run.sh` every 30 minutes.
-*   **Systemd**: If selected, `cloudflare-utils.timer` is set up to trigger `cloudflare-utils.service` every 30 minutes and on boot.
-    *   Check timer status: `sudo systemctl status cloudflare-utils.timer`
-    *   Check service logs: `sudo journalctl -u cloudflare-utils.service`
+The scheduler (cron or systemd) runs the installation-specific `run.sh` script (e.g., `/opt/Cloudflare-Utils/run.sh` or `/opt/Cloudflare-Utils-dev/run.sh`).
+
+*   **Cron**: Runs every 30 minutes by default.
+*   **Systemd**: `cloudflare-utils.timer` (or `cloudflare-utils-dev.timer`) triggers the corresponding `.service` every 30 minutes and on boot.
+    *   Check timer status: `sudo systemctl status cloudflare-utils.timer` (or `cloudflare-utils-dev.timer`)
+    *   Check service logs: `sudo journalctl -u cloudflare-utils.service` (or `cloudflare-utils-dev.service`)
 
 ### Logs
 
-*   **Log File**: All operations are logged to `/opt/Cloudflare-Utils/log_file.log`. This includes scheduled runs and manual CLI executions.
-*   **Console Output**: When run manually via CLI (`cloudflare-utils`), logs are also output to the console.
+*   **Log File**: Operations are logged to `log_file.log` within the respective installation directory (e.g., `/opt/Cloudflare-Utils/log_file.log` or `/opt/Cloudflare-Utils-dev/log_file.log`).
+*   **Console Output**: When `cloudflare-utils` is run directly via CLI, logs are also output to the console.
 
 ---
 ## GitHub Action (Experimental)
