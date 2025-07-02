@@ -30,16 +30,16 @@ ask_user_input_to_env() {
     local var_name="$2"
     local env_file_path="$3"
     local input_value=""
-    
+
     read -p "$(echo -e "\e[1;32m$prompt: \e[0m")" input_value
-    
+
     # Remove existing variable definition if any, then append
     # Use a temporary file for sed in-place editing robustness
     tmp_env_file="${env_file_path}.tmp"
     grep -v "^${var_name}=" "$env_file_path" > "$tmp_env_file" 2>/dev/null || true # Allow file not existing initially
     echo "${var_name}=\"${input_value}\"" >> "$tmp_env_file"
     mv "$tmp_env_file" "$env_file_path"
-    
+
     # Export for current session if needed by subsequent script steps (though python script will read from .env)
     export "$var_name"="$input_value"
 }
@@ -81,7 +81,7 @@ clone_repository_and_setup_venv() {
         ORIGINAL_DIR_GIT_OP=$(pwd)
         cd "$PROGRAM_DIR" || { echo -e "\e[1;31mFailed to cd into $PROGRAM_DIR for git operations.\e[0m"; exit 1; }
         git fetch origin || { echo -e "\e[1;31mFailed to fetch from origin.\e[0m"; cd "$ORIGINAL_DIR_GIT_OP"; exit 1; }
-        
+
         local target_branch_checkout="$BRANCH_NAME"
         if [ -z "$target_branch_checkout" ]; then
              # Attempt to get default branch from remote, fallback to main/master
@@ -114,7 +114,7 @@ clone_repository_and_setup_venv() {
             echo -e "\e[1;31mFailed to chown $PROGRAM_DIR for user $USER.\e[0m" >&2
             exit 1
         }
-        
+
         # If $PROGRAM_DIR was created by mkdir and is empty, git clone is fine.
         # If it existed and user chose to reinstall, it implies we can overwrite.
         # If it's a non-empty non-git directory, git clone will fail.
@@ -134,7 +134,7 @@ clone_repository_and_setup_venv() {
         fi
         echo -e "\e[1;32mRepository cloned successfully into $PROGRAM_DIR.\e[0m"
     fi
-    
+
     echo -e "\e[1;34mCreating Python virtual environment...\e[0m"
     python3 -m venv $PROGRAM_DIR/.venv || {
         echo -e "\e[1;31mFailed to create virtual environment.\e[0m" >&2
@@ -147,17 +147,17 @@ clone_repository_and_setup_venv() {
         echo -e "\e[1;31mFailed to activate virtual environment.\e[0m" >&2
         exit 1
     }
-    
+
     # Install the package itself from the cloned repo
     echo -e "\e[1;34mInstalling Cloudflare-Utils package from $PROGRAM_DIR...\e[0m"
     # Store current directory
     ORIGINAL_DIR=$(pwd)
-    cd "$PROGRAM_DIR" || { 
-        echo -e "\e[1;31mFailed to change directory to $PROGRAM_DIR.\e[0m"; 
-        deactivate; 
-        exit 1; 
+    cd "$PROGRAM_DIR" || {
+        echo -e "\e[1;31mFailed to change directory to $PROGRAM_DIR.\e[0m";
+        deactivate;
+        exit 1;
     }
-    
+
     if ! pip3 install .; then
         echo -e "\e[1;31mFailed to install Cloudflare-Utils package using 'pip3 install .'.\e[0m" >&2
         # cd back to original directory before exiting
@@ -168,7 +168,7 @@ clone_repository_and_setup_venv() {
     
     # cd back to original directory
     cd "$ORIGINAL_DIR"
-    
+
     # Dependencies like cloudflare and python-dotenv are now specified in pyproject.toml
     # and should be installed automatically when the package is installed.
     # No longer need: pip3 install cloudflare python-dotenv
@@ -259,7 +259,7 @@ setup_systemd() {
     local systemd_timer_name="cloudflare-utils${service_name_suffix}.timer"
 
     echo -e "\e[1;34mSetting up systemd timer as $systemd_timer_name...\e[0m"
-    
+
     local service_file_template_src="$PROGRAM_DIR/cloudflare-utils.service" # Template from repo
     local timer_file_template_src="$PROGRAM_DIR/cloudflare-utils.timer"   # Template from repo
 
@@ -276,7 +276,7 @@ setup_systemd() {
     # Modify service file: Description and ExecStart
     sed "s|Description=Cloudflare DNS Update Service|Description=Cloudflare DNS Update Service ($PROGRAM_NAME)|g" "$service_file_template_src" | \
         sed "s|ExecStart=/opt/Cloudflare-Utils/run.sh|ExecStart=$PROGRAM_DIR/run.sh|g" > "$temp_service_file"
-    
+
     # Modify timer file: Unit (to point to the correct service name)
     sed "s|Unit=cloudflare-utils.service|Unit=$systemd_service_name|g" "$timer_file_template_src" > "$temp_timer_file"
 
@@ -304,7 +304,7 @@ setup_systemd() {
 remove_program() {
     # PROGRAM_DIR is set based on --branch if provided, or defaults.
     echo -e "\e[1;34mRemoving program $PROGRAM_NAME from $PROGRAM_DIR...\e[0m"
-    
+
     local service_name_suffix=""
     if [ -n "$SANITIZED_BRANCH_NAME" ]; then
         service_name_suffix="-$SANITIZED_BRANCH_NAME"
@@ -349,7 +349,7 @@ write_to_env_file() {
     local key="$1"
     local value="$2"
     local env_file_path="$3"
-    
+
     # Remove existing variable definition if any, then append
     tmp_env_file="${env_file_path}.tmp"
     grep -v "^${key}=" "$env_file_path" > "$tmp_env_file" 2>/dev/null || true
@@ -405,16 +405,16 @@ main_setup() {
                 echo -e "\e[1;31mError: For non-interactive installation, all parameters (--api-token, --zone-id, --record-name, --ip-addresses) must be provided.\e[0m"
                 exit 1
             fi
-            
+
             install_packages # System packages
-            
+
             # 1. Clone repository and setup venv first. This creates $PROGRAM_DIR.
-            clone_repository_and_setup_venv 
+            clone_repository_and_setup_venv
 
             # 2. Now, setup .env file inside the cloned $PROGRAM_DIR
             ENV_FILE_PATH="$PROGRAM_DIR/.env"
             # $PROGRAM_DIR is created by clone_repository_and_setup_venv, ensure ownership for .env creation
-            sudo chown $USER:$USER $PROGRAM_DIR 
+            sudo chown $USER:$USER $PROGRAM_DIR
             touch $ENV_FILE_PATH # Create .env if it doesn't exist
             chown $USER:$USER $ENV_FILE_PATH # Ensure current user owns it
 
@@ -422,17 +422,17 @@ main_setup() {
             write_to_env_file "CLOUDFLARE_ZONE_ID" "$CF_ZONE_ID" "$ENV_FILE_PATH"
             write_to_env_file "CLOUDFLARE_RECORD_NAME" "$CF_RECORD_NAME" "$ENV_FILE_PATH"
             write_to_env_file "CLOUDFLARE_IP_ADDRESSES" "$CF_IP_ADDRESSES" "$ENV_FILE_PATH"
-            
+
             echo -e "\e[1;32mConfiguration saved to $ENV_FILE_PATH via non-interactive mode.\e[0m"
 
             # 3. Create bash script and setup scheduler
             create_bash_script
-            
+
             # Non-interactive mode defaults to cron unless specified otherwise (e.g. via a new --scheduler arg)
             # For now, keeping it simple and defaulting to cron for non-interactive.
             # A future improvement could be adding --scheduler systemd|cron to non-interactive mode.
             echo -e "\e[1;34mSetting up scheduler (defaulting to cron for non-interactive)...\e[0m"
-            setup_cron 
+            setup_cron
             echo -e "\e[1;32mNon-interactive setup complete with cron scheduler.\e[0m Please check the log file at $PROGRAM_DIR/log_file.log."
             echo -e "\e[1;34mActive cron jobs for Cloudflare-Utils:\e[0m"
             (crontab -l 2>/dev/null | grep "$PROGRAM_DIR/run.sh") || echo -e "\e[1;33mNo active cron jobs found for Cloudflare-Utils.\e[0m"
@@ -462,7 +462,7 @@ main_setup() {
         local opt_install="Install $PROGRAM_NAME"
         local opt_remove="Remove $PROGRAM_NAME"
         local opt_exit="Exit"
-        options=("$opt_install" "$opt_remove" "$opt_exit") 
+        options=("$opt_install" "$opt_remove" "$opt_exit")
 
         select opt in "${options[@]}"
         do
@@ -472,25 +472,25 @@ main_setup() {
                     if [ -d "$PROGRAM_DIR" ]; then
                         echo -e "\e[1;33mWarning: Cloudflare-Utils appears to be already installed at $PROGRAM_DIR.\e[0m"
                         read -p "Do you want to proceed with reinstallation? This will overwrite existing configurations if new values are provided. (y/N): " choice
-                        case "$choice" in 
+                        case "$choice" in
                           y|Y ) echo "Proceeding with reinstallation...";;
                           * ) echo "Reinstallation aborted."; exit 0;;
                         esac
                     fi
 
                     install_packages # System packages
-                    
+
                     # 1. Clone repository and setup venv first. This creates $PROGRAM_DIR.
-                    clone_repository_and_setup_venv 
+                    clone_repository_and_setup_venv
 
                     # 2. Now, setup .env file inside the cloned $PROGRAM_DIR
                     ENV_FILE_PATH="$PROGRAM_DIR/.env"
                     sudo chown $USER:$USER $PROGRAM_DIR
-                    touch $ENV_FILE_PATH 
-                    chown $USER:$USER $ENV_FILE_PATH 
-                    
+                    touch $ENV_FILE_PATH
+                    chown $USER:$USER $ENV_FILE_PATH
+
                     if [ -f "$ENV_FILE_PATH" ]; then
-                        set -a 
+                        set -a
                         source "$ENV_FILE_PATH"
                         set +a
                     fi
@@ -510,7 +510,7 @@ main_setup() {
                     if [ -z "$CLOUDFLARE_IP_ADDRESSES" ]; then
                         ask_user_input_to_env "Enter your Cloudflare IP Addresses (comma-separated)" "CLOUDFLARE_IP_ADDRESSES" "$ENV_FILE_PATH"
                     fi
-                    
+
                     echo -e "\e[1;32mConfiguration saved to $ENV_FILE_PATH.\e[0m"
 
                     # 3. Create bash script and setup scheduler
