@@ -1,0 +1,114 @@
+name: Cloudflare-Utils CI
+
+on:
+  push:
+    branches: [ main, master, develop ] # Adjust as needed
+  pull_request:
+    branches: [ main, master ] # Adjust as needed
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8
+        # For testing the build and install of the package itself
+        pip install build setuptools wheel 
+        # No need to pip install . yet, just dependencies for now
+
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Build package
+      run: |
+        python -m build --sdist --wheel --outdir dist/ .
+        
+    - name: Check if package installs (optional, but good test)
+      # This step creates a venv and tries to install the built wheel.
+      # It's a basic check that installation doesn't immediately fail.
+      run: |
+        python -m venv test_venv
+        source test_venv/bin/activate
+        pip install dist/*.whl 
+        # Try to run the help command to see if entry point works
+        cloudflare-utils --help
+        cloudflare-utils --version
+        deactivate
+
+  # Example of a scheduled run (users would need to uncomment and add secrets)
+  # scheduled-dns-update:
+  #   if: github.repository == 'Issei-177013/Cloudflare-Utils' # Protect against running on forks without secrets
+  #   runs-on: ubuntu-latest
+  #   # needs: [lint-and-test] # Optionally depend on tests passing
+  #   # schedule:
+  #   #   - cron: '*/30 * * * *' # Every 30 minutes
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: '3.10' # Choose a specific version
+  #   - name: Install package
+  #     run: |
+  #       pip install .
+  #   - name: Run Cloudflare Utils
+  #     env:
+  #       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  #       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+  #       CLOUDFLARE_RECORD_NAME: ${{ secrets.CLOUDFLARE_RECORD_NAME }}
+  #       CLOUDFLARE_IP_ADDRESSES: ${{ secrets.CLOUDFLARE_IP_ADDRESSES }}
+  #       # Ensure .env file is NOT committed. These env vars will be picked up.
+  #     run: |
+  #       # The script looks for .env in /opt/Cloudflare-Utils by default.
+  #       # For GitHub Actions, it's better to rely on direct env vars or pass them as CLI args.
+  #       # The Python script was updated to use os.getenv() which works directly with env vars above.
+  #       # If CLI args are preferred:
+  #       # cloudflare-utils \
+  #       #   --api-token ${{ secrets.CLOUDFLARE_API_TOKEN }} \
+  #       #   --zone-id ${{ secrets.CLOUDFLARE_ZONE_ID }} \
+  #       #   --record-names "${{ secrets.CLOUDFLARE_RECORD_NAME }}" \
+  #       #   --ip-addresses "${{ secrets.CLOUDFLARE_IP_ADDRESSES }}"
+  #       cloudflare-utils # This will use the environment variables set above
+  #       # Note: The default log path /opt/Cloudflare-Utils/log_file.log won't be writable/useful here.
+  #       # CLI output to stdout/stderr will be captured by Actions.
+  #       # The Python script now also logs to console, so that's fine.
+  #       # For persistent logs in actions, one might upload the log file as an artifact.
+  #       # Example:
+  #       # cloudflare-utils --log-file ./cfu_action.log
+  #       # - uses: actions/upload-artifact@v3
+  #       #   with:
+  #       #     name: cfu-log
+  #       #     path: ./cfu_action.log
+
+# Placeholder for debian packaging build job (more complex)
+# build-deb-package:
+#   runs-on: ubuntu-latest
+#   needs: [lint-and-test]
+#   steps:
+#   - uses: actions/checkout@v4
+#   - name: Install build dependencies
+#     run: sudo apt-get update && sudo apt-get install -y devscripts debhelper build-essential # ... and others
+#   - name: Build .deb package
+#     run: dpkg-buildpackage -us -uc
+#   - name: Upload .deb package artifact
+#     uses: actions/upload-artifact@v3
+#     with:
+#       name: debian-package
+#       path: ../*.deb # Adjust path based on where dpkg-buildpackage outputs the .deb

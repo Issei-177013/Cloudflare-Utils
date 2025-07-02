@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudflare-utils"
+version = "0.1.0" # Initial version
+description = "Utilities to interact with Cloudflare DNS records for automated updates."
+readme = "README.md"
+requires-python = ">=3.7"
+license = {text = "Apache-2.0"}
+authors = [
+  {name = "Issei-177013", email = "issei@cock.li"}, # Placeholder email
+]
+keywords = ["cloudflare", "dns", "automation", "dyndns"]
+
+dependencies = [
+    "cloudflare>=2.19.0", # Check for latest appropriate version
+    "python-dotenv>=0.20.0", # Check for latest appropriate version
+]
+
+[project.urls]
+Homepage = "https://github.com/Issei-177013/Cloudflare-Utils"
+Issues = "https://github.com/Issei-177013/Cloudflare-Utils/issues"
+
+[project.scripts]
+cloudflare-utils = "cloudflare_utils.change_dns:main_cli"
+
+[tool.setuptools.packages.find]
+where = ["src"] # Tells setuptools to find packages in src directory
+# Alternatively, if not using a src layout immediately:
+# packages = ["cloudflare_utils"] # if change_dns.py is moved to cloudflare_utils/change_dns.py
+# For now, let's assume we'll move change_dns.py into a package structure.
+# If change_dns.py stays at the root for now, this needs adjustment.
+# Let's plan to move it to src/cloudflare_utils/change_dns.py for a clean package structure.

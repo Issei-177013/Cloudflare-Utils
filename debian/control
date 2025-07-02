@@ -1,0 +1,17 @@
+Source: cloudflare-utils
+Section: utils
+Priority: optional
+Maintainer: Issei-177013 <issei@cock.li>
+Build-Depends: debhelper-compat (= 13), dh-python, python3-all, python3-setuptools, python3-venv
+Standards-Version: 4.6.2
+
+Package: cloudflare-utils
+Architecture: all
+Depends: python3, python3-pip, ${misc:Depends}, ${python3:Depends}
+Description: Cloudflare DNS Update Utility
+  A set of utilities to interact with Cloudflare DNS records, allowing for
+  automated updates of DNS records using a specified set of IP addresses.
+  .
+  This tool can be run manually via CLI, or set up to run periodically
+  using cron or systemd timers. It uses a .env file for configuration
+  and provides logging for its operations.

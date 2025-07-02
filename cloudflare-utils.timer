@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Cloudflare DNS Update Service periodically
+
+[Timer]
+# Run 30 minutes after boot, and then every 30 minutes
+OnBootSec=30min
+OnUnitActiveSec=30min
+Unit=cloudflare-utils.service
+
+[Install]
+WantedBy=timers.target

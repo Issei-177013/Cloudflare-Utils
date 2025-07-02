@@ -1,0 +1,14 @@
+# CLI script (from pyproject.toml's [project.scripts]) will be handled by dh_python3 automatically
+# and placed in /usr/bin/cloudflare-utils
+
+# Systemd unit files
+cloudflare-utils.service /lib/systemd/system/
+cloudflare-utils.timer /lib/systemd/system/
+
+# The actual python library files will be installed by dh_python3 to site-packages
+# e.g. src/cloudflare_utils/*.py to /usr/lib/python3/dist-packages/cloudflare_utils/
+
+# We might want to place run.sh or a modified version of install.sh for configuration
+# in /usr/share/cloudflare-utils/ if debconf is not used for initial setup.
+# For now, assuming postinst will handle setup.
+# The .env file and log file will be in /opt/Cloudflare-Utils/, created by postinst.

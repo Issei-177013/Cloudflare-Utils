@@ -1,0 +1,29 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        echo "Cloudflare-Utils: Disabling and stopping systemd timer..."
+        if command -v systemctl >/dev/null 2>&1; then
+            systemctl disable --now cloudflare-utils.timer >/dev/null 2>&1 || true
+            systemctl stop cloudflare-utils.service >/dev/null 2>&1 || true # Stop any immediate run
+        fi
+        
+        # Removing cron jobs would typically be here if postinst set them up system-wide
+        # However, the current postinst only gives an example for manual cron setup.
+        # If a system cron.d file was used, it would be removed by dpkg via the .maintscript.
+    ;;
+
+    failed-upgrade)
+        # Handle failed upgrade if necessary
+    ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0

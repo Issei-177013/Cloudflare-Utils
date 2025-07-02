@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudflare DNS Update Service
+After=network.target multi-user.target
+
+[Service]
+Type=oneshot
+# User and Group should be the user who runs the script, or a dedicated user.
+# For simplicity, using User=%i and assuming the installer places it in the user's systemd directory,
+# or a generic user if placed in /etc/systemd/system/.
+# If installed system-wide, this might need to be a specific user like 'nobody' or a created 'cloudflare-utils' user,
+# and PROGRAM_DIR might need to be accessible by that user.
+# For now, assuming it's run by the user who installed it.
+# EnvironmentFile=/opt/Cloudflare-Utils/.env # Systemd can load env files directly
+ExecStart=/opt/Cloudflare-Utils/run.sh
+
+[Install]
+WantedBy=multi-user.target

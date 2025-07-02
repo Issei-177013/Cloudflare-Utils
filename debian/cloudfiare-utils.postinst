@@ -1,0 +1,103 @@
+#!/bin/bash
+set -e
+
+PROGRAM_DIR="/opt/Cloudflare-Utils"
+ENV_FILE_PATH="$PROGRAM_DIR/.env"
+
+# Function to ask for user input - simplified for postinst
+# In a real .deb, debconf would be preferred for configuration.
+ask_variable() {
+    local prompt="$1"
+    local var_name="$2"
+    local default_value="$3"
+    local value=""
+
+    if [ -t 0 ]; then # Check if stdin is a TTY (interactive)
+        read -p "$prompt [$default_value]: " value
+    fi
+    echo "${var_name}=\"${value:-$default_value}\"" >> "$ENV_FILE_PATH"
+}
+
+
+case "$1" in
+    configure)
+        echo "Configuring Cloudflare-Utils..."
+
+        # Create program directory
+        if [ ! -d "$PROGRAM_DIR" ]; then
+            mkdir -p "$PROGRAM_DIR"
+            chown root:root "$PROGRAM_DIR" # Or a dedicated user
+            chmod 755 "$PROGRAM_DIR"
+            echo "Created directory $PROGRAM_DIR"
+        fi
+        
+        # Create a new .env file or prompt if interactive and file doesn't exist fully configured
+        if [ ! -f "$ENV_FILE_PATH" ] || ! grep -q "CLOUDFLARE_API_TOKEN" "$ENV_FILE_PATH"; then
+            echo "Setting up configuration file $ENV_FILE_PATH..."
+            # Clear if partially exists from previous failed attempt
+            > "$ENV_FILE_PATH" 
+            chmod 600 "$ENV_FILE_PATH" # Restrict permissions
+            chown root:root "$ENV_FILE_PATH" # Or dedicated user that runs the service
+
+            if [ -t 0 ]; then # Interactive
+                echo "Please provide your Cloudflare details:"
+                ask_variable "Cloudflare API Token" "CLOUDFLARE_API_TOKEN" ""
+                ask_variable "Cloudflare Zone ID" "CLOUDFLARE_ZONE_ID" ""
+                ask_variable "Cloudflare Record Name(s) (comma-separated)" "CLOUDFLARE_RECORD_NAME" ""
+                ask_variable "Cloudflare IP Addresses (comma-separated)" "CLOUDFLARE_IP_ADDRESSES" ""
+                echo "Configuration written to $ENV_FILE_PATH."
+                echo "Please review and ensure it is correct."
+            else
+                echo "Non-interactive mode: .env file needs to be configured manually at $ENV_FILE_PATH"
+                echo "CLOUDFLARE_API_TOKEN=" >> "$ENV_FILE_PATH"
+                echo "CLOUDFLARE_ZONE_ID=" >> "$ENV_FILE_PATH"
+                echo "CLOUDFLARE_RECORD_NAME=" >> "$ENV_FILE_PATH"
+                echo "CLOUDFLARE_IP_ADDRESSES=" >> "$ENV_FILE_PATH"
+                echo "A template .env file has been created at $ENV_FILE_PATH. Please fill it in."
+            fi
+        else
+            echo ".env file already exists at $ENV_FILE_PATH. Skipping interactive setup."
+        fi
+
+        # By default, enable and start systemd timer if systemd is present
+        if command -v systemctl >/dev/null 2>&1; then
+            echo "Enabling and starting systemd timer for Cloudflare-Utils..."
+            systemctl daemon-reload >/dev/null || true # Run quietly
+            if systemctl enable --now cloudflare-utils.timer >/dev/null; then
+                 echo "Systemd timer cloudflare-utils.timer enabled and started."
+                 echo "You can check its status with: systemctl status cloudflare-utils.timer"
+                 echo "And logs with: journalctl -u cloudflare-utils.service"
+            else
+                echo "Failed to enable/start cloudflare-utils.timer. Please check systemd logs."
+                echo "You may need to run 'sudo systemctl daemon-reload' and 'sudo systemctl enable --now cloudflare-utils.timer' manually."
+            fi
+        else
+            echo "Systemd not found. Cron job needs to be set up manually if desired."
+            echo "Example cron entry:"
+            echo "*/30 * * * * /usr/bin/cloudflare-utils >> $PROGRAM_DIR/log_file.log 2>&1"
+        fi
+
+        # Create the log file with appropriate permissions if it doesn't exist
+        # The application itself will also try to create it.
+        if [ ! -f "$PROGRAM_DIR/log_file.log" ]; then
+            touch "$PROGRAM_DIR/log_file.log"
+            chmod 640 "$PROGRAM_DIR/log_file.log" # Example: root can read/write, group (e.g. adm) can read
+            # chown root:adm "$PROGRAM_DIR/log_file.log" # Or a dedicated user/group
+            echo "Log file created at $PROGRAM_DIR/log_file.log"
+        fi
+        echo "Cloudflare-Utils configuration complete."
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        # Handle errors during package operations if necessary
+    ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0
