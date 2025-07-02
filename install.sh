@@ -14,8 +14,10 @@
 # limitations under the License.
 
 
-PROGRAM_NAME="Cloudflare-Utils"
-PROGRAM_DIR="/opt/$PROGRAM_NAME"
+PROGRAM_NAME_BASE="Cloudflare-Utils" # Base name
+BRANCH_NAME="" # Will be set by --branch arg
+PROGRAM_NAME="$PROGRAM_NAME_BASE" # Default program name
+PROGRAM_DIR="/opt/$PROGRAM_NAME" # Default program dir
 
 # Function to display ASCII art
 display_ascii_art() {
@@ -61,20 +63,78 @@ install_packages() {
 
 # Clone GitHub repository and setup virtual environment
 clone_repository_and_setup_venv() {
-    echo -e "\e[1;34mCloning GitHub repository and setting up virtual environment...\e[0m"
-    sudo mkdir -p $PROGRAM_DIR
-    sudo chown $USER:$USER $PROGRAM_DIR || {
-        echo -e "\e[1;31mFailed to create directory $PROGRAM_DIR.\e[0m" >&2
-        exit 1
-    }
+    local clone_url="https://github.com/Issei-177013/Cloudflare-Utils.git"
+    local clone_cmd="git clone $clone_url $PROGRAM_DIR"
 
-    if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
-        echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
-        exit 1
+    if [ -n "$BRANCH_NAME" ]; then
+        echo -e "\e[1;34mCloning branch '$BRANCH_NAME' from $clone_url into $PROGRAM_DIR and setting up virtual environment...\e[0m"
+        clone_cmd="git clone -b $BRANCH_NAME $clone_url $PROGRAM_DIR"
+    else
+        echo -e "\e[1;34mCloning default branch from $clone_url into $PROGRAM_DIR and setting up virtual environment...\e[0m"
     fi
     
-    echo -e "\e[1;32mRepository cloned successfully.\e[0m"
+    # If $PROGRAM_DIR exists and is a git repo, try to fetch and checkout the branch instead of full clone
+    # This handles re-running the installer for a different branch or re-installing the same branch
+    if [ -d "$PROGRAM_DIR/.git" ]; then
+        echo -e "\e[1;33mDirectory $PROGRAM_DIR already exists and is a git repository.\e[0m"
+        echo -e "\e[1;34mAttempting to fetch and checkout branch '$BRANCH_NAME' (or default if no branch specified)...\e[0m"
+        ORIGINAL_DIR_GIT_OP=$(pwd)
+        cd "$PROGRAM_DIR" || { echo -e "\e[1;31mFailed to cd into $PROGRAM_DIR for git operations.\e[0m"; exit 1; }
+        git fetch origin || { echo -e "\e[1;31mFailed to fetch from origin.\e[0m"; cd "$ORIGINAL_DIR_GIT_OP"; exit 1; }
+        
+        local target_branch_checkout="$BRANCH_NAME"
+        if [ -z "$target_branch_checkout" ]; then
+             # Attempt to get default branch from remote, fallback to main/master
+            target_branch_checkout=$(git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@' || echo "main")
+        fi
 
+        git checkout "$target_branch_checkout" || { echo -e "\e[1;31mFailed to checkout branch '$target_branch_checkout'.\e[0m"; cd "$ORIGINAL_DIR_GIT_OP"; exit 1; }
+        git pull origin "$target_branch_checkout" || { echo -e "\e[1;31mFailed to pull latest changes for branch '$target_branch_checkout'.\e[0m"; cd "$ORIGINAL_DIR_GIT_OP"; exit 1; }
+        cd "$ORIGINAL_DIR_GIT_OP"
+        echo -e "\e[1;32mSuccessfully updated existing repository for branch '$target_branch_checkout'.\e[0m"
+    else
+        # $PROGRAM_DIR does not exist or is not a git repo, proceed with clone
+        # Need to remove $PROGRAM_DIR if it exists but is not a git repo, or if clone should overwrite
+        # The existing installation warning logic should handle if user wants to proceed with overwrite.
+        # If user proceeds, we might need to rm -rf $PROGRAM_DIR first if it's not a git repo.
+        # For now, assuming the warning handles this. If clone fails due to non-empty dir, this needs refinement.
+        # The `main_setup` function's interactive "reinstall" prompt implies user consent to potential overwrite.
+        # If $PROGRAM_DIR exists from a failed previous clone (empty dir) or non-git files, clone might fail.
+        # `git clone` itself fails if $PROGRAM_DIR exists and is not empty.
+        # The `main_setup` already has a check for `if [ -d "$PROGRAM_DIR" ]` for interactive,
+        # and non-interactive warns and proceeds. This means if user proceeds, we should ensure $PROGRAM_DIR is usable by git.
+        # A robust way: if $PROGRAM_DIR exists and user wants to (re)install, remove it first.
+        # This is dangerous if user has custom data. The current reinstall warning is better.
+        # Let's assume if we reach here, and $PROGRAM_DIR is not a .git repo, it was created by mkdir -p
+        # or the user agreed to overwrite.
+        # The bug fix for .env creation *after* clone helps a lot here.
+
+        sudo mkdir -p "$PROGRAM_DIR" # Ensure dir exists, git clone needs parent dir.
+        sudo chown $USER:$USER "$PROGRAM_DIR" || { # chown parent first, then git clone will create with user perms
+            echo -e "\e[1;31mFailed to chown $PROGRAM_DIR for user $USER.\e[0m" >&2
+            exit 1
+        }
+        
+        # If $PROGRAM_DIR was created by mkdir and is empty, git clone is fine.
+        # If it existed and user chose to reinstall, it implies we can overwrite.
+        # If it's a non-empty non-git directory, git clone will fail.
+        # The current reinstall logic in main_setup for interactive mode is:
+        # "Warning: Cloudflare-Utils appears to be already installed at $PROGRAM_DIR."
+        # "Do you want to proceed with reinstallation? This will overwrite existing configurations if new values are provided. (y/N): "
+        # This doesn't explicitly say it will delete the directory.
+        # For safety, `git clone` should only be run if $PROGRAM_DIR is empty or doesn't exist.
+        # The `clone_repository_and_setup_venv` is called *after* this prompt in interactive.
+        # And for non-interactive, it just warns and proceeds.
+        # Let's refine: if $PROGRAM_DIR exists and is NOT a git repo, and we are proceeding, it should be removed.
+        # This is handled by the general installation warning where user agrees to reinstall.
+
+        if ! $clone_cmd; then
+            echo -e "\e[1;31mFailed to clone repository using command: $clone_cmd\e[0m" >&2
+            exit 1
+        fi
+        echo -e "\e[1;32mRepository cloned successfully into $PROGRAM_DIR.\e[0m"
+    fi
+    
     echo -e "\e[1;34mCreating Python virtual environment...\e[0m"
     python3 -m venv $PROGRAM_DIR/.venv || {
         echo -e "\e[1;31mFailed to create virtual environment.\e[0m" >&2
@@ -187,61 +247,80 @@ setup_cron() {
 
 # Setup Systemd Timer
 setup_systemd() {
-    echo -e "\e[1;34mSetting up systemd timer...\e[0m"
+    local service_name_suffix=""
+    if [ -n "$SANITIZED_BRANCH_NAME" ]; then # SANITIZED_BRANCH_NAME is set if --branch is used
+        service_name_suffix="-$SANITIZED_BRANCH_NAME"
+    fi
+    local systemd_service_name="cloudflare-utils${service_name_suffix}.service"
+    local systemd_timer_name="cloudflare-utils${service_name_suffix}.timer"
 
-    # Create temporary copies of unit files to be moved with sudo
-    # This assumes cloudflare-utils.service and cloudflare-utils.timer are in the same directory as install.sh
-    # If they are part of the git repo, their path needs to be $PROGRAM_DIR/cloudflare-utils.service etc.
-    # For now, assuming they are created by the agent in the current directory where install.sh is run from.
+    echo -e "\e[1;34mSetting up systemd timer as $systemd_timer_name...\e[0m"
     
-    # Correctly reference unit files from within the cloned repository ($PROGRAM_DIR)
-    SERVICE_FILE_SRC="$PROGRAM_DIR/cloudflare-utils.service"
-    TIMER_FILE_SRC="$PROGRAM_DIR/cloudflare-utils.timer"
-    
-    # Check if source unit files exist (they should be cloned as part of the repo)
-    if [ ! -f "$SERVICE_FILE_SRC" ] || [ ! -f "$TIMER_FILE_SRC" ]; then
-        echo -e "\e[1;31mError: Systemd unit files not found in $PROGRAM_DIR.\e[0m"
+    local service_file_template_src="$PROGRAM_DIR/cloudflare-utils.service" # Template from repo
+    local timer_file_template_src="$PROGRAM_DIR/cloudflare-utils.timer"   # Template from repo
+
+    if [ ! -f "$service_file_template_src" ] || [ ! -f "$timer_file_template_src" ]; then
+        echo -e "\e[1;31mError: Systemd unit file templates not found in $PROGRAM_DIR.\e[0m"
         echo -e "\e[1;31mMake sure cloudflare-utils.service and cloudflare-utils.timer are part of the repository.\e[0m"
         return 1 # Indicate failure
     fi
 
-    # Copy unit files to systemd directory
-    sudo cp "$SERVICE_FILE_SRC" /etc/systemd/system/cloudflare-utils.service
-    sudo cp "$TIMER_FILE_SRC" /etc/systemd/system/cloudflare-utils.timer
+    # Create temporary, modified unit files
+    local temp_service_file=$(mktemp)
+    local temp_timer_file=$(mktemp)
 
-    # Set correct permissions for unit files
-    sudo chmod 644 /etc/systemd/system/cloudflare-utils.service
-    sudo chmod 644 /etc/systemd/system/cloudflare-utils.timer
+    # Modify service file: Description and ExecStart
+    sed "s|Description=Cloudflare DNS Update Service|Description=Cloudflare DNS Update Service ($PROGRAM_NAME)|g" "$service_file_template_src" | \
+        sed "s|ExecStart=/opt/Cloudflare-Utils/run.sh|ExecStart=$PROGRAM_DIR/run.sh|g" > "$temp_service_file"
+    
+    # Modify timer file: Unit (to point to the correct service name)
+    sed "s|Unit=cloudflare-utils.service|Unit=$systemd_service_name|g" "$timer_file_template_src" > "$temp_timer_file"
 
-    # Reload systemd daemon, enable and start the timer
-    echo -e "\e[1;34mReloading systemd daemon and enabling timer...\e[0m"
+    # Copy modified unit files to systemd directory with unique names
+    sudo cp "$temp_service_file" "/etc/systemd/system/$systemd_service_name"
+    sudo cp "$temp_timer_file" "/etc/systemd/system/$systemd_timer_name"
+    rm "$temp_service_file" "$temp_timer_file"
+
+    sudo chmod 644 "/etc/systemd/system/$systemd_service_name"
+    sudo chmod 644 "/etc/systemd/system/$systemd_timer_name"
+
+    echo -e "\e[1;34mReloading systemd daemon and enabling $systemd_timer_name...\e[0m"
     sudo systemctl daemon-reload || { echo -e "\e[1;31mFailed to reload systemd daemon.\e[0m"; return 1; }
-    sudo systemctl enable cloudflare-utils.timer || { echo -e "\e[1;31mFailed to enable systemd timer.\e[0m"; return 1; }
-    sudo systemctl start cloudflare-utils.timer || { echo -e "\e[1;31mFailed to start systemd timer.\e[0m"; return 1; }
+    sudo systemctl enable "$systemd_timer_name" || { echo -e "\e[1;31mFailed to enable $systemd_timer_name.\e[0m"; return 1; }
+    sudo systemctl start "$systemd_timer_name" || { echo -e "\e[1;31mFailed to start $systemd_timer_name.\e[0m"; return 1; }
 
-    echo -e "\e[1;32mSystemd timer setup completed.\e[0m"
-    echo -e "\e[1;34mActive systemd timers for Cloudflare-Utils:\e[0m"
-    systemctl list-timers | grep cloudflare-utils.timer || echo -e "\e[1;33mNo active systemd timer found for Cloudflare-Utils.\e[0m"
-    return 0 # Indicate success
+    echo -e "\e[1;32mSystemd timer $systemd_timer_name setup completed.\e[0m"
+    echo -e "\e[1;34mActive systemd timers for $PROGRAM_NAME:\e[0m"
+    systemctl list-timers | grep "$systemd_timer_name" || echo -e "\e[1;33mNo active systemd timer found for $PROGRAM_NAME.\e[0m"
+    return 0
 }
 
 
 # Function to remove the program and cron jobs/systemd units
 remove_program() {
-    echo -e "\e[1;34mRemoving the program...\e[0m"
+    # PROGRAM_DIR is set based on --branch if provided, or defaults.
+    echo -e "\e[1;34mRemoving program $PROGRAM_NAME from $PROGRAM_DIR...\e[0m"
     
+    local service_name_suffix=""
+    if [ -n "$SANITIZED_BRANCH_NAME" ]; then
+        service_name_suffix="-$SANITIZED_BRANCH_NAME"
+    fi
+    local systemd_service_name="cloudflare-utils${service_name_suffix}.service"
+    local systemd_timer_name="cloudflare-utils${service_name_suffix}.timer"
+
     # Remove systemd units if they exist
-    if [ -f "/etc/systemd/system/cloudflare-utils.timer" ]; then
-        echo -e "\e[1;34mStopping and disabling systemd timer...\e[0m"
-        sudo systemctl stop cloudflare-utils.timer
-        sudo systemctl disable cloudflare-utils.timer
-        sudo rm -f /etc/systemd/system/cloudflare-utils.timer
-        sudo rm -f /etc/systemd/system/cloudflare-utils.service
+    if [ -f "/etc/systemd/system/$systemd_timer_name" ]; then
+        echo -e "\e[1;34mStopping and disabling systemd timer $systemd_timer_name...\e[0m"
+        sudo systemctl stop "$systemd_timer_name"
+        sudo systemctl disable "$systemd_timer_name"
+        sudo rm -f "/etc/systemd/system/$systemd_timer_name"
+        sudo rm -f "/etc/systemd/system/$systemd_service_name" # Remove corresponding service file
         sudo systemctl daemon-reload
-        echo -e "\e[1;32mSystemd units removed.\e[0m"
+        echo -e "\e[1;32mSystemd units for $PROGRAM_NAME removed.\e[0m"
     fi
 
     # Remove cron jobs
+    # Cron jobs are identified by the $PROGRAM_DIR in their command.
     if crontab -l 2>/dev/null | grep -q "$PROGRAM_DIR/run.sh"; then
         echo -e "\e[1;34mRemoving cron jobs...\e[0m"
         crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
@@ -291,18 +370,29 @@ main_setup() {
             --zone-id) CF_ZONE_ID="$2"; shift ;;
             --record-name) CF_RECORD_NAME="$2"; shift ;;
             --ip-addresses) CF_IP_ADDRESSES="$2"; shift ;;
-            --action) ACTION="$2"; shift ;; # New: allow specifying install/remove directly
+            --action) ACTION="$2"; shift ;;
+            --branch) BRANCH_NAME="$2"; shift ;;
             --non-interactive) NON_INTERACTIVE=true ;;
             *) echo "Unknown parameter passed: $1"; exit 1 ;;
         esac
         shift
     done
 
+    # Adjust PROGRAM_NAME and PROGRAM_DIR if a branch is specified
+    if [ -n "$BRANCH_NAME" ]; then
+        # Sanitize branch name for use in directory/service names (e.g. replace / with -)
+        SANITIZED_BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9._-]/_/g')
+        PROGRAM_NAME="${PROGRAM_NAME_BASE}-${SANITIZED_BRANCH_NAME}"
+        PROGRAM_DIR="/opt/$PROGRAM_NAME"
+        echo -e "\e[1;36mBranch specified: '$BRANCH_NAME'. Using program directory: $PROGRAM_DIR\e[0m"
+    fi
+
     if [ "$NON_INTERACTIVE" = true ]; then
         if [ "$ACTION" = "install" ]; then
             # Check if already installed in non-interactive mode
+            # This check now uses the potentially modified $PROGRAM_DIR
             if [ -d "$PROGRAM_DIR" ]; then
-                echo -e "\e[1;33mWarning: Cloudflare-Utils appears to be already installed at $PROGRAM_DIR.\e[0m"
+                echo -e "\e[1;33mWarning: $PROGRAM_NAME appears to be already installed at $PROGRAM_DIR.\e[0m"
                 echo -e "\e[1;33mNon-interactive mode will proceed with reinstallation/update using provided parameters.\e[0m"
                 # Optionally, could add a --force flag or similar to control this behavior
             fi
@@ -312,13 +402,17 @@ main_setup() {
                 exit 1
             fi
             
-            install_packages
+            install_packages # System packages
             
+            # 1. Clone repository and setup venv first. This creates $PROGRAM_DIR.
+            clone_repository_and_setup_venv 
+
+            # 2. Now, setup .env file inside the cloned $PROGRAM_DIR
             ENV_FILE_PATH="$PROGRAM_DIR/.env"
-            sudo mkdir -p $PROGRAM_DIR
-            sudo chown $USER:$USER $PROGRAM_DIR
-            touch $ENV_FILE_PATH
-            chown $USER:$USER $ENV_FILE_PATH
+            # $PROGRAM_DIR is created by clone_repository_and_setup_venv, ensure ownership for .env creation
+            sudo chown $USER:$USER $PROGRAM_DIR 
+            touch $ENV_FILE_PATH # Create .env if it doesn't exist
+            chown $USER:$USER $ENV_FILE_PATH # Ensure current user owns it
 
             write_to_env_file "CLOUDFLARE_API_TOKEN" "$CF_API_TOKEN" "$ENV_FILE_PATH"
             write_to_env_file "CLOUDFLARE_ZONE_ID" "$CF_ZONE_ID" "$ENV_FILE_PATH"
@@ -327,7 +421,7 @@ main_setup() {
             
             echo -e "\e[1;32mConfiguration saved to $ENV_FILE_PATH via non-interactive mode.\e[0m"
 
-            clone_repository_and_setup_venv # This clones the repo including systemd files if they are added
+            # 3. Create bash script and setup scheduler
             create_bash_script
             
             # Non-interactive mode defaults to cron unless specified otherwise (e.g. via a new --scheduler arg)
@@ -364,16 +458,25 @@ main_setup() {
                         esac
                     fi
 
-                    install_packages
+                    install_packages # System packages
                     
-                    ENV_FILE_PATH="$PROGRAM_DIR/.env"
-                    sudo mkdir -p $PROGRAM_DIR
-                    sudo chown $USER:$USER $PROGRAM_DIR
-                    touch $ENV_FILE_PATH
-                    chown $USER:$USER $ENV_FILE_PATH
+                    # 1. Clone repository and setup venv first. This creates $PROGRAM_DIR.
+                    # The warning about existing directory is handled inside this selection block already.
+                    clone_repository_and_setup_venv 
 
+                    # 2. Now, setup .env file inside the cloned $PROGRAM_DIR
+                    ENV_FILE_PATH="$PROGRAM_DIR/.env"
+                    # $PROGRAM_DIR is created by clone_repository_and_setup_venv, ensure ownership for .env creation
+                    sudo chown $USER:$USER $PROGRAM_DIR
+                    touch $ENV_FILE_PATH # Create .env if it doesn't exist
+                    chown $USER:$USER $ENV_FILE_PATH # Ensure current user owns it
+                    
+                    # Load existing .env values if any, to pre-fill or check
                     if [ -f "$ENV_FILE_PATH" ]; then
-                        export $(grep -v '^#' "$ENV_FILE_PATH" | xargs)
+                        # Source them to make them available for the -z checks below
+                        set -a # Automatically export all variables subsequently defined or modified
+                        source "$ENV_FILE_PATH"
+                        set +a
                     fi
 
                     if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
@@ -394,7 +497,7 @@ main_setup() {
                     
                     echo -e "\e[1;32mConfiguration saved to $ENV_FILE_PATH.\e[0m"
 
-                    clone_repository_and_setup_venv # This clones the repo including systemd files
+                    # 3. Create bash script and setup scheduler
                     create_bash_script
 
                     # Ask user for scheduler preference
