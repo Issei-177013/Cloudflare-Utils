@@ -454,11 +454,16 @@ main_setup() {
 
         # display_ascii_art # Uncomment if you want ASCII art in interactive mode
         PS3='Please enter your choice: '
-        options=("Install $PROGRAM_NAME" "Remove $PROGRAM_NAME" "Exit") # Use $PROGRAM_NAME
+        # Define options dynamically using $PROGRAM_NAME
+        local opt_install="Install $PROGRAM_NAME"
+        local opt_remove="Remove $PROGRAM_NAME"
+        local opt_exit="Exit"
+        options=("$opt_install" "$opt_remove" "$opt_exit") 
+
         select opt in "${options[@]}"
         do
-            case $opt in
-                "Install Cloudflare-Utils")
+            case "$opt" in
+                "$opt_install") # Match dynamic option
                     # Check if already installed in interactive mode
                     if [ -d "$PROGRAM_DIR" ]; then
                         echo -e "\e[1;33mWarning: Cloudflare-Utils appears to be already installed at $PROGRAM_DIR.\e[0m"
@@ -472,20 +477,16 @@ main_setup() {
                     install_packages # System packages
                     
                     # 1. Clone repository and setup venv first. This creates $PROGRAM_DIR.
-                    # The warning about existing directory is handled inside this selection block already.
                     clone_repository_and_setup_venv 
 
                     # 2. Now, setup .env file inside the cloned $PROGRAM_DIR
                     ENV_FILE_PATH="$PROGRAM_DIR/.env"
-                    # $PROGRAM_DIR is created by clone_repository_and_setup_venv, ensure ownership for .env creation
                     sudo chown $USER:$USER $PROGRAM_DIR
-                    touch $ENV_FILE_PATH # Create .env if it doesn't exist
-                    chown $USER:$USER $ENV_FILE_PATH # Ensure current user owns it
+                    touch $ENV_FILE_PATH 
+                    chown $USER:$USER $ENV_FILE_PATH 
                     
-                    # Load existing .env values if any, to pre-fill or check
                     if [ -f "$ENV_FILE_PATH" ]; then
-                        # Source them to make them available for the -z checks below
-                        set -a # Automatically export all variables subsequently defined or modified
+                        set -a 
                         source "$ENV_FILE_PATH"
                         set +a
                     fi
@@ -511,7 +512,6 @@ main_setup() {
                     # 3. Create bash script and setup scheduler
                     create_bash_script
 
-                    # Ask user for scheduler preference
                     echo -e "\e[1;33mChoose a scheduler for periodic execution:\e[0m"
                     echo "1. Cron (traditional, simple)"
                     echo "2. Systemd Timer (more robust, better logging integration with systemd)"
@@ -536,11 +536,11 @@ main_setup() {
                     echo -e "\e[1;32mSetup complete.\e[0m Please check the log file at $PROGRAM_DIR/log_file.log for execution logs."
                     break
                     ;;
-                "Remove Cloudflare-Utils") # remove_program now handles both
+                "$opt_remove") # Match dynamic option
                     remove_program
                     break
                     ;;
-                "Exit")
+                "$opt_exit") # Match dynamic option
                     break
                     ;;
                 *) echo -e "\e[1;31mInvalid option $REPLY\e[0m";;
