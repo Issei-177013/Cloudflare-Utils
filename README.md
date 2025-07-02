@@ -84,6 +84,46 @@ sudo /tmp/install.sh --non-interactive --action install \
 
 In non-interactive mode, the installer defaults to using **cron** for scheduling.
 
+### Installing from a Specific Branch (for Development/Testing)
+
+You can install a specific branch (e.g., `dev`) for testing purposes. This will create an isolated installation.
+
+1.  **Download `install.sh`**:
+    ```bash
+    curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh
+    # Note: This always fetches install.sh from main. To test changes in install.sh from a dev branch,
+    # you'd need to download install.sh specifically from that dev branch:
+    # curl -fsSL -o /tmp/install.sh https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh
+    chmod +x /tmp/install.sh
+    ```
+
+2.  **Run `install.sh` with the `--branch` argument**:
+    *   **Interactive example for `dev` branch:**
+        ```bash
+        sudo /tmp/install.sh --branch dev
+        ```
+        This will install into `/opt/Cloudflare-Utils-dev/`, use systemd units like `cloudflare-utils-dev.service`, etc. You'll be prompted for configuration as usual, which will be saved to `/opt/Cloudflare-Utils-dev/.env`.
+
+    *   **Non-interactive example for `dev` branch:**
+        ```bash
+        sudo /tmp/install.sh --non-interactive --action install --branch dev \
+          --api-token "YOUR_DEV_CLOUDFLARE_API_TOKEN" \
+          # ... other parameters ...
+        ```
+
+**Managing Branch Installations:**
+*   Each branch installation is isolated in its own directory (e.g., `/opt/Cloudflare-Utils-dev`).
+*   Logs, `.env` files, and scheduler entries (cron/systemd) are specific to that branched installation.
+*   To **remove** a branched installation, use `install.sh` with the same `--branch` name and `--action remove`:
+    ```bash
+    sudo /tmp/install.sh --action remove --branch dev 
+    ```
+    Or for non-interactive removal:
+    ```bash
+    sudo /tmp/install.sh --non-interactive --action remove --branch dev
+    ```
+*   Running `install.sh` without `--branch` targets the main installation (`/opt/Cloudflare-Utils`).
+
 ### Debian Package (Planned)
 
 Instructions for installing via a `.deb` package will be added here once available.
