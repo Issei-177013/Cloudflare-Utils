@@ -17,6 +17,7 @@ keywords = ["cloudflare", "dns", "automation", "dyndns"]
 dependencies = [
     "cloudflare>=2.19.0", # Check for latest appropriate version
     "python-dotenv>=0.20.0", # Check for latest appropriate version
+    "tabulate>=0.9.0", # Added for table display
 ]
 
 [project.urls]

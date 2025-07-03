@@ -17,6 +17,7 @@ import argparse
 import logging
 from cloudflare import Cloudflare, APIError
 from dotenv import load_dotenv
+from tabulate import tabulate
 
 # --- Determine Base Directory ---
 # This logic tries to determine the actual installation directory.
@@ -113,6 +114,28 @@ def fetch_dns_records(target_zone_id, record_types=['A', 'AAAA']):
         logging.error(f"An unexpected error occurred while fetching records: {e}")
         return None
 
+def display_dns_records_table(dns_records):
+    """Displays DNS records in a formatted table."""
+    if not dns_records:
+        logging.info("No DNS records to display.")
+        return
+
+    headers = ["Type", "Name", "Content (IP)", "TTL", "Proxied"]
+    table_data = []
+    for record in dns_records:
+        table_data.append([
+            record.get('type', 'N/A'),
+            record.get('name', 'N/A'),
+            record.get('content', 'N/A'),
+            record.get('ttl', 'N/A'),
+            record.get('proxied', 'N/A')
+        ])
+    
+    # Using print directly for table output, as logging might format it undesirably.
+    print("\nDNS Records:")
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    print("\n")
+
 def update_dns_record(target_zone_id, record_id, record_name, record_type, new_content):
     if not cf_client:
         logging.error("Cloudflare client not initialized for updating record.")
@@ -164,20 +187,36 @@ def core_dns_update_logic(config_dict):
     target_record_names = [name.strip() for name in record_names_str_val.split(',') if name.strip()]
     ip_addresses_list = [ip.strip() for ip in ip_addresses_str_val.split(',') if ip.strip()]
 
-    if not target_record_names:
-        logging.error("Parsed Record Name(s) list is empty.")
-        return
-    if not ip_addresses_list:
-        logging.error("Parsed IP Addresses list is empty.")
-        return
+    # This is a placeholder for how interactive mode might be passed.
+    # It assumes 'interactive' is a boolean attribute in config_dict, set by main_cli based on args.
+    is_interactive_mode = config_dict.get("interactive", False)
 
     logging.info(f"Fetching A and AAAA records for zone ID: {zone_id_val}...")
+    # In interactive mode, we might want to fetch all records initially, not just A/AAAA,
+    # or allow type filtering later. For now, sticking to A/AAAA as per current fetch_dns_records.
     dns_records = fetch_dns_records(zone_id_val)
 
     if dns_records is None:
         logging.error("Could not fetch DNS records. Exiting.")
         return
-    if not dns_records:
+    
+    if is_interactive_mode:
+        if not dns_records:
+            logging.info("No A or AAAA records found in the zone to display.")
+        else:
+            display_dns_records_table(dns_records)
+        logging.info("Interactive mode: Displayed records. Further interaction not yet implemented.")
+        return # Exit after displaying in this initial interactive step
+
+    # Non-interactive mode continues below (original logic)
+    if not target_record_names:
+        logging.error("Parsed Record Name(s) list is empty. This is required for non-interactive mode.")
+        return
+    if not ip_addresses_list:
+        logging.error("Parsed IP Addresses list is empty. This is required for non-interactive mode.")
+        return
+        
+    if not dns_records: # Check again in case interactive mode was false and no records found
         logging.info("No A or AAAA records found in the zone.")
         return
 
@@ -221,14 +260,16 @@ def main_cli():
     parser.add_argument('--zone-id', type=str, default=None, 
                         help='Cloudflare Zone ID (overrides .env and OS env variables).')
     parser.add_argument('--record-names', type=str, default=None, 
-                        help='Comma-separated DNS record names (overrides .env and OS env variables).')
+                        help='Comma-separated DNS record names (overrides .env and OS env variables). Required for non-interactive mode.')
     parser.add_argument('--ip-addresses', type=str, default=None, 
-                        help='Comma-separated IP addresses to rotate (overrides .env and OS env variables).')
+                        help='Comma-separated IP addresses to rotate (overrides .env and OS env variables). Required for non-interactive mode.')
     parser.add_argument('--env-file', type=str, default=DEFAULT_ENV_FILE_PATH, 
                         help=f'Path to .env file. (Default: {DEFAULT_ENV_FILE_PATH}, which is derived from actual install location if CFU_INSTALL_DIR env var is set by run.sh, else /opt/Cloudflare-Utils/.env).')
     parser.add_argument('--log-level', type=str, default="INFO", 
                         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], 
                         help='Set the logging level (default: INFO).')
+    parser.add_argument('--interactive', action='store_true', 
+                        help='Enable interactive mode for record selection and operations.')
     parser.add_argument('--version', action='version', version='%(prog)s 0.1.0') # Version will be updated by packaging later
 
     args = parser.parse_args()
@@ -243,10 +284,23 @@ def main_cli():
     # Log which .env file path is being attempted for loading
     logging.info(f"Attempting to load .env file from: {effective_env_path_for_loading}")
 
-
     logging.info("Cloudflare DNS update CLI started.")
     
     final_config = load_configuration(args, effective_env_path_for_loading)
+    # Add the interactive flag to the config to be passed to core_dns_update_logic
+    final_config["interactive"] = args.interactive
+    
+    # Validate required arguments for non-interactive mode
+    if not args.interactive:
+        if not final_config.get("record_names_str"):
+            logging.error("Error: --record-names (or CLOUDFLARE_RECORD_NAME in .env) is required in non-interactive mode.")
+            parser.print_help()
+            return 
+        if not final_config.get("ip_addresses_str"):
+            logging.error("Error: --ip-addresses (or CLOUDFLARE_IP_ADDRESSES in .env) is required in non-interactive mode.")
+            parser.print_help()
+            return
+
     core_dns_update_logic(final_config)
 
 if __name__ == "__main__":
