@@ -102,7 +102,8 @@ def fetch_dns_records(target_zone_id, record_types=['A', 'AAAA']):
         return None
     try:
         for record_type in record_types:
-            response = cf_client.dns.records.list(zone_id=target_zone_id, params={'type': record_type})
+            # Updated to use 'type' as a direct keyword argument instead of 'params'
+            response = cf_client.dns.records.list(zone_id=target_zone_id, type=record_type)
             all_records.extend([record.model_dump() for record in response])
         return all_records
     except APIError as e:
