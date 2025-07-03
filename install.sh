@@ -46,19 +46,66 @@ ask_user_input_to_env() {
 
 # Install necessary packages
 install_packages() {
-    echo -e "\e[1;34mInstalling necessary packages...\e[0m"
-    if ! sudo apt-get update; then
-        echo -e "\e[1;31mFailed to update apt repositories.\e[0m" >&2
-        exit 1
-    fi
+    echo -e "\e[1;34mChecking for necessary system packages...\e[0m"
+    # Define required commands and their typical package names on Debian/Ubuntu
+    declare -A CMD_TO_PKG=( ["git"]="git" ["python3"]="python3" ["pip3"]="python3-pip" ["curl"]="curl" )
+    # python3-venv is needed for `python3 -m venv`
+    DEBIAN_EXTRA_PKGS="python3-venv" 
     
-    # Install python3-venv for creating virtual environments
-    if ! sudo apt-get install -y git python3-pip python3-venv; then
-        echo -e "\e[1;31mFailed to install required packages.\e[0m" >&2
-        exit 1
-    fi
+    MISSING_CMDS=""
+    INSTALL_PKGS_LIST=""
+
+    for cmd in "${!CMD_TO_PKG[@]}"; do
+        if ! command -v $cmd &> /dev/null; then
+            MISSING_CMDS="$MISSING_CMDS $cmd"
+            INSTALL_PKGS_LIST="${INSTALL_PKGS_LIST} ${CMD_TO_PKG[$cmd]}"
+        fi
+    done
     
-    echo -e "\e[1;32mSystem packages installed successfully.\e[0m"
+    # Specifically check if `python3 -m venv` works, if not, python3-venv might be missing
+    if ! python3 -m venv --help &> /dev/null; then
+        MISSING_CMDS="$MISSING_CMDS python3-venv(module)"
+        INSTALL_PKGS_LIST="${INSTALL_PKGS_LIST} ${DEBIAN_EXTRA_PKGS}"
+    fi
+
+    # Remove duplicate package names that might have been added
+    INSTALL_PKGS_LIST=$(echo "${INSTALL_PKGS_LIST}" | xargs -n1 | sort -u | xargs)
+
+    if [ -n "$MISSING_CMDS" ]; then
+        echo -e "\e[1;33mWarning: The following required commands/modules appear to be missing or non-functional: $MISSING_CMDS\e[0m"
+        if [ -f /etc/debian_version ]; then # Check if Debian-based
+            echo -e "\e[1;34mThis is a Debian/Ubuntu system. Attempting to install/reinstall: $INSTALL_PKGS_LIST\e[0m"
+            if ! sudo apt-get update; then
+                echo -e "\e[1;31mFailed to update apt repositories. Please do it manually and try again.\e[0m" >&2
+                # exit 1 # Decided not to exit here, let apt-get install try
+            fi
+            if ! sudo apt-get install -y $INSTALL_PKGS_LIST; then
+                 echo -e "\e[1;31mFailed to install some packages using apt-get.\e[0m" >&2
+                 echo -e "\e[1;31mPlease install them manually (e.g., sudo apt-get install git python3 python3-pip python3-venv curl) and try again.\e[0m" >&2
+                 exit 1
+            fi
+            echo -e "\e[1;32mSystem packages installation attempt complete.\e[0m"
+        elif [ -f /etc/redhat-release ]; then # Check if RedHat-based (Fedora, CentOS)
+            echo -e "\e[1;33mThis appears to be a RedHat-based system (e.g., Fedora, CentOS).\e[0m"
+            echo -e "\e[1;31mAutomatic package installation is not supported for this distribution.\e[0m"
+            echo -e "\e[1;31mPlease ensure the following (or equivalent) are installed: git, python3, python3-pip, python3-devel (for venv), curl.\e[0m"
+            echo -e "\e[1;31mExample: sudo yum install git python3 python3-pip python3-devel curl\e[0m"
+            echo -e "\e[1;31mOr:      sudo dnf install git python3 python3-pip python3-devel curl\e[0m"
+            exit 1
+        elif [[ "$(uname)" == "Darwin" ]]; then # Check for macOS
+            echo -e "\e[1;33mThis appears to be macOS.\e[0m"
+            echo -e "\e[1;31mAutomatic package installation is not supported.\e[0m"
+            echo -e "\e[1;31mPlease ensure git, python3, pip3, and curl are installed (e.g., via Homebrew).\e[0m"
+            echo -e "\e[1;31mExample: brew install git python curl\e[0m (python from brew usually includes pip and venv support)"
+            exit 1
+        else
+            echo -e "\e[1;31mUnsupported operating system for automatic package installation.\e[0m"
+            echo -e "\e[1;31mPlease ensure the following are installed: git, python3, pip3, python3-venv module, curl\e[0m" >&2
+            exit 1
+        fi
+    else
+        echo -e "\e[1;32mAll required system commands (git, python3, pip3, curl) and python3 venv module seem to be available.\e[0m"
+    fi
 }
 
 # Clone GitHub repository and setup virtual environment
@@ -183,6 +230,29 @@ clone_repository_and_setup_venv() {
     # Deactivate venv after installation
     deactivate
     echo -e "\e[1;32mCloudflare-Utils package and its dependencies installed successfully in virtual environment.\e[0m"
+
+    # Placeholder for CFU Manager installation
+    # This assumes cfu-manager will be available as a script after installing the main package,
+    # e.g., through [project.scripts] in pyproject.toml.
+    echo -e "\e[1;34mSetting up CFU Manager command...\e[0m"
+    if [ -f "$PROGRAM_DIR/.venv/bin/cfu-manager" ]; then
+        if sudo ln -sf "$PROGRAM_DIR/.venv/bin/cfu-manager" "/usr/local/bin/cfu-manager"; then
+            echo -e "\e[1;32mCFU Manager command linked to /usr/local/bin/cfu-manager.\e[0m"
+            echo -e "\e[1;34mYou can now use 'cfu-manager menu' to manage your installations.\e[0m"
+        else
+            echo -e "\e[1;31mFailed to link cfu-manager to /usr/local/bin/. You might need to run it directly from $PROGRAM_DIR/.venv/bin/cfu-manager or add it to PATH manually.\e[0m"
+        fi
+    elif [ -f "$PROGRAM_DIR/.venv/bin/cloudflare-utils-manager" ]; then # Alternate name check
+        if sudo ln -sf "$PROGRAM_DIR/.venv/bin/cloudflare-utils-manager" "/usr/local/bin/cfu-manager"; then
+            echo -e "\e[1;32mCFU Manager command (as cloudflare-utils-manager) linked to /usr/local/bin/cfu-manager.\e[0m"
+            echo -e "\e[1;34mYou can now use 'cfu-manager menu' to manage your installations.\e[0m"
+        else
+            echo -e "\e[1;31mFailed to link cfu-manager to /usr/local/bin/. You might need to run it directly from $PROGRAM_DIR/.venv/bin/cloudflare-utils-manager or add it to PATH manually.\e[0m"
+        fi
+    else
+        echo -e "\e[1;33mCFU Manager script (cfu-manager or cloudflare-utils-manager) not found in $PROGRAM_DIR/.venv/bin/ after installation.\e[0m"
+        echo -e "\e[1;33mThe manager script might need to be installed separately or the main package's setup needs to define it.\e[0m"
+    fi
 }
 
 # Create the Bash script to run Python script
@@ -369,6 +439,26 @@ write_to_env_file() {
 
 # Main setup function
 main_setup() {
+    # Python version check
+    MIN_PYTHON_MAJOR=3
+    MIN_PYTHON_MINOR=7
+    echo -e "\e[1;34mChecking Python version...\e[0m"
+    PYTHON_VERSION_OUTPUT=$(python3 --version 2>&1)
+    if [[ $? -ne 0 ]]; then
+        echo -e "\e[1;31mError: python3 command not found or not executable. Please ensure Python 3 is installed and in your PATH.\e[0m" >&2
+        exit 1
+    fi
+    
+    PYTHON_VERSION_FULL=$(echo "$PYTHON_VERSION_OUTPUT" | awk '{print $2}') # Gets something like "3.8.10"
+    PYTHON_MAJOR=$(echo "$PYTHON_VERSION_FULL" | cut -d. -f1)
+    PYTHON_MINOR=$(echo "$PYTHON_VERSION_FULL" | cut -d. -f2)
+
+    if ! [[ "$PYTHON_MAJOR" -gt "$MIN_PYTHON_MAJOR" || ("$PYTHON_MAJOR" -eq "$MIN_PYTHON_MAJOR" && "$PYTHON_MINOR" -ge "$MIN_PYTHON_MINOR") ]]; then
+        echo -e "\e[1;31mError: Python version $PYTHON_VERSION_FULL found, but $PROGRAM_NAME_BASE requires Python $MIN_PYTHON_MAJOR.$MIN_PYTHON_MINOR or higher.\e[0m" >&2
+        exit 1
+    fi
+    echo -e "\e[1;32mPython version $PYTHON_VERSION_FULL is acceptable.\e[0m"
+
     # Non-interactive mode variables
     NON_INTERACTIVE=false
     CF_API_TOKEN=""
