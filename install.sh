@@ -164,10 +164,9 @@ clone_repository_and_setup_venv() {
     
     echo -e "\e[1;34mInstalling Cloudflare-Utils package (fresh build) from $PROGRAM_DIR ...\e[0m"
     # Use --no-cache-dir to avoid using cached wheels/builds
-    # Use --force-reinstall to ensure it reinstalls even if version number hasn't changed
-    # Use -I or --ignore-installed might also be helpful for a clean slate
-    if ! pip3 install --no-cache-dir --force-reinstall . ; then
-        echo -e "\e[1;31mFailed to install Cloudflare-Utils package using 'pip3 install --no-cache-dir --force-reinstall .'.\e[0m" >&2
+    # Use --ignore-installed to ensure it reinstalls even if already present and to ignore existing versions.
+    if ! pip3 install --no-cache-dir --ignore-installed . ; then
+        echo -e "\e[1;31mFailed to install Cloudflare-Utils package using 'pip3 install --no-cache-dir --ignore-installed .'.\e[0m" >&2
         # cd back to original directory before exiting
         cd "$ORIGINAL_DIR"
         deactivate
@@ -209,11 +208,14 @@ create_bash_script() {
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 VENV_PATH="\$SCRIPT_DIR/.venv" # Path to virtual environment
 
+# Export the script's directory so the Python script can use it for default .env and log paths
+export CFU_INSTALL_DIR="\$SCRIPT_DIR"
+
 # Activate virtual environment
 if [ -f "\$VENV_PATH/bin/activate" ]; then
     source "\$VENV_PATH/bin/activate"
 else
-    echo "\$(date) - ERROR: Virtual environment not found at \$VENV_PATH" >> "\$SCRIPT_DIR/log_file.log" 2>&1
+    echo "\$(date) - ERROR: Virtual environment not found at \$VENV_PATH" >> "\$CFU_INSTALL_DIR/log_file.log" 2>&1 # Log to install dir
     exit 1
 fi
 
