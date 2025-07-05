@@ -4,11 +4,12 @@ from rich.table import Table
 import os
 import subprocess
 import sys
+import pwd
 
 # Attempt to import InquirerPy, provide guidance if not found
 try:
     from InquirerPy import prompt as i_prompt
-    from InquirerPy.validator import PathValidator
+    # from InquirerPy.validator import PathValidator  # This import is unused
     INQUIRERPY_AVAILABLE = True
 except ImportError:
     INQUIRERPY_AVAILABLE = False
@@ -123,7 +124,7 @@ def install(
     scheduler: str = typer.Option("interactive", help="Scheduler type: cron, systemd, or interactive.", case_sensitive=False)
 ):
     """
-    Install a new instance of Cloudflare-Utils or reinstall/update an existing one.
+    Install a new instance of Cloudflare-Utils or reinstall/update an existing one.  # noqa: E501
     This command will download the specified branch's install.sh and execute it.
     """
     instance_name = get_instance_name(branch)
@@ -185,12 +186,14 @@ def install(
     try:
         # Run the script; it will handle its own output.
         subprocess.run(command, check=True)
-        console.print(f"\n[green]SUCCESS:[/] Installation/Update for branch '{branch}' initiated by '{INSTALL_SCRIPT_NAME}'.")
+        success_msg = (f"\n[green]SUCCESS:[/] Installation/Update for branch '{branch}' initiated by "
+                       f"'{INSTALL_SCRIPT_NAME}'.")
+        console.print(success_msg)
         console.print("Please check its output for details.")
     except subprocess.CalledProcessError as e:
         console.print(f"[bold red]ERROR:[/] '{INSTALL_SCRIPT_NAME}' failed for branch '{branch}'.")
         console.print(f"[red]Return Code: {e.returncode}[/red]")
-    except FileNotFoundError: # Should not happen if download succeeded
+    except FileNotFoundError:  # Should not happen if download succeeded
         console.print(f"[bold red]ERROR:[/] Temporary install script '{temp_install_script_path}' not found.")
     finally:
         if os.path.exists(temp_install_script_path):
@@ -205,8 +208,10 @@ def uninstall(
     instance_name = get_instance_name(branch)
     instance_dir = get_instance_dir(branch)
 
-    if not is_instance_installed(branch): # Basic check, install.sh will do a more thorough one
-        console.print(f"[yellow]Warning:[/] Instance [bold cyan]{instance_name}[/] at [magenta]{instance_dir}[/] does not seem to be fully installed or was already removed.")
+    if not is_instance_installed(branch):  # Basic check, install.sh will do a more thorough one
+        warn_msg = (f"[yellow]Warning:[/] Instance [bold cyan]{instance_name}[/] at [magenta]{instance_dir}[/] "
+                    "does not seem to be fully installed or was already removed.")
+        console.print(warn_msg)
         # Ask if user wants to proceed anyway, install.sh might clean up remnants
         if not typer.confirm(f"Do you want to attempt to run uninstall for '{instance_name}' anyway?", default=False):
             raise typer.Exit()

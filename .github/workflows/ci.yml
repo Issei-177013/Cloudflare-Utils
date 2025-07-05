@@ -26,8 +26,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8
         # For testing the build and install of the package itself
-        pip install build setuptools wheel 
-        # No need to pip install . yet, just dependencies for now
+        pip install build setuptools wheel
+        # Install the package itself with the 'manager' extras
+        pip install .[manager]
 
     - name: Lint with flake8
       run: |
