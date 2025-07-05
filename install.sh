@@ -75,6 +75,13 @@ install_packages() {
         echo -e "\e[1;33mWarning: The following required commands/modules appear to be missing or non-functional: $MISSING_CMDS\e[0m"
         if [ -f /etc/debian_version ]; then # Check if Debian-based
             echo -e "\e[1;34mThis is a Debian/Ubuntu system. Attempting to install/reinstall: $INSTALL_PKGS_LIST\e[0m"
+            
+            # Check for sudo command
+            if ! command -v sudo &> /dev/null; then
+                echo -e "\e[1;31mError: 'sudo' command not found. Please install sudo or run this script as root.\e[0m" >&2
+                exit 1
+            fi
+            
             if ! sudo apt-get update; then
                 echo -e "\e[1;31mFailed to update apt repositories. Please do it manually and try again.\e[0m" >&2
                 # exit 1 # Decided not to exit here, let apt-get install try
