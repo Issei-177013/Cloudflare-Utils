@@ -7,7 +7,7 @@ BRANCH="${1:-$DEFAULT_BRANCH}"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 VERSION_TAG=""
 
-# نصب وابستگی‌ها
+# Install required dependencies
 install_packages() {
     echo -e "\e[1;34mInstalling dependencies...\e[0m"
     sudo apt-get update
@@ -15,7 +15,7 @@ install_packages() {
     pip3 install cloudflare python-dotenv
 }
 
-# کلون کردن سورس
+# Clone or update the repository
 clone_repository() {
     echo -e "\e[1;34mCloning from branch '$BRANCH'...\e[0m"
     if [ -d "$PROGRAM_DIR/.git" ]; then
@@ -32,7 +32,7 @@ clone_repository() {
     cd - > /dev/null
 }
 
-# ساخت run.sh برای اجرای برنامه اصلی
+# Create run.sh script to execute the main program
 create_runner() {
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash
@@ -44,14 +44,36 @@ EOF
     chmod +x "$PROGRAM_DIR/run.sh"
 }
 
-# تنظیم کرون
+# Setup default config file if not present
+setup_config_file() {
+    echo -e "\e[1;34mSetting up config file...\e[0m"
+    CONFIG_FILE_PATH="$PROGRAM_DIR/configs.json"
+    if [ ! -f "$CONFIG_FILE_PATH" ]; then
+        echo '{"accounts": []}' > "$CONFIG_FILE_PATH"
+        echo -e "\e[1;32mCreated empty config file: $CONFIG_FILE_PATH\e[0m"
+    else
+        echo -e "\e[1;33mConfig file already exists: $CONFIG_FILE_PATH\e[0m"
+    fi
+
+    # Change ownership of the config file to the user who ran sudo
+    # This allows cli.py to edit the file without requiring sudo
+    if [ -n "$SUDO_USER" ]; then
+        chown "$SUDO_USER:$SUDO_USER" "$CONFIG_FILE_PATH"
+        echo -e "\e[1;32mSet owner of $CONFIG_FILE_PATH to $SUDO_USER\e[0m"
+    else
+        echo -e "\e[1;33mWarning: SUDO_USER not set. Config file permissions might need manual adjustment for cli.py without sudo.\e[0m"
+        # Not recommended: chmod 666 "$CONFIG_FILE_PATH"
+    fi
+}
+
+# Setup cron jobs for periodic and startup execution
 setup_cron() {
     echo -e "\e[1;34mSetting up cron...\e[0m"
     (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash $PROGRAM_DIR/run.sh") | crontab -
     (crontab -l 2>/dev/null; echo "@reboot /bin/bash $PROGRAM_DIR/run.sh") | crontab -
 }
 
-# منوی اصلی
+# Main interactive menu
 main_menu() {
     PS3="Please choose: "
     options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Remove $PROGRAM_NAME" "Exit")
@@ -61,6 +83,7 @@ main_menu() {
                 install_packages
                 clone_repository
                 create_runner
+                setup_config_file
                 setup_cron
                 echo -e "\e[1;32m✅ Installed version: $VERSION_TAG\e[0m"
                 echo -e "\e[1;32m📌 Use \`python3 $PROGRAM_DIR/cli.py\` to add accounts and records.\e[0m"
