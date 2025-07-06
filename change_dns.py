@@ -18,14 +18,19 @@ import os
 import json
 from cloudflare import Cloudflare, APIError
 
-# Load environment variables from .bashrc
-bashrc_path = os.path.expanduser('~/.bashrc')
-if os.path.exists(bashrc_path):
-    with open(bashrc_path) as f:
-        for line in f:
-            if line.startswith('export '):
-                var, value = line.replace('export ', '', 1).strip().split('=', 1)
-                os.environ[var] = value.strip('"')
+from dotenv import load_dotenv
+
+# Define the path to the .env file
+# This should correspond to the PROGRAM_DIR used in install.sh and run.sh
+dotenv_path = '/opt/Cloudflare-Utils/.env'
+
+# Load environment variables from .env file
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+else:
+    # Log an error or raise an exception if .env file is critical and not found
+    # For now, let the script proceed, and it will fail later if variables are missing
+    print(f"Warning: .env file not found at {dotenv_path}. Environment variables may not be loaded.")
 
 # Fetch the environment variables
 api_token = os.getenv('CLOUDFLARE_API_TOKEN')
