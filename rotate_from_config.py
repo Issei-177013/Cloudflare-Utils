@@ -20,19 +20,27 @@ def run_rotation():
                 continue
 
             for cfg_record in zone.get("records", []):
-                matching = next((r for r in records if r["name"] == cfg_record["name"]), None)
+                # Access record fields as attributes (e.g., r.name) instead of dictionary keys (e.g., r["name"])
+                matching = next((r for r in records if r.name == cfg_record["name"]), None)
                 if not matching:
-                    print(f"⚠️ Record not found: {cfg_record['name']}")
+                    print(f"⚠️ Record not found in Cloudflare: {cfg_record['name']}")
                     continue
 
-                new_ip = rotate_ip(cfg_record["ips"], matching["content"])
+                current_ip_on_cf = matching.content
+                new_ip = rotate_ip(cfg_record["ips"], current_ip_on_cf)
+                
+                # If the IP doesn't need to change, skip the update
+                if new_ip == current_ip_on_cf:
+                    print(f"ℹ️ IP for {cfg_record['name']} is already {new_ip}. No update needed.")
+                    continue
+
                 try:
                     cf.dns.records.update(
                         zone_id=zone_id,
-                        dns_record_id=matching["id"],
-                        name=cfg_record["name"],
-                        type=cfg_record["type"],
-                        content=new_ip,
+                        dns_record_id=matching.id, # Access as attribute
+                        name=cfg_record["name"],   # This comes from our config, so it's a dict key
+                        type=cfg_record["type"],   # Same as above
+                        content=new_ip,            # This is the new IP string
                         proxied=cfg_record.get("proxied", False)
                     )
                     print(f"✅ Updated {cfg_record['name']} to {new_ip}")
