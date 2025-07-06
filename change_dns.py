@@ -1,8 +1,9 @@
 import os
 from dotenv import load_dotenv
 from cloudflare import Cloudflare, APIError
+from version import __version__
 
-__version__ = "v1.0.0"
+print(f"🔁 Running Cloudflare-Utils {__version__}")
 
 # Load .env
 dotenv_path = '/opt/Cloudflare-Utils/.env'
