@@ -65,6 +65,25 @@ The output of the cron job and the script executions will be logged in `/opt/Clo
 
 ---
 
+## Updating
+
+To update Cloudflare Utils to the latest version, you can re-run the installation script. It will fetch the latest version from the repository and update your installation.
+
+### Using cURL
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
+```
+
+### Using wget
+
+```bash
+sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
+```
+The script will give you an option to install, which will effectively update your current installation if it detects an existing one by pulling the latest changes for the chosen branch. Your existing `.env` configuration file will be preserved.
+
+---
+
 ## Contributing
 
 If you wish to contribute to this project, please follow these steps:

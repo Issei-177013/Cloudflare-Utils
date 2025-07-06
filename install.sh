@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 PROGRAM_NAME="Cloudflare-Utils"
 DEFAULT_BRANCH="main"
 BRANCH="${1:-$DEFAULT_BRANCH}"
@@ -24,7 +26,7 @@ ask_user_input() {
 install_packages() {
     echo -e "\e[1;34mInstalling required packages...\e[0m"
     sudo apt-get update
-    sudo apt-get install -y git python3-pip python3-dotenv || true
+    sudo apt-get install -y git python3-pip python3-dotenv
     pip3 install cloudflare python-dotenv
 }
 
