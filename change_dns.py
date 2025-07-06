@@ -1,91 +1,59 @@
-# Copyright 2024 [Issei-177013]
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-
 import os
-import json
+from dotenv import load_dotenv
 from cloudflare import Cloudflare, APIError
 
-from dotenv import load_dotenv
-
-# Define the path to the .env file
-# This should correspond to the PROGRAM_DIR used in install.sh and run.sh
 dotenv_path = '/opt/Cloudflare-Utils/.env'
+load_dotenv(dotenv_path)
 
-# Load environment variables from .env file
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path)
-else:
-    # Log an error or raise an exception if .env file is critical and not found
-    # For now, let the script proceed, and it will fail later if variables are missing
-    print(f"Warning: .env file not found at {dotenv_path}. Environment variables may not be loaded.")
-
-# Fetch the environment variables
 api_token = os.getenv('CLOUDFLARE_API_TOKEN')
 zone_id = os.getenv('CLOUDFLARE_ZONE_ID')
 record_name = os.getenv('CLOUDFLARE_RECORD_NAME')
 ip_addresses = os.getenv('CLOUDFLARE_IP_ADDRESSES')
 
-if not api_token or not zone_id or not record_name or not ip_addresses:
-    raise ValueError("CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID, CLOUDFLARE_RECORD_NAME and CLOUDFLARE_IP_ADDRESSES must be set")
+if not all([api_token, zone_id, record_name, ip_addresses]):
+    raise ValueError("Required environment variables are missing.")
 
-# Convert the comma-separated string of IP addresses to a list
 ip_addresses = ip_addresses.split(',')
 
-# Initialize Cloudflare client
 cf = Cloudflare(api_token=api_token)
 
 def fetch_records():
     try:
-        dns_records = cf.dns.records.list(zone_id=zone_id).to_json()
-        return json.loads(dns_records)
+        return cf.dns.records.list(zone_id=zone_id)
     except APIError as e:
         print(f"Fetching error: {e}")
         return None
 
-def update_record(record_id, new_content, record_type, record_name):
+def update_record(record_id, new_content, record_type, record_name, proxied=False):
     try:
         cf.dns.records.update(
-            dns_record_id=record_id,
             zone_id=zone_id,
-            type=record_type,
-            name=record_name,
-            content=new_content,
-            id=record_id,
+            dns_record_id=record_id,
+            data={
+                "type": record_type,
+                "name": record_name,
+                "content": new_content,
+                "proxied": proxied
+            }
         )
+        print(f"✅ DNS record updated to {new_content}")
     except APIError as e:
         print(f"Updating error: {e}")
 
 def ip_rotation(current_ip):
-    try:
-        current_index = ip_addresses.index(current_ip)
-    except ValueError:
-        current_index = -1
-    next_index = (current_index + 1) % len(ip_addresses)
-    next_ip = ip_addresses[next_index]
-    return next_ip
+    if current_ip not in ip_addresses:
+        print(f"ℹ️ Current IP '{current_ip}' not in list. Rotating to first.")
+        return ip_addresses[0]
+    idx = ip_addresses.index(current_ip)
+    return ip_addresses[(idx + 1) % len(ip_addresses)]
 
 records = fetch_records()
 
 if records:
-    for record in records['result']:
+    for record in records:
         if record['name'] == record_name:
-            content = record['content']
-            record_id = record['id']
-            record_type = record['type']
-            new_content = ip_rotation(content)
-            update_record(record_id, new_content, record_type, record_name)
+            old_ip = record['content']
+            new_ip = ip_rotation(old_ip)
+            update_record(record['id'], new_ip, record['type'], record_name, record.get("proxied", False))
 else:
-    print("No records found")
+    print("❌ No records found.")
