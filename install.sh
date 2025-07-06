@@ -15,6 +15,7 @@
 
 
 PROGRAM_NAME="Cloudflare-Utils"
+VERSION="v1.0.0"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 
 # Function to display ASCII art
