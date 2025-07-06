@@ -1,30 +1,29 @@
+#!/usr/bin/env python3
 from config_manager import load_config, save_config, find_account, find_zone, find_record, CONFIG_PATH
 import os
-import sys
+import sys # For exiting the program
 
 def check_config_permissions():
-    """Check if the config file exists and is writable."""
+    """Checks if the config file exists and is writable."""
     if not os.path.exists(CONFIG_PATH):
         print(f"❌ Error: Config file not found at {CONFIG_PATH}.")
         print("Please ensure the program is installed correctly using install.sh.")
         sys.exit(1)
-
+    
     if not os.access(CONFIG_PATH, os.W_OK):
         print(f"❌ Error: Config file at {CONFIG_PATH} is not writable.")
-        print("Please check the file permissions or try running the script with sudo:")
+        print(f"Please check the file permissions or try running the script with sudo if appropriate:")
         print(f"  sudo python3 {os.path.abspath(__file__)}")
         sys.exit(1)
-
-    # Note: `load_config()` will raise an exception if the JSON is invalid,
-    # which is preferred over silently fixing/corrupting the config.
-    # So we only check existence and writability here.
+    
+    # Further checks for JSON validity could be added here,
+    # but load_config() will raise an exception if the file is malformed.
+    # The current checks for existence and writability are the primary concerns for cli.py.
 
 def input_list(prompt):
-    """Helper to split comma-separated input into a list."""
     return input(prompt).strip().split(',')
 
 def add_account():
-    """Add a new Cloudflare account to the config."""
     data = load_config()
     name = input("Account name: ").strip()
     token = input("API Token: ").strip()
@@ -36,7 +35,6 @@ def add_account():
     print("✅ Account added")
 
 def add_zone():
-    """Add a new zone to an existing account."""
     data = load_config()
     name = input("Account name: ").strip()
     acc = find_account(data, name)
@@ -53,7 +51,6 @@ def add_zone():
     print("✅ Zone added")
 
 def add_record():
-    """Add a DNS record to a zone."""
     data = load_config()
     acc_name = input("Account name: ").strip()
     acc = find_account(data, acc_name)
@@ -86,7 +83,6 @@ def add_record():
     print("✅ Record added")
 
 def list_all():
-    """Print all accounts, zones, and records."""
     data = load_config()
     for acc in data["accounts"]:
         print(f"🧾 Account: {acc['name']}")
@@ -96,8 +92,7 @@ def list_all():
                 print(f"    📌 Record: {r['name']} | Type: {r['type']} | IPs: {r['ips']}")
 
 def main_menu():
-    """Display the main interactive menu."""
-    check_config_permissions()
+    check_config_permissions() # Check permissions at the start of the menu
     while True:
         print("\n--- Cloudflare Utils Manager ---")
         print("1. Add Account")
