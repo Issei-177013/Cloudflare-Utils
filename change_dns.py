@@ -34,12 +34,10 @@ def update_record(record_id, new_content, record_type, record_name, proxied=Fals
         cf.dns.records.update(
             zone_id=zone_id,
             dns_record_id=record_id,
-            data={
-                "type": record_type,
-                "name": record_name,
-                "content": new_content,
-                "proxied": proxied
-            }
+            name=record_name,
+            type=record_type,
+            content=new_content,
+            proxied=proxied
         )
         print(f"✅ DNS record updated to {new_content}")
     except APIError as e:
