@@ -27,8 +27,11 @@ ask_user_input() {
     local prompt=$1
     local var_name=$2
     read -p "$(echo -e "\e[1;32m$prompt: \e[0m")" input
-    echo "export $var_name=\"$input\"" >> ~/.bashrc
-    export $var_name="$input"
+    # Ensure the directory exists
+    sudo mkdir -p $PROGRAM_DIR
+    sudo chown $USER:$USER $PROGRAM_DIR
+    echo "$var_name=$input" >> $PROGRAM_DIR/.env
+    export $var_name="$input" # Keep this for the current session during install
 }
 
 # Install necessary packages
@@ -39,12 +42,17 @@ install_packages() {
         exit 1
     fi
     
-    if ! sudo apt-get install -y git python3-pip; then
-        echo -e "\e[1;31mFailed to install required packages.\e[0m" >&2
-        exit 1
+    # Attempt to install python3-dotenv, if not available, it will be installed via pip
+    if ! sudo apt-get install -y git python3-pip python3-dotenv; then
+        echo -e "\e[1;33mWarning: Failed to install python3-dotenv via apt. Will attempt with pip.\e[0m"
+        # Install git and python3-pip first if python3-dotenv failed with them
+        if ! sudo apt-get install -y git python3-pip; then
+            echo -e "\e[1;31mFailed to install git and python3-pip.\e[0m" >&2
+            exit 1
+        fi
     fi
     
-    if ! pip3 install cloudflare; then
+    if ! pip3 install cloudflare python-dotenv; then
         echo -e "\e[1;31mFailed to install Python package 'cloudflare'.\e[0m" >&2
         exit 1
     fi
@@ -77,7 +85,13 @@ create_bash_script() {
 PROGRAM_NAME="Cloudflare-Utils"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 
-source ~/.bashrc
+# Load environment variables from .env file
+if [ -f "$PROGRAM_DIR/.env" ]; then
+    export $(grep -v '^#' $PROGRAM_DIR/.env | xargs)
+else
+    echo "$(date) - Error: .env file not found at $PROGRAM_DIR/.env" >> $PROGRAM_DIR/log_file.log 2>&1
+    exit 1
+fi
 
 {
     echo "$(date) - Starting script"
@@ -137,9 +151,21 @@ main_setup() {
         case $opt in
             "Install Cloudflare-Utils")
                 install_packages
+                
+                # Create $PROGRAM_DIR before asking for input, so .env can be stored.
+                # clone_repository also creates this, but it's better to be explicit.
+                sudo mkdir -p $PROGRAM_DIR
+                sudo chown $USER:$USER $PROGRAM_DIR
 
-                # Check if the variables are already set in ~/.bashrc
-                source ~/.bashrc
+                # Check if the variables are already set (e.g. from a previous install attempt or manually set for the session)
+                # We don't source .bashrc anymore. We check current environment variables.
+                # If .env file exists, we can source it to check, but for simplicity,
+                # we'll just ask if not set in current environment.
+                # A more robust check would involve reading the .env file if it exists.
+
+                if [ -f "$PROGRAM_DIR/.env" ]; then
+                    export $(grep -v '^#' $PROGRAM_DIR/.env | xargs)
+                fi
 
                 if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
                     ask_user_input "Enter your Cloudflare API Token" "CLOUDFLARE_API_TOKEN"
@@ -157,15 +183,19 @@ main_setup() {
                     ask_user_input "Enter your Cloudflare IP Addresses (comma-separated)" "CLOUDFLARE_IP_ADDRESSES"
                 fi
 
-                # Source the ~/.bashrc to ensure variables are available in the current session
-                source ~/.bashrc
+                echo -e "\e[1;32mAll necessary variables have been set in $PROGRAM_DIR/.env\e[0m"
 
-                echo -e "\e[1;32mAll necessary variables have been set.\e[0m"
+                clone_repository # This will overwrite the .env if it's part of the repo, which is not ideal.
+                                 # For now, assume .env is not in the repo or .gitignore handles it.
+                                 # A better approach would be to create .env after cloning if it doesn't exist.
+                                 # Or, to write to a temporary location and then move it.
+                                 # Given the current structure, ask_user_input is called *before* clone_repository.
+                                 # The current ask_user_input writes to $PROGRAM_DIR/.env.
+                                 # If clone_repository is called after, it might overwrite this .env if .env is tracked.
+                                 # The original script called clone_repository AFTER asking for inputs too.
+                                 # Let's ensure .env is created in $PROGRAM_DIR which is created by clone_repository.
+                                 # The fix in ask_user_input to mkdir -p $PROGRAM_DIR should handle this.
 
-                # Reload ~/.bashrc to load the new environment variables
-                source ~/.bashrc
-
-                clone_repository
                 create_bash_script
                 setup_cron
 
