@@ -60,21 +60,59 @@ install_packages() {
     echo -e "\e[1;32mPackages installed successfully.\e[0m"
 }
 
-# Clone GitHub repository
+# Clone GitHub repository or update if it already exists
 clone_repository() {
-    echo -e "\e[1;34mCloning GitHub repository...\e[0m"
-    sudo mkdir -p $PROGRAM_DIR
-    sudo chown $USER:$USER $PROGRAM_DIR || {
-        echo -e "\e[1;31mFailed to create directory $PROGRAM_DIR.\e[0m" >&2
-        exit 1
-    }
+    echo -e "\e[1;34mSetting up repository in $PROGRAM_DIR...\e[0m"
 
-    if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
-        echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
-        exit 1
+    # Ensure the program directory exists and has correct permissions
+    # This needs to be done before git operations, especially for the initial clone
+    if [ ! -d "$PROGRAM_DIR" ]; then
+        sudo mkdir -p $PROGRAM_DIR || {
+            echo -e "\e[1;31mFailed to create directory $PROGRAM_DIR.\e[0m" >&2
+            exit 1
+        }
+        sudo chown $USER:$USER $PROGRAM_DIR || {
+            echo -e "\e[1;31mFailed to set ownership for $PROGRAM_DIR.\e[0m" >&2
+            # Attempt to continue if chown fails, git might still work if user has rights
+        }
     fi
-    
-    echo -e "\e[1;32mRepository cloned successfully.\e[0m"
+
+    if [ -d "$PROGRAM_DIR/.git" ]; then
+        echo -e "\e[1;34mRepository already exists. Updating from remote...\e[0m"
+        # Temporarily change ownership to current user for git pull if needed, then revert
+        # This is complex if root owns some files. Assuming user owns $PROGRAM_DIR for simplicity here.
+        # A better model might involve running git operations as the user, not sudo, if $PROGRAM_DIR is user-owned.
+        # For now, let's assume the user who runs install.sh owns $PROGRAM_DIR or has write permissions.
+        # The sudo chown $USER:$USER $PROGRAM_DIR above should handle this for the current user.
+        
+        # Ensure the current user can write to the directory for git pull
+        sudo chown -R $USER:$USER $PROGRAM_DIR 2>/dev/null # Best effort, might fail on some files if not owned by user initially
+
+        cd $PROGRAM_DIR || {
+            echo -e "\e[1;31mFailed to change directory to $PROGRAM_DIR.\e[0m" >&2
+            exit 1
+        }
+        if ! git pull; then
+            echo -e "\e[1;31mFailed to update repository. Please check for errors or try manually.\e[0m" >&2
+            # Optionally, exit here or allow script to continue with potentially outdated code
+            # exit 1 
+        else
+            echo -e "\e[1;32mRepository updated successfully.\e[0m"
+        fi
+        cd - > /dev/null # Go back to previous directory
+    else
+        echo -e "\e[1;34mCloning GitHub repository...\e[0m"
+        # Need to ensure $PROGRAM_DIR is writable by current user for git clone,
+        # or clone into a temp dir and then sudo mv.
+        # The initial sudo mkdir -p and sudo chown $USER:$USER should make it writable.
+        if ! git clone https://github.com/Issei-177013/Cloudflare-Utils.git $PROGRAM_DIR; then
+            echo -e "\e[1;31mFailed to clone repository.\e[0m" >&2
+            exit 1
+        fi
+        # After cloning, ensure the user owns the files if that's the desired state
+        sudo chown -R $USER:$USER $PROGRAM_DIR 2>/dev/null # Best effort
+        echo -e "\e[1;32mRepository cloned successfully.\e[0m"
+    fi
 }
 
 # Create the Bash script to run Python script
@@ -152,10 +190,16 @@ main_setup() {
             "Install Cloudflare-Utils")
                 install_packages
                 
-                # Create $PROGRAM_DIR before asking for input, so .env can be stored.
-                # clone_repository also creates this, but it's better to be explicit.
-                sudo mkdir -p $PROGRAM_DIR
-                sudo chown $USER:$USER $PROGRAM_DIR
+                # First, setup or update the repository.
+                # clone_repository will also handle creation of $PROGRAM_DIR and basic ownership.
+                clone_repository
+
+                # Now that the repository is in place, ask for credentials.
+                # ask_user_input will store them in $PROGRAM_DIR/.env
+                # The $PROGRAM_DIR is guaranteed to exist by clone_repository.
+                # Ensure $USER owns $PROGRAM_DIR for writing .env, clone_repository attempts this.
+                # We might need an explicit chown here again if clone_repository's attempt wasn't enough or for clarity.
+                sudo chown $USER:$USER $PROGRAM_DIR # Ensure user owns the directory for .env writing
 
                 # Check if the variables are already set (e.g. from a previous install attempt or manually set for the session)
                 # We don't source .bashrc anymore. We check current environment variables.
@@ -185,16 +229,8 @@ main_setup() {
 
                 echo -e "\e[1;32mAll necessary variables have been set in $PROGRAM_DIR/.env\e[0m"
 
-                clone_repository # This will overwrite the .env if it's part of the repo, which is not ideal.
-                                 # For now, assume .env is not in the repo or .gitignore handles it.
-                                 # A better approach would be to create .env after cloning if it doesn't exist.
-                                 # Or, to write to a temporary location and then move it.
-                                 # Given the current structure, ask_user_input is called *before* clone_repository.
-                                 # The current ask_user_input writes to $PROGRAM_DIR/.env.
-                                 # If clone_repository is called after, it might overwrite this .env if .env is tracked.
-                                 # The original script called clone_repository AFTER asking for inputs too.
-                                 # Let's ensure .env is created in $PROGRAM_DIR which is created by clone_repository.
-                                 # The fix in ask_user_input to mkdir -p $PROGRAM_DIR should handle this.
+                # clone_repository has already been called.
+                # The .env file is now safe as it's created after repository setup.
 
                 create_bash_script
                 setup_cron
