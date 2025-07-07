@@ -3,6 +3,15 @@ from config_manager import load_config, save_config, find_account, find_zone, fi
 import os
 import sys # For exiting the program
 
+def clear_screen():
+    """Clears the terminal screen."""
+    # For Windows
+    if os.name == 'nt':
+        _ = os.system('cls')
+    # For macOS and Linux
+    else:
+        _ = os.system('clear')
+
 def check_config_permissions():
     """Checks if the config file exists and is writable."""
     if not os.path.exists(CONFIG_PATH):
@@ -146,6 +155,7 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
             print("❌ Invalid input. Please enter 'yes' or 'no'.")
 
 def main_menu():
+    clear_screen() # Clear the screen at the very beginning
     check_config_permissions() # Check permissions at the start of the menu
 
     # Define ANSI escape codes for colors
