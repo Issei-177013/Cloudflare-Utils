@@ -164,14 +164,11 @@ def main_menu():
         choice = input("👉 Enter your choice: ").strip()
         
         if choice == "1":
-            if confirm_action("Add a new account?"):
-                add_account()
+            add_account()
         elif choice == "2":
-            if confirm_action("Add a new zone?"):
-                add_zone()
+            add_zone()
         elif choice == "3":
-            if confirm_action("Add a new record?"):
-                add_record()
+            add_record()
         elif choice == "4":
             list_all()
         elif choice == "5":
