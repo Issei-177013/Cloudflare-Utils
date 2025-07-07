@@ -150,17 +150,36 @@ def main_menu():
 
     # Define ANSI escape codes for colors
     YELLOW = '\033[93m'
+    CYAN = '\033[96m'
     RESET = '\033[0m'
+
+    # Import version and set author
+    try:
+        from version import __version__
+        version_str = f"Version: {__version__}"
+    except ImportError:
+        version_str = "Version: N/A"
+    
+    author_str = "Author: Issei-177013"
 
     # Load and print ASCII art
     try:
         with open("asset/Issei.txt", "r") as f:
             art = f.read()
         print(f"{YELLOW}{art}{RESET}")
+        # Print author and version after the art
+        print(f"{CYAN}{author_str}{RESET}")
+        print(f"{CYAN}{version_str}{RESET}")
     except FileNotFoundError:
         print("🎨 ASCII art file not found. Proceeding without it.")
+        # Still print author and version if art is not found
+        print(f"{CYAN}{author_str}{RESET}")
+        print(f"{CYAN}{version_str}{RESET}")
     except Exception as e:
         print(f"🎨 Error loading ASCII art: {e}. Proceeding without it.")
+        # Still print author and version if art loading fails
+        print(f"{CYAN}{author_str}{RESET}")
+        print(f"{CYAN}{version_str}{RESET}")
     
     print("===================================")
     print("🚀 Cloudflare Utils Manager 🚀")
