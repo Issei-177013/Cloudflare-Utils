@@ -20,6 +20,28 @@ def check_config_permissions():
     # but load_config() will raise an exception if the file is malformed.
     # The current checks for existence and writability are the primary concerns for cli.py.
 
+def select_from_list(items, prompt):
+    """Displays a numbered list of items and returns the selected item."""
+    if not items:
+        print("No items to select.")
+        return None
+
+    print(prompt)
+    for i, item in enumerate(items):
+        # Assuming item is a dictionary and has a 'name' or 'domain' key
+        name = item.get('name', item.get('domain', 'Unknown Item'))
+        print(f"{i+1}. {name}")
+
+    while True:
+        try:
+            choice = int(input("Enter your choice (number): "))
+            if 1 <= choice <= len(items):
+                return items[choice-1]
+            else:
+                print("Invalid choice. Please enter a number from the list.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
 def input_list(prompt):
     return input(prompt).strip().split(',')
 
@@ -36,11 +58,14 @@ def add_account():
 
 def add_zone():
     data = load_config()
-    name = input("Account name: ").strip()
-    acc = find_account(data, name)
-    if not acc:
-        print("❌ Account not found")
+    if not data["accounts"]:
+        print("❌ No accounts available. Please add an account first.")
         return
+    
+    acc = select_from_list(data["accounts"], "Select an account:")
+    if not acc:
+        return
+
     domain = input("Zone domain (e.g. example.com): ").strip()
     zone_id = input("Zone ID: ").strip()
     if find_zone(acc, domain):
@@ -52,16 +77,20 @@ def add_zone():
 
 def add_record():
     data = load_config()
-    acc_name = input("Account name: ").strip()
-    acc = find_account(data, acc_name)
-    if not acc:
-        print("❌ Account not found")
+    if not data["accounts"]:
+        print("❌ No accounts available. Please add an account first.")
         return
 
-    domain = input("Zone domain: ").strip()
-    zone = find_zone(acc, domain)
+    acc = select_from_list(data["accounts"], "Select an account:")
+    if not acc:
+        return
+
+    if not acc["zones"]:
+        print("❌ No zones available in this account. Please add a zone first.")
+        return
+
+    zone = select_from_list(acc["zones"], "Select a zone:")
     if not zone:
-        print("❌ Zone not found")
         return
 
     name = input("Record name (e.g. vpn.example.com): ").strip()
@@ -80,40 +109,77 @@ def add_record():
     })
 
     save_config(data)
-    print("✅ Record added")
+    print("✅ Record added successfully!")
 
 def list_all():
     data = load_config()
-    for acc in data["accounts"]:
-        print(f"🧾 Account: {acc['name']}")
-        for zone in acc["zones"]:
-            print(f"  🌐 Zone: {zone['domain']}")
-            for r in zone["records"]:
-                print(f"    📌 Record: {r['name']} | Type: {r['type']} | IPs: {r['ips']}")
+    if not data["accounts"]:
+        print("ℹ️ No accounts, zones, or records to display.")
+        return
+
+    print("\n--- All Accounts, Zones, and Records ---")
+    for acc_idx, acc in enumerate(data["accounts"]):
+        print(f"\n[{acc_idx+1}] 🧾 Account: {acc['name']}")
+        if not acc["zones"]:
+            print("  ℹ️ No zones in this account.")
+            continue
+        for zone_idx, zone in enumerate(acc["zones"]):
+            print(f"  [{zone_idx+1}] 🌐 Zone: {zone['domain']} (ID: {zone['zone_id']})")
+            if not zone["records"]:
+                print("    ℹ️ No records in this zone.")
+                continue
+            for rec_idx, r in enumerate(zone["records"]):
+                proxied_status = "Yes" if r['proxied'] else "No"
+                print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])} | Proxied: {proxied_status}")
+    print("----------------------------------------")
+
+
+def confirm_action(prompt="Are you sure you want to proceed?"):
+    """Asks for user confirmation."""
+    while True:
+        response = input(f"{prompt} (yes/no): ").strip().lower()
+        if response in ["yes", "y"]:
+            return True
+        elif response in ["no", "n"]:
+            return False
+        else:
+            print("❌ Invalid input. Please enter 'yes' or 'no'.")
 
 def main_menu():
     check_config_permissions() # Check permissions at the start of the menu
-    while True:
-        print("\n--- Cloudflare Utils Manager ---")
-        print("1. Add Account")
-        print("2. Add Zone to Account")
-        print("3. Add Record to Zone")
-        print("4. List All Records")
-        print("5. Exit")
+    
+    print("===================================")
+    print("🚀 Cloudflare Utils Manager 🚀")
+    print("===================================")
 
-        choice = input("Enter your choice: ").strip()
+    while True:
+        print("\n--- Main Menu ---")
+        print("1. 👤 Add Account")
+        print("2. 🌍 Add Zone to Account")
+        print("3. 📝 Add Record to Zone")
+        print("4. 📋 List All Records")
+        print("5. 🚪 Exit")
+        print("-----------------")
+
+        choice = input("👉 Enter your choice: ").strip()
+        
         if choice == "1":
-            add_account()
+            if confirm_action("Add a new account?"):
+                add_account()
         elif choice == "2":
-            add_zone()
+            if confirm_action("Add a new zone?"):
+                add_zone()
         elif choice == "3":
-            add_record()
+            if confirm_action("Add a new record?"):
+                add_record()
         elif choice == "4":
             list_all()
         elif choice == "5":
-            break
+            if confirm_action("Are you sure you want to exit?"):
+                print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
+                break
         else:
-            print("❌ Invalid choice")
+            print("❌ Invalid choice. Please select a valid option.")
 
 if __name__ == "__main__":
     main_menu()

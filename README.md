@@ -45,23 +45,61 @@ During the installation process, you will be prompted to provide the following i
 - **Cloudflare Record Name**: The name of the DNS record you want to update (e.g., `example.com`).
 - **Cloudflare IP Addresses**: A comma-separated list of IP addresses to rotate through.
 
-These values will be stored in your `~/.bashrc` file as environment variables.
+These values will be stored in `/opt/Cloudflare-Utils/configs.json`.
 
 ## Usage
 
-After the installation is complete, the setup script will automatically create a cron job that runs every 30 minutes. This cron job will execute the `run.sh` script, which in turn runs the `change_dns.py` script to update the DNS records.
+The primary way to interact with Cloudflare Utils is through the command-line interface (CLI).
 
-### Manual Execution
+### Running the CLI
 
-If you need to manually trigger the DNS update, you can run the following command:
+The installation script (`install.sh`) creates a global command `cfutils` that allows you to easily run the Cloudflare Utils CLI from anywhere in your terminal.
+
+To start the CLI, simply type:
 
 ```bash
-/opt/Cloudflare-Utils/run.sh
+cfutils
+```
+
+Alternatively, you can still run the script directly:
+
+```bash
+python3 /opt/Cloudflare-Utils/cli.py
+```
+or if you've made `cli.py` executable:
+```bash
+/opt/Cloudflare-Utils/cli.py
+```
+
+Using the `cfutils` command is the recommended way to access the CLI after installation.
+
+### CLI Menu
+
+The CLI provides the following options:
+
+- **1. Add Account**: Add a new Cloudflare account with its API token.
+- **2. Add Zone to Account**: Add a new DNS zone (domain) to an existing account. You will be able to select the account from a list.
+- **3. Add Record to Zone**: Add a new DNS record to an existing zone. You will be able to select the account and then the zone from a list.
+- **4. List All Records**: Display all configured accounts, zones, and their records.
+- **5. Exit**: Exit the CLI.
+
+When adding zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
+
+### Cron Job for DNS Rotation
+
+After the installation, a cron job is set up to run `rotate_from_config.py` periodically (default: every 30 minutes). This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records.
+
+### Manual DNS Rotation
+
+If you need to manually trigger the DNS rotation for all configured records, you can run:
+
+```bash
+python3 /opt/Cloudflare-Utils/rotate_from_config.py
 ```
 
 ### Logs
 
-The output of the cron job and the script executions will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
+The output of the cron job and script executions (like `rotate_from_config.py`) will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
 
 ---
 
@@ -160,5 +198,3 @@ If you encounter any issues or have any questions, please open an issue in the G
 ---
 
 #### Thanks to [roshdsupp](https://t.me/roshdsupp) for the project idea 🩵
-
-
