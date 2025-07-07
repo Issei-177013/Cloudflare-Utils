@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.1.1-dev] - Unreleased
+### Fixed
+- Removed unnecessary 'yes/no' confirmation prompts when adding accounts, zones, or records in the CLI.
+
 ## [2.1.0-dev] - Unreleased 
 ### Added
 - Interactive CLI for managing Cloudflare accounts, zones, and records.
