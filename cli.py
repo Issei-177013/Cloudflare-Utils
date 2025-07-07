@@ -147,6 +147,20 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
 
 def main_menu():
     check_config_permissions() # Check permissions at the start of the menu
+
+    # Define ANSI escape codes for colors
+    YELLOW = '\033[93m'
+    RESET = '\033[0m'
+
+    # Load and print ASCII art
+    try:
+        with open("asset/Issei.txt", "r") as f:
+            art = f.read()
+        print(f"{YELLOW}{art}{RESET}")
+    except FileNotFoundError:
+        print("🎨 ASCII art file not found. Proceeding without it.")
+    except Exception as e:
+        print(f"🎨 Error loading ASCII art: {e}. Proceeding without it.")
     
     print("===================================")
     print("🚀 Cloudflare Utils Manager 🚀")
