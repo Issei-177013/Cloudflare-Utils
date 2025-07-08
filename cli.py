@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from config_manager import load_config, save_config, find_account, find_zone, find_record, CONFIG_PATH
+from cloudflare import Cloudflare, APIError # Added for Cloudflare API interaction
 import os
 import sys # For exiting the program
 
@@ -102,10 +103,69 @@ def add_record():
     if not zone:
         return
 
-    name = input("Record name (e.g. vpn.example.com): ").strip()
-    if find_record(zone, name):
-        print("❌ Record already exists")
+    # Attempt to fetch and display existing records for selection
+    record_name = None
+    try:
+        cf = Cloudflare(api_token=acc["api_token"])
+        zone_id = zone["zone_id"]
+        print(f"🔄 Fetching records for zone {zone['domain']}...")
+        records_from_cf = cf.dns.records.list(zone_id=zone_id)
+        
+        if records_from_cf:
+            print("\n--- Existing Records ---")
+            for i, cf_record in enumerate(records_from_cf):
+                print(f"{i+1}. {cf_record.name} (Type: {cf_record.type}, Content: {cf_record.content})")
+            print(f"{len(records_from_cf)+1}. Enter a new record name manually")
+            print("-------------------------")
+            
+            while True:
+                try:
+                    choice = int(input("👉 Select a record to use/update or choose manual entry: "))
+                    if 1 <= choice <= len(records_from_cf):
+                        record_name = records_from_cf[choice-1].name
+                        print(f"ℹ️ Using existing record: {record_name}")
+                        # Check if this record already exists in local config to prevent duplicate *local* entries
+                        # but allow updating if it's just a Cloudflare record not yet in local config for this specific IP list.
+                        # The original find_record check will still apply later if we decide to keep it as is.
+                        break
+                    elif choice == len(records_from_cf) + 1:
+                        print("✍️ Manual record name entry selected.")
+                        break
+                    else:
+                        print("❌ Invalid choice. Please enter a number from the list.")
+                except ValueError:
+                    print("❌ Invalid input. Please enter a number.")
+        else:
+            print(f"ℹ️ No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
+
+    except APIError as e:
+        print(f"❌ Cloudflare API Error fetching records: {e}")
+        print("⚠️ Proceeding with manual record name entry.")
+    except Exception as e: # Catch other potential errors like network issues
+        print(f"❌ An unexpected error occurred while fetching records: {e}")
+        print("⚠️ Proceeding with manual record name entry.")
+
+    if not record_name: # If no record was selected from the list (or fetching failed)
+        name_input = input("Record name (e.g. vpn.example.com): ").strip()
+        if not name_input:
+            print("❌ Record name cannot be empty.")
+            return
+        record_name = name_input
+    
+    # Check if the chosen/entered record name already exists in the local config for this zone
+    if find_record(zone, record_name):
+        # If we selected an existing CF record, this check might seem redundant,
+        # but it's crucial if the user manually types a name that matches an existing local entry.
+        # Also, the intention is to add a *new set of IPs* for rotation under this name.
+        # The current structure implies one record entry in config per name.
+        # For this feature, we are selecting a name, then defining IPs for it.
+        # If the record *name* is already in our config, we should prevent adding it again.
+        # The user should perhaps use an "update existing record" feature if that's the intent.
+        # For now, maintaining the original check for local config duplicates.
+        print(f"❌ Record '{record_name}' already exists in the local configuration for this zone.")
+        print("ℹ️ If you want to change its IPs or other settings, consider deleting and re-adding, or a future 'update' feature.")
         return
+
     ip_list = input_list("Enter IPs (comma separated): ")
     rec_type = input("Record type (A/CNAME): ").strip().upper()
     proxied = input("Proxied (yes/no): ").strip().lower() == 'yes'
@@ -124,7 +184,7 @@ def add_record():
     # If rotation_interval_minutes_str is empty, rotation_interval_minutes remains None (for default handling)
 
     record_data = {
-        "name": name,
+        "name": record_name, # Use the determined record_name
         "type": rec_type,
         "ips": ip_list,
         "proxied": proxied
