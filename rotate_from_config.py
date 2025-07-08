@@ -3,6 +3,7 @@ from cloudflare import Cloudflare, APIError
 import json
 import os
 import time
+import sys # Added for sys.exit
 
 ROTATION_STATUS_PATH = "rotation_status.json"
 DEFAULT_ROTATION_INTERVAL_MINUTES = 30
@@ -87,4 +88,19 @@ def run_rotation():
     save_rotation_status(rotation_status)
 
 if __name__ == "__main__":
-    run_rotation()
+    try:
+        run_rotation()
+    except KeyboardInterrupt:
+        print("\n🛑 IP rotation process interrupted by user. Exiting gracefully.")
+        # Potentially save any partially updated rotation_status here if needed,
+        # but current save_rotation_status is called after each successful update or at the very end.
+        # If interrupted mid-API call, the status file wouldn't have been updated for that specific record yet.
+        # If interrupted during save_rotation_status itself, the file might be corrupted.
+        # For simplicity, we'll rely on the atomicity of file writes or accept potential minor inconsistency
+        # in rotation_status if interrupted at the exact moment of saving.
+        # A more robust solution might involve temporary files and atomic renames for saving status.
+        # However, the prompt asks for graceful exit to prevent traceback, which this achieves.
+        try:
+            sys.exit(0) # Importing sys for this
+        except SystemExit:
+            os._exit(0) # Importing os for this
