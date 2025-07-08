@@ -97,7 +97,7 @@ When adding a record, you can optionally specify a custom rotation interval in m
 
 ### Cron Job for DNS Rotation
 
-After the installation, a cron job is set up to run `rotate_from_config.py` every 5 minutes. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (which must be 5 minutes or more, or the default 30 minutes if not specified).
+After the installation, a cron job is set up to run `config_manager.py` every 5 minutes. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (which must be 5 minutes or more, or the default 30 minutes if not specified).
 The script maintains a `rotation_status.json` file to track the last rotation time for each record, ensuring records are not rotated more frequently than their configured interval.
 
 ### Manual DNS Rotation
@@ -105,12 +105,12 @@ The script maintains a `rotation_status.json` file to track the last rotation ti
 If you need to manually trigger the DNS rotation for all configured records, you can run:
 
 ```bash
-python3 /opt/Cloudflare-Utils/rotate_from_config.py
+python3 /opt/Cloudflare-Utils/config_manager.py
 ```
 
 ### Logs
 
-The output of the cron job and script executions (like `rotate_from_config.py`) will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
+The output of the cron job and script executions (like `config_manager.py`) will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
 
 ---
 

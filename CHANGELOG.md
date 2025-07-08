@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0-dev] - Unreleased
+### Added
+- **Record Management in CLI**:
+  - Added "Edit Record" functionality to the CLI (`cli.py`) allowing modification of IPs, record type, proxied status, and rotation interval.
+  - Added "Delete Record" functionality to the CLI (`cli.py`) allowing removal of records from the local configuration.
+- **Enhanced IP Rotation Logic**:
+  - Modified the IP rotation logic in `config_manager.py` (`rotate_ip` function) to select a different IP if the standard rotation choice results in the same IP that is currently live on Cloudflare, provided other distinct IPs are available in the list. This prevents re-using the same IP immediately if alternatives exist.
+
+### Changed
+- **Consolidated Rotation Script**:
+  - Removed `rotate_from_config.py` and consolidated its IP rotation logic into `config_manager.py`.
+  - Updated `install.sh`, `README.md`, and `CHANGELOG.md` to refer to `config_manager.py` for rotation tasks.
+- Updated CLI menu options to reflect new Edit/Delete record features.
+
+### Fixed
+- Ensured `list_all` in `cli.py` correctly displays the rotation interval (was already functional).
+
 ## [2.2.9-dev] - Unreleased
 ### Fix
 - Add --break-system-packages to pip install
@@ -28,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.2.4-dev] - Unreleased
 ### Added
-- Graceful handling of `KeyboardInterrupt` (Ctrl+C) in `cli.py` and `rotate_from_config.py` to prevent tracebacks and allow clean exit.
+- Graceful handling of `KeyboardInterrupt` (Ctrl+C) in `cli.py` and `config_manager.py` (formerly `rotate_from_config.py`) to prevent tracebacks and allow clean exit.
 
 ## [2.2.3-dev] - Unreleased
 ### Fixed
@@ -78,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Improved overall user experience in the CLI with a more interactive menu.
 - Enhanced `list_all` output in CLI for better readability (includes Zone IDs, proxied status).
 - Configuration is now stored in `configs.json` instead of `.env` (change from a previous unreleased version).
-- DNS rotation script `rotate_from_config.py` now reads from `configs.json`.
+- DNS rotation script (`config_manager.py`, formerly `rotate_from_config.py`) now reads from `configs.json`.
 
 ### Fixed
 - N/A (for this version, but good to have the section)
@@ -93,13 +110,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Ability to configure multiple DNS records (A/CNAME) per zone.
 - `cli.py` for managing configurations (accounts, zones, records).
 - `config_manager.py` for handling loading/saving of `configs.json`.
-- `rotate_from_config.py` to rotate IPs for all configured records.
+- `config_manager.py` (formerly `rotate_from_config.py`) to rotate IPs for all configured records.
 - `version.py` to store project version.
 
 ### Changed
 - Configuration moved from `.env` to `configs.json` to support multiple accounts/zones/records.
 - Installation script (`install.sh`) updated to handle new structure and `configs.json`.
-- `run.sh` now executes `rotate_from_config.py`.
+- `run.sh` now executes `config_manager.py`.
 
 ## [1.0.0] - 2025-07-06
 ### Added

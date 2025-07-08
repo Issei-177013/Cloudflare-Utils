@@ -38,7 +38,7 @@ create_runner() {
 #!/bin/bash
 cd "$PROGRAM_DIR"
 echo "\$(date) - Running Cloudflare-Utils $VERSION_TAG" >> log_file.log
-python3 rotate_from_config.py >> log_file.log 2>&1
+python3 config_manager.py >> log_file.log 2>&1
 EOF
 
     chmod +x "$PROGRAM_DIR/run.sh"
