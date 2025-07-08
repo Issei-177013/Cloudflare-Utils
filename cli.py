@@ -225,6 +225,101 @@ def list_all():
                 print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])} | Proxied: {proxied_status}{interval_str}")
     print("----------------------------------------")
 
+def delete_record():
+    data = load_config()
+    if not data["accounts"]:
+        print("❌ No accounts available.")
+        return
+
+    acc = select_from_list(data["accounts"], "Select an account to delete a record from:")
+    if not acc:
+        return
+
+    if not acc["zones"]:
+        print(f"❌ No zones available in account '{acc['name']}'.")
+        return
+
+    zone = select_from_list(acc["zones"], f"Select a zone in '{acc['name']}' to delete a record from:")
+    if not zone:
+        return
+
+    if not zone["records"]:
+        print(f"❌ No records available in zone '{zone['domain']}'.")
+        return
+
+    record_to_delete = select_from_list(zone["records"], f"Select a record in '{zone['domain']}' to delete:")
+    if not record_to_delete:
+        return
+
+    if confirm_action(f"Are you sure you want to delete the record '{record_to_delete['name']}' from zone '{zone['domain']}'?"):
+        zone["records"].remove(record_to_delete)
+        save_config(data)
+        print(f"✅ Record '{record_to_delete['name']}' deleted successfully from local configuration.")
+    else:
+        print("ℹ️ Deletion cancelled.")
+
+def edit_record():
+    data = load_config()
+    if not data["accounts"]:
+        print("❌ No accounts available.")
+        return
+
+    acc = select_from_list(data["accounts"], "Select an account to edit a record in:")
+    if not acc:
+        return
+
+    if not acc["zones"]:
+        print(f"❌ No zones available in account '{acc['name']}'.")
+        return
+
+    zone = select_from_list(acc["zones"], f"Select a zone in '{acc['name']}' to edit a record in:")
+    if not zone:
+        return
+
+    if not zone["records"]:
+        print(f"❌ No records available in zone '{zone['domain']}'.")
+        return
+
+    record_to_edit = select_from_list(zone["records"], f"Select a record in '{zone['domain']}' to edit:")
+    if not record_to_edit:
+        return
+
+    print(f"\n--- Editing Record: {record_to_edit['name']} ---")
+    print(f"Current IPs: {', '.join(record_to_edit['ips'])}")
+    new_ips_str = input(f"Enter new IPs (comma separated) or press Enter to keep current: ").strip()
+    if new_ips_str:
+        record_to_edit['ips'] = [ip.strip() for ip in new_ips_str.split(',')]
+
+    print(f"Current Type: {record_to_edit['type']}")
+    new_type = input(f"Enter new type (A/CNAME) or press Enter to keep current: ").strip().upper()
+    if new_type:
+        record_to_edit['type'] = new_type
+
+    print(f"Current Proxied: {'Yes' if record_to_edit['proxied'] else 'No'}")
+    new_proxied_str = input(f"Proxied (yes/no) or press Enter to keep current: ").strip().lower()
+    if new_proxied_str:
+        record_to_edit['proxied'] = new_proxied_str == 'yes'
+
+    current_interval = record_to_edit.get('rotation_interval_minutes', 'Default (30)')
+    print(f"Current Rotation Interval (minutes): {current_interval}")
+    new_interval_str = input(f"Enter new interval (minutes, min 5, or 'none' to use default) or press Enter to keep current: ").strip()
+    if new_interval_str:
+        if new_interval_str.lower() == 'none':
+            if 'rotation_interval_minutes' in record_to_edit:
+                del record_to_edit['rotation_interval_minutes']
+            print("ℹ️ Rotation interval set to default (30 minutes).")
+        else:
+            try:
+                new_interval = int(new_interval_str)
+                if new_interval < 5:
+                    print("❌ Rotation interval must be at least 5 minutes. Value not changed.")
+                else:
+                    record_to_edit['rotation_interval_minutes'] = new_interval
+            except ValueError:
+                print("❌ Invalid input for interval. Must be a number or 'none'. Value not changed.")
+    
+    save_config(data)
+    print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
 
 def confirm_action(prompt="Are you sure you want to proceed?"):
     """Asks for user confirmation."""
@@ -279,8 +374,10 @@ def main_menu():
         print("1. 👤 Add Account")
         print("2. 🌍 Add Zone to Account")
         print("3. 📝 Add Record to Zone")
-        print("4. 📋 List All Records")
-        print("5. 🚪 Exit")
+        print("4. ✏️ Edit Record in Zone")
+        print("5. 🗑️ Delete Record from Zone")
+        print("6. 📋 List All Records")
+        print("7. 🚪 Exit")
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -292,8 +389,12 @@ def main_menu():
         elif choice == "3":
             add_record()
         elif choice == "4":
-            list_all()
+            edit_record() # Placeholder for now
         elif choice == "5":
+            delete_record() # Placeholder for now
+        elif choice == "6":
+            list_all()
+        elif choice == "7":
             if confirm_action("Are you sure you want to exit?"):
                 print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
                 break

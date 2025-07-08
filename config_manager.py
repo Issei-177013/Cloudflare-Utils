@@ -70,8 +70,47 @@ def save_rotation_status(status_data):
 def rotate_ip(ip_list, current_ip):
     if current_ip not in ip_list:
         return ip_list[0]
-    idx = ip_list.index(current_ip)
-    return ip_list[(idx + 1) % len(ip_list)]
+    if not ip_list:
+        # This case should ideally be prevented by validation elsewhere,
+        # but as a safeguard:
+        print("⚠️ Warning: IP list is empty. Cannot rotate.")
+        return current_ip # Or None, depending on desired behavior for empty list
+
+    if current_ip not in ip_list:
+        # If current IP in CF is not in our list (e.g., manually changed),
+        # or if it's the first time, just pick the first IP from our list.
+        return ip_list[0]
+
+    if len(ip_list) == 1:
+        # Only one IP in the list, so it will always be this one.
+        return ip_list[0]
+
+    current_idx = ip_list.index(current_ip)
+    next_idx = (current_idx + 1) % len(ip_list)
+    new_ip = ip_list[next_idx]
+
+    # If the initially selected new_ip is the same as the current_ip,
+    # and there are other distinct IPs available in the list, try to advance once more.
+    if new_ip == current_ip and len(set(ip_list)) > 1:
+        print(f"ℹ️ Initial rotation choice for {current_ip} resulted in the same IP ({new_ip}). Trying to find a different one.")
+        next_idx = (next_idx + 1) % len(ip_list)
+        new_ip = ip_list[next_idx]
+        # If it's *still* the same IP after advancing again, it means all IPs in the list are effectively the same
+        # or we've cycled through all unique IPs and landed back where we started with current_ip.
+        # Example: ips = ["1.1.1.1", "2.2.2.2"], current_ip = "1.1.1.1".
+        # 1. new_ip becomes "2.2.2.2". Condition (new_ip == current_ip) is false. Returns "2.2.2.2".
+        # Example: ips = ["1.1.1.1", "1.1.1.1", "2.2.2.2"], current_ip = "1.1.1.1" (first one)
+        # 1. current_idx = 0. next_idx = 1. new_ip = "1.1.1.1" (second one).
+        # 2. (new_ip == current_ip) is true. len(set(ip_list)) is 2 (>1).
+        # 3. next_idx becomes (1+1)%3 = 2. new_ip becomes "2.2.2.2".
+        # 4. Returns "2.2.2.2". This seems correct.
+
+        # Example: ips = ["1.1.1.1", "1.1.1.1"], current_ip = "1.1.1.1"
+        # 1. current_idx = 0. next_idx = 1. new_ip = "1.1.1.1".
+        # 2. (new_ip == current_ip) is true. len(set(ip_list)) is 1 (not >1).
+        # 3. Condition is false. Returns "1.1.1.1". This is correct.
+
+    return new_ip
 
 def run_rotation():
     config = load_config()
