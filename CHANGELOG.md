@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.2.6-dev] - Unreleased
+### Fixed
+- Changed `CONFIG_PATH` and `ROTATION_STATUS_PATH` in `config_manager.py` to use dynamically constructed absolute paths. This ensures configuration files (`configs.json`, `rotation_status.json`) are correctly located within the application's installation directory (e.g., `/opt/Cloudflare-Utils/`) regardless of the script's calling directory.
+
 ## [2.2.5-dev] - Unreleased
 ### Fixed
 - Resolved a circular import error in `config_manager.py` that prevented `cfutils` from starting.
