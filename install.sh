@@ -12,7 +12,7 @@ install_packages() {
     echo -e "\e[1;34mInstalling dependencies...\e[0m"
     sudo apt-get update
     sudo apt-get install -y git python3-pip
-    pip3 install cloudflare python-dotenv
+    pip3 install --break-system-packages cloudflare python-dotenv
 }
 
 # کلون کردن سورس
