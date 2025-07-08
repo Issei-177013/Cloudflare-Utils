@@ -4,8 +4,13 @@ import os
 import time
 import sys # Added for sys.exit
 
-CONFIG_PATH = "configs.json"
-ROTATION_STATUS_PATH = "rotation_status.json"
+# Determine the absolute path to the directory where this script (config_manager.py) is located.
+# This ensures that configs.json and rotation_status.json are found relative to the script's location,
+# which is crucial if the script is called from a different working directory (e.g., when installed as cfutils).
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(SCRIPT_DIR, "configs.json")
+ROTATION_STATUS_PATH = os.path.join(SCRIPT_DIR, "rotation_status.json")
+
 DEFAULT_ROTATION_INTERVAL_MINUTES = 30
 
 def load_config():
