@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.3.1-dev+1] - Unreleased
+### Fixed
+- Enhance install script with Python version check and improve cron job setup.
+
 ## [2.3.1-dev] - Unreleased
 ### Added
 - **Account Management Module (CLI):**
