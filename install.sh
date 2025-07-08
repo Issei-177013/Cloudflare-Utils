@@ -104,8 +104,6 @@ main_menu() {
                 GLOBAL_CMD_PATH="/usr/local/bin/cfutils"
                 echo -e "\e[1;34mCreating global command '$GLOBAL_CMD_PATH'...\e[0m"
                 if [ -f "$CLI_PATH" ]; then
-                    # Ensure the script itself is executable
-                    chmod +x "$0"
                     # Create/update symlink
                     ln -sf "$CLI_PATH" "$GLOBAL_CMD_PATH"
                     chmod +x "$CLI_PATH" # cli.py
@@ -171,8 +169,5 @@ main_menu() {
         esac
     done
 }
-
-# Ensure the install script itself has execute permissions
-chmod +x "$0"
 
 main_menu
