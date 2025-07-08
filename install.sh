@@ -72,8 +72,14 @@ setup_config_file() {
 # Function to set up cron jobs
 setup_cron() {
     echo -e "\e[1;34mSetting up cron...\e[0m"
-    (crontab -l 2>/dev/null; echo "*/30 * * * * /bin/bash $PROGRAM_DIR/run.sh") | crontab -
-    (crontab -l 2>/dev/null; echo "@reboot /bin/bash $PROGRAM_DIR/run.sh") | crontab -
+    CRON_JOB_RUNNER="/bin/bash $PROGRAM_DIR/run.sh"
+    # Remove existing cron jobs for this runner to avoid duplicates
+    (crontab -l 2>/dev/null | grep -v -F "$CRON_JOB_RUNNER" || true) | crontab -
+    
+    # Add new cron jobs
+    (crontab -l 2>/dev/null; echo "*/5 * * * * $CRON_JOB_RUNNER") | crontab -
+    (crontab -l 2>/dev/null; echo "@reboot $CRON_JOB_RUNNER") | crontab -
+    echo -e "\e[1;32mCron job set to run every 5 minutes and on reboot.\e[0m"
 }
 
 # منوی اصلی

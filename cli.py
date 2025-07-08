@@ -115,12 +115,13 @@ def add_record():
     if rotation_interval_minutes_str:
         try:
             rotation_interval_minutes = int(rotation_interval_minutes_str)
-            if rotation_interval_minutes <= 0:
-                print("❌ Rotation interval must be a positive integer.")
+            if rotation_interval_minutes < 5: # Enforce minimum of 5 minutes
+                print("❌ Rotation interval must be at least 5 minutes.")
                 return
         except ValueError:
             print("❌ Invalid input for rotation interval. Must be a number.")
             return
+    # If rotation_interval_minutes_str is empty, rotation_interval_minutes remains None (for default handling)
 
     record_data = {
         "name": name,
