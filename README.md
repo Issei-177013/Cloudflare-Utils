@@ -123,20 +123,36 @@ The output of the cron job and script executions (like `config_manager.py`) will
 
 ## Updating
 
-To update Cloudflare Utils to the latest version, you can re-run the installation script. It will fetch the latest version from the repository and update your installation.
+Cloudflare Utils can be updated by re-running the main installation script. This script now includes an option to specifically update an existing installation.
 
-### Using cURL
+1.  **Run the installer script again:**
 
-```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
-```
+    ### Using cURL
+    ```bash
+    sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
+    ```
 
-### Using wget
+    ### Using wget
+    ```bash
+    sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
+    ```
 
-```bash
-sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
-```
-The script will give you an option to install, which will effectively update your current installation if it detects an existing one by pulling the latest changes for the chosen branch. Your existing `.env` configuration file will be preserved.
+2.  **Choose "Update existing installation" from the menu.**
+    This will launch the `update.sh` script, which provides more control over the update process.
+
+### Update Script Features (`update.sh`)
+
+The update script allows you to:
+
+- **Select a specific version**: You can update to a particular release tag, development tag, or even a specific commit hash.
+- **Branch-aware version listing**:
+    - If your current installation is on the `dev` branch, it will list recent development versions (dev tags and commits).
+    - If on the `main` branch (or any other branch), it will list the latest release tags.
+- **Manual version input**: If the version you want isn't listed, you can enter the tag, commit, or branch name manually.
+- **Preserve data**: Your `configs.json` file, containing all your account, zone, and record configurations, will be preserved during the update.
+- **Script and command updates**: The `run.sh` cron script and the global `cfutils` command will be updated to reflect the newly checked-out version.
+
+If you simply choose the "Install" option again from the main `install.sh` menu on an existing installation, it will pull the latest changes for the branch specified during the initial run (or the default `dev` branch), similar to the old update behavior. The new "Update existing installation" option offers more granular version control. Your configuration files (like `configs.json`) are preserved in both scenarios.
 
 ---
 
