@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.2.3-dev] - Unreleased
+### Fixed
+- Fixed a `TypeError` when listing DNS records from Cloudflare by ensuring the API response (a paginated object) is converted to a list before checking its length or accessing elements.
+
 ## [2.2.2-dev] - Unreleased
 ### Added
 - When adding a record via the CLI, existing DNS records for the selected zone are now fetched from Cloudflare and displayed.

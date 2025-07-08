@@ -109,26 +109,28 @@ def add_record():
         cf = Cloudflare(api_token=acc["api_token"])
         zone_id = zone["zone_id"]
         print(f"🔄 Fetching records for zone {zone['domain']}...")
-        records_from_cf = cf.dns.records.list(zone_id=zone_id)
+        records_from_cf_paginator = cf.dns.records.list(zone_id=zone_id)
+        # Convert paginator object to a list to use len() and indexing
+        actual_records_list = list(records_from_cf_paginator)
         
-        if records_from_cf:
+        if actual_records_list: # Check if the list is not empty
             print("\n--- Existing Records ---")
-            for i, cf_record in enumerate(records_from_cf):
+            for i, cf_record in enumerate(actual_records_list):
                 print(f"{i+1}. {cf_record.name} (Type: {cf_record.type}, Content: {cf_record.content})")
-            print(f"{len(records_from_cf)+1}. Enter a new record name manually")
+            print(f"{len(actual_records_list)+1}. Enter a new record name manually")
             print("-------------------------")
             
             while True:
                 try:
                     choice = int(input("👉 Select a record to use/update or choose manual entry: "))
-                    if 1 <= choice <= len(records_from_cf):
-                        record_name = records_from_cf[choice-1].name
+                    if 1 <= choice <= len(actual_records_list):
+                        record_name = actual_records_list[choice-1].name
                         print(f"ℹ️ Using existing record: {record_name}")
                         # Check if this record already exists in local config to prevent duplicate *local* entries
                         # but allow updating if it's just a Cloudflare record not yet in local config for this specific IP list.
                         # The original find_record check will still apply later if we decide to keep it as is.
                         break
-                    elif choice == len(records_from_cf) + 1:
+                    elif choice == len(actual_records_list) + 1:
                         print("✍️ Manual record name entry selected.")
                         break
                     else:
