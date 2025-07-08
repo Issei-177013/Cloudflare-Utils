@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.9-dev] - Unreleased
+### Fix
+- Add --break-system-packages to pip install
+
 ## [2.2.8-dev] - Unreleased
 ### Changed
 - Update cron job frequency to run every minute
