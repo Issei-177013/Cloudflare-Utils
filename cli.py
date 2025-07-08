@@ -41,14 +41,18 @@ def select_from_list(items, prompt):
         # Assuming item is a dictionary and has a 'name' or 'domain' key
         name = item.get('name', item.get('domain', 'Unknown Item'))
         print(f"{i+1}. {name}")
+    print("0. Back") # Added "0. Back" option
 
     while True:
         try:
-            choice = int(input("Enter your choice (number): "))
+            choice_str = input("Enter your choice (number, 0 to go back): ") # Updated prompt
+            choice = int(choice_str)
+            if choice == 0: # Handle "0" to go back
+                return None
             if 1 <= choice <= len(items):
                 return items[choice-1]
             else:
-                print("Invalid choice. Please enter a number from the list.")
+                print("Invalid choice. Please enter a number from the list or 0 to go back.")
         except ValueError:
             print("Invalid input. Please enter a number.")
 
@@ -347,7 +351,7 @@ def manage_cloudflare_accounts():
         print("1) Add new account")
         print("2) Edit existing account")
         print("3) Delete account")
-        print("4) Back to main menu")
+        print("0) Back to main menu") # Changed from 4 to 0
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -358,7 +362,7 @@ def manage_cloudflare_accounts():
             edit_existing_account_workflow()
         elif choice == "3":
             delete_account_workflow()
-        elif choice == "4":
+        elif choice == "0": # Changed from 4 to 0
             break
         else:
             print("❌ Invalid choice. Please select a valid option.")
@@ -543,7 +547,7 @@ def main_menu():
         print("5. 🗑️ Delete Record from Zone")
         print("6. 📋 List All Records")
         print("7. 🌐 Manage Cloudflare Accounts")
-        print("8. 🚪 Exit")
+        print("0. 🚪 Exit")
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -562,7 +566,7 @@ def main_menu():
             list_all()
         elif choice == "7":
             manage_cloudflare_accounts()
-        elif choice == "8":
+        elif choice == "0": # Changed from "8" to "0"
             if confirm_action("Are you sure you want to exit?"):
                 print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
                 break
