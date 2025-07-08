@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.3.2-dev] - Unreleased
+### Added
+- Add update.sh to update script.
+
 ## [2.3.1-dev+2] - Unreleased
 ### Added
 - Add return option in menus

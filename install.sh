@@ -89,7 +89,7 @@ setup_cron() {
 # Main interactive menu
 main_menu() {
     PS3="Please choose: "
-    options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Remove $PROGRAM_NAME" "Exit")
+    options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Update existing installation" "Remove $PROGRAM_NAME" "Exit")
     select opt in "${options[@]}"; do
         case $opt in
             "Install $PROGRAM_NAME (branch '$BRANCH')")
@@ -104,9 +104,12 @@ main_menu() {
                 GLOBAL_CMD_PATH="/usr/local/bin/cfutils"
                 echo -e "\e[1;34mCreating global command '$GLOBAL_CMD_PATH'...\e[0m"
                 if [ -f "$CLI_PATH" ]; then
+                    # Ensure the script itself is executable
+                    chmod +x "$0"
+                    # Create/update symlink
                     ln -sf "$CLI_PATH" "$GLOBAL_CMD_PATH"
-                    chmod +x "$CLI_PATH"
-                    chmod +x "$GLOBAL_CMD_PATH"
+                    chmod +x "$CLI_PATH" # cli.py
+                    chmod +x "$GLOBAL_CMD_PATH" # symlink itself
                     echo -e "\e[1;32m✅ Global command 'cfutils' created. You can now use 'cfutils' from anywhere.\e[0m"
                 else
                     echo -e "\e[1;31m❌ Error: $CLI_PATH not found. Cannot create global command.\e[0m"
@@ -116,10 +119,40 @@ main_menu() {
                 echo -e "\e[1;32m📌 You can also run: \`python3 $PROGRAM_DIR/cli.py\`\e[0m"
                 break
                 ;;
+            "Update existing installation")
+                UPDATE_SCRIPT_PATH="$(dirname "$0")/update.sh"
+                if [ -f "$UPDATE_SCRIPT_PATH" ]; then
+                    echo -e "\e[1;34mLaunching updater...\e[0m"
+                    chmod +x "$UPDATE_SCRIPT_PATH" # Ensure update script is executable
+                    # Execute with sudo as update.sh has internal sudo check and re-launch
+                    # but better to call it with sudo from here if install.sh is already sudo.
+                    if [ "$EUID" -eq 0 ]; then
+                        "$UPDATE_SCRIPT_PATH"
+                    else
+                        sudo "$UPDATE_SCRIPT_PATH"
+                    fi
+                else
+                    echo -e "\e[1;31m❌ Error: update.sh not found in the script directory.\e[0m"
+                    echo -e "\e[1;33mPlease ensure update.sh is in the same directory as install.sh.\e[0m"
+                fi
+                # After update, usually exit or loop back to menu. For now, break.
+                break
+                ;;
             "Remove $PROGRAM_NAME")
                 echo -e "\e[1;34mRemoving $PROGRAM_NAME...\e[0m"
+                # Ensure this script is run with sudo for rm and crontab operations
+                if [ "$EUID" -ne 0 ]; then
+                    echo -e "\e[1;33mRemoval requires sudo privileges. Attempting to re-run with sudo...\e[0m"
+                    sudo "$0" "$@" # This will re-present the menu under sudo.
+                    # It's a bit clunky. A better way would be to pass a parameter to directly trigger removal.
+                    # For now, user will have to select "Remove" again.
+                    exit 0 # Exit the non-sudo instance.
+                fi
+
                 sudo rm -rf "$PROGRAM_DIR"
-                crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
+                # Ensure crontab modification is also done with appropriate privileges
+                (crontab -l 2>/dev/null | grep -v -F "$PROGRAM_DIR/run.sh" || true) | sudo crontab -u "$SUDO_USER" - 2>/dev/null || \
+                (crontab -l 2>/dev/null | grep -v -F "$PROGRAM_DIR/run.sh" || true) | sudo crontab - -
 
                 GLOBAL_CMD_PATH="/usr/local/bin/cfutils"
                 if [ -L "$GLOBAL_CMD_PATH" ]; then
@@ -138,5 +171,8 @@ main_menu() {
         esac
     done
 }
+
+# Ensure the install script itself has execute permissions
+chmod +x "$0"
 
 main_menu
