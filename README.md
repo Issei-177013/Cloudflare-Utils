@@ -85,12 +85,12 @@ The CLI provides the following options:
 - **5. Exit**: Exit the CLI.
 
 When adding zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
-When adding a record, you can optionally specify a custom rotation interval in minutes. If no interval is provided, or if the input is invalid, it will default to 30 minutes.
+When adding a record, you can optionally specify a custom rotation interval in minutes. This interval must be at least 5 minutes. If no interval is provided, it will default to 30 minutes.
 
 ### Cron Job for DNS Rotation
 
-After the installation, a cron job is set up to run `rotate_from_config.py` periodically. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (or the default 30 minutes if not specified).
-The script maintains a `rotation_status.json` file to track the last rotation time for each record, ensuring records are not rotated too frequently.
+After the installation, a cron job is set up to run `rotate_from_config.py` every 5 minutes. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (which must be 5 minutes or more, or the default 30 minutes if not specified).
+The script maintains a `rotation_status.json` file to track the last rotation time for each record, ensuring records are not rotated more frequently than their configured interval.
 
 ### Manual DNS Rotation
 

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.2.0-dev] - Unreleased
+### Changed
+- Enforced a minimum rotation interval of 5 minutes in the CLI for custom intervals.
+- Updated `install.sh` to set the cron job frequency to every 5 minutes, ensuring timely checks for records with shorter custom intervals.
+- Support for per-record custom rotation interval (`rotation_interval_minutes`) (previously part of 2.2.0-dev, now integrated here).
+  - Rotation logic honors this interval, defaulting to 30 minutes if not set.
+  - Next-rotation tracking is persistent in `rotation_status.json`.
+  - CLI allows setting/editing custom intervals (now with 5 min minimum).
+- Documentation updated to reflect minimum interval and cron frequency.
+
+## [2.2.0-dev] - Unreleased
 ### Added
 - Support for per-record custom rotation interval (`rotation_interval_minutes`).
 - Rotation logic now honors custom intervals, defaulting to 30 minutes if not specified.
