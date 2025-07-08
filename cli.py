@@ -321,6 +321,171 @@ def edit_record():
     save_config(data)
     print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
 
+def manage_cloudflare_accounts():
+    """Handles management of Cloudflare accounts."""
+    while True:
+        clear_screen()
+        print("\n--- 🌐 Manage Cloudflare Accounts ---")
+        data = load_config()
+        accounts = data.get("accounts", [])
+
+        if not accounts:
+            print("No accounts configured yet.")
+        else:
+            print("Saved Cloudflare Accounts:")
+            print("--------------------------------------------------------------------------")
+            print(f"{'#':<3} {'Account Label':<30} {'API Token (Masked)':<25} {'Zones Count':<10}")
+            print("--------------------------------------------------------------------------")
+            for i, acc in enumerate(accounts):
+                token = acc.get("api_token", "N/A")
+                masked_token = f"{token[:4]}...{token[-4:]}" if len(token) > 8 else token
+                zones_count = len(acc.get("zones", []))
+                print(f"{i+1:<3} {acc.get('name', 'N/A'):<30} {masked_token:<25} {zones_count:<10}")
+            print("--------------------------------------------------------------------------")
+
+        print("\nOptions:")
+        print("1) Add new account")
+        print("2) Edit existing account")
+        print("3) Delete account")
+        print("4) Back to main menu")
+        print("-----------------")
+
+        choice = input("👉 Enter your choice: ").strip()
+
+        if choice == "1":
+            add_new_account_workflow()
+        elif choice == "2":
+            edit_existing_account_workflow()
+        elif choice == "3":
+            delete_account_workflow()
+        elif choice == "4":
+            break
+        else:
+            print("❌ Invalid choice. Please select a valid option.")
+            input("Press Enter to continue...")
+
+def add_new_account_workflow():
+    """Handles the workflow for adding a new Cloudflare account."""
+    clear_screen()
+    print("\n--- ➕ Add New Cloudflare Account ---")
+    data = load_config()
+    
+    account_label = input("Enter a label for this account (e.g., 'My Personal Account'): ").strip()
+    if not account_label:
+        print("❌ Account label cannot be empty.")
+        input("Press Enter to return to account management...")
+        return
+
+    if find_account(data, account_label):
+        print(f"❌ An account with the label '{account_label}' already exists.")
+        input("Press Enter to return to account management...")
+        return
+
+    api_token = input("Enter your Cloudflare API Token: ").strip()
+    if not api_token:
+        print("❌ API Token cannot be empty.")
+        input("Press Enter to return to account management...")
+        return
+
+    # Optional: Validate token by attempting to fetch a list of zones.
+    # For now, we'll skip this step as per the task description (optional).
+    # try:
+    #     cf = Cloudflare(api_token=api_token)
+    #     cf.zones.get() # Simple call to check token validity
+    #     print("✅ API Token validated successfully.")
+    # except APIError as e:
+    #     print(f"❌ Invalid API Token. Cloudflare API Error: {e}")
+    #     print("Please ensure the token is correct and has the necessary permissions.")
+    #     input("Press Enter to return to account management...")
+    #     return
+    # except Exception as e:
+    #     print(f"❌ An unexpected error occurred during token validation: {e}")
+    #     input("Press Enter to return to account management...")
+    #     return
+
+    new_account = {"name": account_label, "api_token": api_token, "zones": []}
+    data["accounts"].append(new_account)
+    save_config(data)
+    print(f"✅ Account '{account_label}' added successfully!")
+    input("Press Enter to return to account management...")
+
+def edit_existing_account_workflow():
+    """Handles the workflow for editing an existing Cloudflare account."""
+    clear_screen()
+    print("\n--- ✏️ Edit Existing Cloudflare Account ---")
+    data = load_config()
+    accounts = data.get("accounts", [])
+
+    if not accounts:
+        print("No accounts configured yet to edit.")
+        input("Press Enter to return to account management...")
+        return
+
+    print("Select an account to edit:")
+    selected_account = select_from_list(accounts, "Your accounts:")
+    if not selected_account:
+        input("Press Enter to return to account management...")
+        return
+
+    original_label = selected_account['name']
+    print(f"\nEditing account: {original_label}")
+
+    # Edit Account Label
+    new_label = input(f"Enter new label (current: '{selected_account['name']}', press Enter to keep): ").strip()
+    if new_label and new_label != selected_account['name']:
+        # Check if the new label already exists (and it's not the current account's original label if it hasn't changed yet)
+        if find_account(data, new_label):
+            print(f"❌ An account with the label '{new_label}' already exists. Label not changed.")
+        else:
+            selected_account['name'] = new_label
+            print(f"✅ Account label updated to '{new_label}'.")
+    elif not new_label:
+        print("ℹ️ Account label kept as is.")
+
+    # Edit API Token
+    current_token = selected_account['api_token']
+    masked_current_token = f"{current_token[:4]}...{current_token[-4:]}" if len(current_token) > 8 else current_token
+    print(f"Current API Token (masked): {masked_current_token}")
+    new_token = input("Enter new API Token (press Enter to keep current): ").strip()
+    if new_token:
+        # Optional: Add token validation here if desired
+        selected_account['api_token'] = new_token
+        print("✅ API Token updated.")
+    else:
+        print("ℹ️ API Token kept as is.")
+    
+    save_config(data)
+    print("\n✅ Account details updated successfully (if changes were made).")
+    input("Press Enter to return to account management...")
+
+def delete_account_workflow():
+    """Handles the workflow for deleting a Cloudflare account."""
+    clear_screen()
+    print("\n--- 🗑️ Delete Cloudflare Account ---")
+    data = load_config()
+    accounts = data.get("accounts", [])
+
+    if not accounts:
+        print("No accounts configured yet to delete.")
+        input("Press Enter to return to account management...")
+        return
+
+    print("Select an account to delete:")
+    account_to_delete = select_from_list(accounts, "Your accounts:")
+    if not account_to_delete:
+        input("Press Enter to return to account management...")
+        return
+
+    # Confirm deletion
+    if confirm_action(f"Are you sure you want to delete the account '{account_to_delete['name']}'? This will also remove all associated zones and records from this application's configuration."):
+        accounts.remove(account_to_delete)
+        save_config(data)
+        print(f"✅ Account '{account_to_delete['name']}' and its associated data deleted successfully from the configuration.")
+    else:
+        print("ℹ️ Account deletion cancelled.")
+    
+    input("Press Enter to return to account management...")
+
 def confirm_action(prompt="Are you sure you want to proceed?"):
     """Asks for user confirmation."""
     while True:
@@ -377,7 +542,8 @@ def main_menu():
         print("4. ✏️ Edit Record in Zone")
         print("5. 🗑️ Delete Record from Zone")
         print("6. 📋 List All Records")
-        print("7. 🚪 Exit")
+        print("7. 🌐 Manage Cloudflare Accounts")
+        print("8. 🚪 Exit")
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -395,6 +561,8 @@ def main_menu():
         elif choice == "6":
             list_all()
         elif choice == "7":
+            manage_cloudflare_accounts()
+        elif choice == "8":
             if confirm_action("Are you sure you want to exit?"):
                 print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
                 break

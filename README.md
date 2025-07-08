@@ -86,13 +86,20 @@ Using the `cfutils` command is the recommended way to access the CLI after insta
 
 The CLI provides the following options:
 
-- **1. Add Account**: Add a new Cloudflare account with its API token.
-- **2. Add Zone to Account**: Add a new DNS zone (domain) to an existing account. You will be able to select the account from a list.
-- **3. Add Record to Zone**: Add a new DNS record to an existing zone. You will be able to select the account and then the zone from a list.
-- **4. List All Records**: Display all configured accounts, zones, and their records.
-- **5. Exit**: Exit the CLI.
+- **1. Add Account**: Add a new Cloudflare account with its API token. (This is a legacy option, prefer using "Manage Cloudflare Accounts" for new setups).
+- **2. Add Zone to Account**: Add a new DNS zone (domain) to an existing account.
+- **3. Add Record to Zone**: Add a new DNS record to an existing zone.
+- **4. Edit Record in Zone**: Modify existing DNS records (IPs, type, proxied status, rotation interval).
+- **5. Delete Record from Zone**: Remove DNS records from the configuration.
+- **6. List All Records**: Display all configured accounts, zones, and their records.
+- **7. Manage Cloudflare Accounts**:
+    - Display a table of all saved Cloudflare accounts (Label, Masked API Token, Zones Count).
+    - Add a new Cloudflare account.
+    - Edit an existing Cloudflare account's label or API token.
+    - Delete a Cloudflare account from the configuration.
+- **8. Exit**: Exit the CLI.
 
-When adding zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
+When adding/editing zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
 When adding a record, you can optionally specify a custom rotation interval in minutes. This interval must be at least 5 minutes. If no interval is provided, it will default to 30 minutes.
 
 ### Cron Job for DNS Rotation

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [2.3.1-dev] - Unreleased
+### Added
+- **Account Management Module (CLI):**
+  - New "Manage Cloudflare Accounts" section in the main menu.
+  - Display of saved Cloudflare accounts in a table (ID, Label, Masked API Token, Zones Count).
+  - Workflow to add new Cloudflare accounts (label, API token) via CLI.
+  - Workflow to edit existing Cloudflare account details (label, API token) via CLI.
+  - Workflow to delete Cloudflare accounts from the configuration via CLI.
+  - Unit tests for all account management functionalities.
+
 ## [2.3.0-dev] - Unreleased
 ### Added
 - **Record Management in CLI**:
@@ -30,9 +43,6 @@ All notable changes to this project will be documented in this file.
 ## [2.2.7-dev] - Unreleased
 ### Changed
 - Updated CLI and README to recommend using Cloudflare API Tokens instead of Global API Keys for enhanced security.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.2.6-dev] - Unreleased
 ### Fixed
