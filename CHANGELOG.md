@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.2.5-dev] - Unreleased
+### Fixed
+- Resolved a circular import error in `config_manager.py` that prevented `cfutils` from starting.
+- Restored missing core configuration functions (`load_config`, `save_config`, `find_account`, `find_zone`, `find_record`) and `CONFIG_PATH` constant to `config_manager.py`. This also resolves a `NameError` when `config_manager.py` is run directly or when `run_rotation` calls `load_config`.
+
 ## [2.2.4-dev] - Unreleased
 ### Added
 - Graceful handling of `KeyboardInterrupt` (Ctrl+C) in `cli.py` and `rotate_from_config.py` to prevent tracebacks and allow clean exit.

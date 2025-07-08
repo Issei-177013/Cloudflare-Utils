@@ -1,12 +1,53 @@
-from config_manager import load_config
 from cloudflare import Cloudflare, APIError
 import json
 import os
 import time
 import sys # Added for sys.exit
 
+CONFIG_PATH = "configs.json"
 ROTATION_STATUS_PATH = "rotation_status.json"
 DEFAULT_ROTATION_INTERVAL_MINUTES = 30
+
+def load_config():
+    """Loads the configuration from the JSON file."""
+    if not os.path.exists(CONFIG_PATH):
+        # If the config file doesn't exist, create it with default structure
+        print(f"Info: Config file not found at {CONFIG_PATH}. Creating a new one.")
+        save_config({"accounts": []}) # Save default structure
+        return {"accounts": []}
+    try:
+        with open(CONFIG_PATH, "r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {CONFIG_PATH}. Returning default config.")
+        # Optionally, handle this more gracefully, e.g., by backing up the broken file.
+        return {"accounts": []} # Default structure on error
+
+def save_config(data):
+    """Saves the configuration data to the JSON file."""
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
+def find_account(data, account_name):
+    """Finds an account by name in the config data."""
+    for acc in data.get("accounts", []):
+        if acc.get("name") == account_name:
+            return acc
+    return None
+
+def find_zone(account_data, zone_domain):
+    """Finds a zone by domain within an account's data."""
+    for zone in account_data.get("zones", []):
+        if zone.get("domain") == zone_domain:
+            return zone
+    return None
+
+def find_record(zone_data, record_name):
+    """Finds a record by name within a zone's data."""
+    for record in zone_data.get("records", []):
+        if record.get("name") == record_name:
+            return record
+    return None
 
 def load_rotation_status():
     if not os.path.exists(ROTATION_STATUS_PATH):
