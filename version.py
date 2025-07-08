@@ -1,2 +1,2 @@
 # Cloudflare-Utils version file
-__version__ = "2.2.6-dev"
+__version__ = "2.2.7-dev"

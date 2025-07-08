@@ -38,9 +38,17 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 
 ## Configuration
 
-During the installation process, you will be prompted to provide the following information:
+During the installation process, or when adding an account via the `cfutils` CLI, you will be prompted to provide the following information:
 
 - **Cloudflare API Token**: Your Cloudflare API token for authentication.
+    - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions (e.g., only to edit DNS records for a particular zone).
+    - You can create an API Token from your Cloudflare Dashboard:
+        1. Go to "My Profile" (usually top right of the dashboard).
+        2. Select "API Tokens".
+        3. Click "Create Token".
+        4. You can use a template like "Edit zone DNS" or create a custom token. Ensure it has `Zone:Read` and `DNS:Edit` permissions for the zones you want to manage.
+    - For more details, see the official Cloudflare documentation: [Creating Cloudflare API tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
+    - While the Global API Key will work, using it increases security risks as it grants broad access to your Cloudflare account.
 - **Cloudflare Zone ID**: The ID of the Cloudflare zone where your DNS records are located.
 - **Cloudflare Record Name**: The name of the DNS record you want to update (e.g., `example.com`).
 - **Cloudflare IP Addresses**: A comma-separated list of IP addresses to rotate through.

@@ -58,7 +58,10 @@ def input_list(prompt):
 def add_account():
     data = load_config()
     name = input("Account name: ").strip()
-    token = input("API Token: ").strip()
+    token = input("Cloudflare API Token: ").strip()
+    print("ℹ️ INFO: While a Global API Key will work, it's STRONGLY recommended to use a specific API Token.")
+    print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
+    print("This provides better security and scoped permissions.")
     if find_account(data, name):
         print("❌ Account already exists")
         return
