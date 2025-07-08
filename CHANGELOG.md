@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.8-dev] - Unreleased
+### Changed
+- Update cron job frequency to run every minute
+
 ## [2.2.7-dev] - Unreleased
 ### Changed
 - Updated CLI and README to recommend using Cloudflare API Tokens instead of Global API Keys for enhanced security.

@@ -77,7 +77,7 @@ setup_cron() {
     (crontab -l 2>/dev/null | grep -v -F "$CRON_JOB_RUNNER" || true) | crontab -
     
     # Add new cron jobs
-    (crontab -l 2>/dev/null; echo "*/5 * * * * $CRON_JOB_RUNNER") | crontab -
+    (crontab -l 2>/dev/null; echo "*/1 * * * * $CRON_JOB_RUNNER") | crontab -
     (crontab -l 2>/dev/null; echo "@reboot $CRON_JOB_RUNNER") | crontab -
     echo -e "\e[1;32mCron job set to run every 5 minutes and on reboot.\e[0m"
 }
