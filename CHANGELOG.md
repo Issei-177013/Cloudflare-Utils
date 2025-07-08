@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.2.0-dev] - Unreleased
+## [2.2.2-dev] - Unreleased
+### Added
+- When adding a record via the CLI, existing DNS records for the selected zone are now fetched from Cloudflare and displayed.
+- Users can select an existing record name from the list or choose to enter a new record name manually.
+### Changed
+- Improved user experience during record addition by reducing manual input and potential for typos in record names.
+
+## [2.2.1-dev] - Unreleased
 ### Changed
 - Enforced a minimum rotation interval of 5 minutes in the CLI for custom intervals.
 - Updated `install.sh` to set the cron job frequency to every 5 minutes, ensuring timely checks for records with shorter custom intervals.
