@@ -109,13 +109,29 @@ def add_record():
     ip_list = input_list("Enter IPs (comma separated): ")
     rec_type = input("Record type (A/CNAME): ").strip().upper()
     proxied = input("Proxied (yes/no): ").strip().lower() == 'yes'
+    
+    rotation_interval_minutes_str = input("Rotation interval in minutes (optional, default 30): ").strip()
+    rotation_interval_minutes = None
+    if rotation_interval_minutes_str:
+        try:
+            rotation_interval_minutes = int(rotation_interval_minutes_str)
+            if rotation_interval_minutes <= 0:
+                print("❌ Rotation interval must be a positive integer.")
+                return
+        except ValueError:
+            print("❌ Invalid input for rotation interval. Must be a number.")
+            return
 
-    zone["records"].append({
+    record_data = {
         "name": name,
         "type": rec_type,
         "ips": ip_list,
         "proxied": proxied
-    })
+    }
+    if rotation_interval_minutes is not None:
+        record_data["rotation_interval_minutes"] = rotation_interval_minutes
+
+    zone["records"].append(record_data)
 
     save_config(data)
     print("✅ Record added successfully!")
@@ -139,7 +155,8 @@ def list_all():
                 continue
             for rec_idx, r in enumerate(zone["records"]):
                 proxied_status = "Yes" if r['proxied'] else "No"
-                print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])} | Proxied: {proxied_status}")
+                interval_str = f" | Rotation Interval: {r.get('rotation_interval_minutes', 'Default (30)')} min"
+                print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])} | Proxied: {proxied_status}{interval_str}")
     print("----------------------------------------")
 
 

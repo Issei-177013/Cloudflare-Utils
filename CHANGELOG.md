@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.2.0-dev] - Unreleased
+### Added
+- Support for per-record custom rotation interval (`rotation_interval_minutes`).
+- Rotation logic now honors custom intervals, defaulting to 30 minutes if not specified.
+- Next-rotation tracking is persistent in `rotation_status.json`.
+- CLI updated to allow setting/editing custom rotation intervals.
+- Documentation updated for the new feature.
+
 ## [2.1.2-dev] - Unreleased
 ### Fixed
 - Clear screen and display art, author, version in CLI.

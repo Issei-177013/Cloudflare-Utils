@@ -44,6 +44,7 @@ During the installation process, you will be prompted to provide the following i
 - **Cloudflare Zone ID**: The ID of the Cloudflare zone where your DNS records are located.
 - **Cloudflare Record Name**: The name of the DNS record you want to update (e.g., `example.com`).
 - **Cloudflare IP Addresses**: A comma-separated list of IP addresses to rotate through.
+- **Rotation Interval (Optional)**: The rotation interval in minutes for this specific record. If not provided, a default of 30 minutes will be used.
 
 These values will be stored in `/opt/Cloudflare-Utils/configs.json`.
 
@@ -84,10 +85,12 @@ The CLI provides the following options:
 - **5. Exit**: Exit the CLI.
 
 When adding zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
+When adding a record, you can optionally specify a custom rotation interval in minutes. If no interval is provided, or if the input is invalid, it will default to 30 minutes.
 
 ### Cron Job for DNS Rotation
 
-After the installation, a cron job is set up to run `rotate_from_config.py` periodically (default: every 30 minutes). This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records.
+After the installation, a cron job is set up to run `rotate_from_config.py` periodically. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (or the default 30 minutes if not specified).
+The script maintains a `rotation_status.json` file to track the last rotation time for each record, ensuring records are not rotated too frequently.
 
 ### Manual DNS Rotation
 
