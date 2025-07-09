@@ -540,31 +540,28 @@ def main_menu():
 
     while True:
         print("\n--- Main Menu ---")
-        print("1. 👤 Add Account")
-        print("2. 🌍 Add Zone to Account")
-        print("3. 📝 Add Record to Zone")
-        print("4. ✏️ Edit Record in Zone")
-        print("5. 🗑️ Delete Record from Zone")
-        print("6. 📋 List All Records")
-        print("7. 🌐 Manage Cloudflare Accounts")
+        print("1. 🌍 Add Zone to Account")
+        print("2. 📝 Add Record to Zone")
+        print("3. ✏️ Edit Record in Zone")
+        print("4. 🗑️ Delete Record from Zone")
+        print("5. 📋 List All Records")
+        print("6. 🌐 Manage Cloudflare Accounts")
         print("0. 🚪 Exit")
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
         
         if choice == "1":
-            add_account()
-        elif choice == "2":
             add_zone()
-        elif choice == "3":
+        elif choice == "2":
             add_record()
-        elif choice == "4":
+        elif choice == "3":
             edit_record() # Placeholder for now
-        elif choice == "5":
+        elif choice == "4":
             delete_record() # Placeholder for now
-        elif choice == "6":
+        elif choice == "5":
             list_all()
-        elif choice == "7":
+        elif choice == "6":
             manage_cloudflare_accounts()
         elif choice == "0": # Changed from "8" to "0"
             if confirm_action("Are you sure you want to exit?"):

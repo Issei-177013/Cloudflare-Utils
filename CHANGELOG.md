@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.3.2-dev+3] - Unreleased
+### Changed
+- Removed "Add Account" option from the main CLI menu as it's redundant with the "Manage Cloudflare Accounts" section. Options renumbered.
+
 ## [2.3.2-dev+2] - Unreleased
 ### Added
 - Remove redundant executable permission setting for the install script.
