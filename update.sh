@@ -19,28 +19,33 @@ get_versions() {
     echo -e "\e[1;33mCurrent branch: $current_branch\e[0m"
 
     versions=()
+
     if [[ "$current_branch" == "dev" ]]; then
-        echo -e "\e[1;34mLast 5 dev versions (tags/commits on dev branch):\e[0m"
-        mapfile -t versions < <( (git -C "$PROGRAM_DIR" tag --sort=-v:refname | grep 'dev' | head -n 5; \
-                                git -C "$PROGRAM_DIR" log dev --pretty=format:"%h (%s, %ar)" --abbrev-commit --max-count=5) | \
-                                awk '!seen[$0]++' | head -n 5)
+        echo -e "\e[1;34mShowing last 10 dev versions:\e[0m"
+        mapfile -t versions < <(
+            git -C "$PROGRAM_DIR" tag --sort=-v:refname | grep 'dev' | head -n 10
+        )
     else
-        echo -e "\e[1;34mLast 5 release versions (tags not containing 'dev'):\e[0m"
-        mapfile -t versions < <(git -C "$PROGRAM_DIR" tag --sort=-v:refname | grep -v 'dev' | head -n 5)
+        echo -e "\e[1;34mShowing last 10 release versions:\e[0m"
+        mapfile -t versions < <(
+            git -C "$PROGRAM_DIR" tag --sort=-v:refname | grep -v 'dev' | head -n 10
+        )
     fi
 
     if [ ${#versions[@]} -eq 0 ]; then
-        echo -e "\e[1;31mNo versions found to list. You can try entering one manually.\e[0m"
-    else
-        for i in "${!versions[@]}"; do
-            echo "$((i+1))) ${versions[$i]}"
-        done
+        echo -e "\e[1;33m⚠ No tagged versions found. Falling back to latest commits...\e[0m"
+        mapfile -t versions < <(
+            git -C "$PROGRAM_DIR" log "$current_branch" --pretty=format:"%h (%s, %ar)" --abbrev-commit --max-count=5
+        )
     fi
+
+    for i in "${!versions[@]}"; do
+        echo "$((i+1))) ${versions[$i]}"
+    done
 
     echo "$(( ${#versions[@]} + 1 ))) Enter version manually"
     echo "0) Cancel update"
 
-    user_choice=""
     while true; do
         read -r -p "Select version to update to: " user_choice
         if [[ "$user_choice" -eq 0 ]]; then
@@ -48,17 +53,15 @@ get_versions() {
             exit 0
         elif [[ "$user_choice" -gt 0 && "$user_choice" -le ${#versions[@]} ]]; then
             selected_version="${versions[$((user_choice-1))]}"
-            # Extract version string and remove ANSI color codes (safety)
-            selected_version=$(echo "$selected_version" | awk '{print $1}' | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
+            selected_version=$(echo "$selected_version" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
             echo -e "\e[1;32mSelected: $selected_version\e[0m"
             break
         elif [[ "$user_choice" -eq $(( ${#versions[@]} + 1 )) ]]; then
             read -r -p "Enter version (tag, commit hash, or branch name): " selected_version
+            selected_version=$(echo "$selected_version" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
             if [[ -z "$selected_version" ]]; then
                 echo -e "\e[1;31mVersion cannot be empty.\e[0m"
             else
-                # Sanitize input from ANSI if pasted
-                selected_version=$(echo "$selected_version" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
                 echo -e "\e[1;32mSelected manually: $selected_version\e[0m"
                 break
             fi
@@ -66,6 +69,7 @@ get_versions() {
             echo -e "\e[1;31mInvalid choice. Please try again.\e[0m"
         fi
     done
+
     echo "$selected_version"
 }
 
