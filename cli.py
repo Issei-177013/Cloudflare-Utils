@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import requests
 from config_manager import load_config, save_config, find_account, find_zone, find_record, CONFIG_PATH
 from cloudflare import Cloudflare, APIError # Added for Cloudflare API interaction
 import os
