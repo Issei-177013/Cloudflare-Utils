@@ -45,7 +45,7 @@ def get_zone_id(cf_client, zone_data):
         return None, None
 
     try:
-        zones = cf_client.zones.get(params={'name': zone_name_to_lookup})
+        zones = cf_client.zones.get(name=zone_name_to_lookup)
         if zones:
             # Assuming the first match is the correct one
             return zones[0].id, zones[0].name

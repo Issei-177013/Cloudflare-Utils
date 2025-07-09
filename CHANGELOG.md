@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.4] - Unreleased
+### Fixed
+- Fixed an API call error (`ZonesResource.get() got an unexpected keyword argument 'params'`) when fetching zone IDs. The method for passing the zone name for lookup has been corrected.
+
 ## [2.4.3] - Unreleased
 ### Fixed
 - Fixed an issue where a warning for a missing 'domain' field in zone configuration was displayed if the 'name' field was present. The system now correctly uses the 'name' field to look up the zone and populates the 'domain' field in the configuration if it was initially missing.
