@@ -546,6 +546,7 @@ def main_menu():
         print("4. 🗑️ Delete Record from Zone")
         print("5. 📋 List All Records")
         print("6. 🌐 Manage Cloudflare Accounts")
+        print("7. 🛠️ IP Rotator Tools")
         print("0. 🚪 Exit")
         print("-----------------")
 
@@ -563,12 +564,218 @@ def main_menu():
             list_all()
         elif choice == "6":
             manage_cloudflare_accounts()
+        elif choice == "7":
+            ip_rotator_tools_menu()
         elif choice == "0": # Changed from "8" to "0"
             if confirm_action("Are you sure you want to exit?"):
                 print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
                 break
         else:
             print("❌ Invalid choice. Please select a valid option.")
+
+def ip_rotator_tools_menu():
+    """Displays the menu for IP Rotator Tools."""
+    while True:
+        clear_screen()
+        print("\n--- 🛠️ IP Rotator Tools ---")
+        print("1. 🔃 Rotate a DNS Record using a Custom IP List")
+        print("0. Back to Main Menu")
+        print("---------------------------")
+        choice = input("👉 Enter your choice: ").strip()
+
+        if choice == "1":
+            rotate_dns_record_with_custom_list()
+        elif choice == "0":
+            break
+        else:
+            print("❌ Invalid choice. Please select a valid option.")
+            input("Press Enter to continue...")
+
+def rotate_dns_record_with_custom_list():
+    """Manages DNS record rotation with a custom IP list."""
+    clear_screen()
+    print("\n--- 🔃 Rotate a DNS Record using a Custom IP List ---")
+    config = load_config()
+
+    if not config.get("accounts"):
+        print("❌ No accounts configured. Please add an account first from the main menu.")
+        input("Press Enter to continue...")
+        return
+
+    # Task 2.3: Fetch Zones from all stored tokens
+    all_zones_details = []
+    print("🔄 Fetching zones from all accounts...")
+    for acc_idx, account in enumerate(config["accounts"]):
+        account_label = account.get("name", f"Account {acc_idx+1}")
+        api_token = account.get("api_token")
+        if not api_token:
+            print(f"⚠️ Skipping account '{account_label}': No API token found.")
+            continue
+        
+        try:
+            cf = Cloudflare(api_token=api_token)
+            zones_from_cf = cf.zones.get() # Fetches zones for this account
+            if zones_from_cf:
+                for zone_cf in zones_from_cf:
+                    all_zones_details.append({
+                        "name": zone_cf.name, 
+                        "id": zone_cf.id,
+                        "account_label": account_label,
+                        "api_token": api_token # Store token for later use
+                    })
+            else:
+                print(f"ℹ️ No zones found for account '{account_label}'.")
+        except APIError as e:
+            print(f"❌ Cloudflare API Error for account '{account_label}': {e}")
+        except Exception as e:
+            print(f"❌ An unexpected error occurred for account '{account_label}': {e}")
+
+    if not all_zones_details:
+        print("❌ No zones found across all configured accounts, or failed to fetch them.")
+        input("Press Enter to continue...")
+        return
+
+    print("\n--- Available Zones ---")
+    print(f"{'#':<3} {'Zone Name':<30} {'Zone ID':<35} {'Associated Account':<25}")
+    print("-" * 95)
+    for i, zone_detail in enumerate(all_zones_details):
+        print(f"{i+1:<3} {zone_detail['name']:<30} {zone_detail['id']:<35} {zone_detail['account_label']:<25}")
+    print("-------------------------")
+    print("0. Back")
+
+    selected_zone_detail = None
+    while True:
+        try:
+            choice_str = input("👉 Select a zone (number, 0 to go back): ")
+            choice = int(choice_str)
+            if choice == 0:
+                return # Go back to IP Rotator Menu
+            if 1 <= choice <= len(all_zones_details):
+                selected_zone_detail = all_zones_details[choice-1]
+                break
+            else:
+                print("Invalid choice. Please enter a number from the list or 0.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+    
+    if not selected_zone_detail: # Should not happen if loop is exited correctly, but as a safeguard
+        return
+
+    # Task 2.3: Fetch its DNS records (A and AAAA only)
+    print(f"\n🔄 Fetching DNS records for zone '{selected_zone_detail['name']}'...")
+    dns_records_details = []
+    try:
+        cf = Cloudflare(api_token=selected_zone_detail['api_token'])
+        # Params to filter by type A or AAAA. Multiple 'type' params can be sent.
+        # The library should handle this by forming the correct query string e.g., type=A&type=AAAA
+        # However, the python-cloudflare library might expect a comma-separated string for multiple types.
+        # Let's try fetching all and filtering locally first for simplicity, then refine if too slow.
+        # records_from_cf = cf.dns.records.list(zone_id=selected_zone_detail['id'], params={'type': 'A,AAAA'})
+        # The `list` method in the library doesn't directly take `params` for type filtering in its signature.
+        # It might support `type=` as a direct kwarg, or we filter after fetching.
+        # Let's fetch all for the zone and filter.
+        all_records_for_zone = cf.dns.records.list(zone_id=selected_zone_detail['id'])
+        
+        for record_cf in all_records_for_zone:
+            if record_cf.type in ["A", "AAAA"]:
+                dns_records_details.append({
+                    "id": record_cf.id,
+                    "name": record_cf.name,
+                    "type": record_cf.type,
+                    "content": record_cf.content,
+                    "proxied": record_cf.proxied
+                })
+        
+    except APIError as e:
+        print(f"❌ Cloudflare API Error fetching records for zone '{selected_zone_detail['name']}': {e}")
+        input("Press Enter to continue...")
+        return
+    except Exception as e:
+        print(f"❌ An unexpected error occurred: {e}")
+        input("Press Enter to continue...")
+        return
+
+    if not dns_records_details:
+        print(f"❌ No A or AAAA records found in zone '{selected_zone_detail['name']}'.")
+        input("Press Enter to continue...")
+        return
+
+    print("\n--- Available DNS Records (A/AAAA) ---")
+    print(f"{'#':<3} {'Record Name':<40} {'Type':<6} {'Current IP':<20} {'Proxied?':<10}")
+    print("-" * 85)
+    for i, rec_detail in enumerate(dns_records_details):
+        proxied_status = "Yes" if rec_detail['proxied'] else "No"
+        print(f"{i+1:<3} {rec_detail['name']:<40} {rec_detail['type']:<6} {rec_detail['content']:<20} {proxied_status:<10}")
+    print("--------------------------------------")
+    print("0. Back")
+
+    selected_record_detail = None
+    while True:
+        try:
+            choice_str = input("👉 Select a record to rotate (number, 0 to go back): ")
+            choice = int(choice_str)
+            if choice == 0:
+                return # Go back to IP Rotator Menu (or previous step, here it's effectively back)
+            if 1 <= choice <= len(dns_records_details):
+                selected_record_detail = dns_records_details[choice-1]
+                break
+            else:
+                print("Invalid choice. Please enter a number from the list or 0.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+    if not selected_record_detail: # Safeguard
+        return
+
+    # Task 2.3: Prompt for IP list and interval
+    print(f"\n--- Configuring Rotation for: {selected_record_detail['name']} ---")
+    
+    ip_list_str = input("Enter a list of IP addresses to rotate (comma-separated): ").strip()
+    if not ip_list_str:
+        print("❌ IP list cannot be empty.")
+        input("Press Enter to continue...")
+        return
+    ip_list = [ip.strip() for ip in ip_list_str.split(',') if ip.strip()]
+    if not ip_list: # After stripping and removing empty strings
+        print("❌ IP list cannot be empty or contain only whitespace.")
+        input("Press Enter to continue...")
+        return
+    # Basic IP validation could be added here if desired (e.g. regex)
+
+    rotation_interval_minutes = None
+    while True:
+        interval_str = input("Enter rotation interval in minutes (e.g., 30, minimum 5): ").strip()
+        try:
+            rotation_interval_minutes = int(interval_str)
+            if rotation_interval_minutes >= 5:
+                break
+            else:
+                print("❌ Minimum rotation interval is 5 minutes.")
+        except ValueError:
+            print("❌ Invalid input. Please enter a whole number for minutes.")
+
+    # Task 2.4: Save Rotation Rules to configs.json
+    new_rotation_rule = {
+        "account_label": selected_zone_detail['account_label'],
+        "zone_id": selected_zone_detail['id'],
+        "zone_name": selected_zone_detail['name'], # Store for user-friendliness
+        "record_id": selected_record_detail['id'],
+        "record_name": selected_record_detail['name'], # Store for user-friendliness
+        "record_type": selected_record_detail['type'], # Store for potential future use
+        "ip_list": ip_list,
+        "rotate_interval_minutes": rotation_interval_minutes,
+        "proxied": selected_record_detail['proxied'] # Store original proxied status
+    }
+
+    config["rotations"].append(new_rotation_rule)
+    try:
+        save_config(config)
+        print(f"\n✅ Rotation rule for '{selected_record_detail['name']}' saved successfully!")
+    except Exception as e:
+        print(f"❌ Error saving rotation rule: {e}")
+
+    input("Press Enter to return to IP Rotator Menu...")
+
 
 if __name__ == "__main__":
     try:

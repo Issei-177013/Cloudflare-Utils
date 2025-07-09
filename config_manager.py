@@ -18,18 +18,29 @@ def load_config():
     if not os.path.exists(CONFIG_PATH):
         # If the config file doesn't exist, create it with default structure
         print(f"Info: Config file not found at {CONFIG_PATH}. Creating a new one.")
-        save_config({"accounts": []}) # Save default structure
-        return {"accounts": []}
+        new_config = {"accounts": [], "rotations": []}
+        save_config(new_config) # Save default structure
+        return new_config
     try:
         with open(CONFIG_PATH, "r") as f:
-            return json.load(f)
+            config_data = json.load(f)
+            if "accounts" not in config_data: # Ensure accounts key exists
+                config_data["accounts"] = []
+            if "rotations" not in config_data: # Ensure rotations key exists
+                config_data["rotations"] = []
+            return config_data
     except json.JSONDecodeError:
         print(f"Error: Could not decode JSON from {CONFIG_PATH}. Returning default config.")
         # Optionally, handle this more gracefully, e.g., by backing up the broken file.
-        return {"accounts": []} # Default structure on error
+        return {"accounts": [], "rotations": []} # Default structure on error
 
 def save_config(data):
     """Saves the configuration data to the JSON file."""
+    # Ensure both keys exist before saving, even if empty
+    if "accounts" not in data:
+        data["accounts"] = []
+    if "rotations" not in data:
+        data["rotations"] = []
     with open(CONFIG_PATH, "w") as f:
         json.dump(data, f, indent=2)
 

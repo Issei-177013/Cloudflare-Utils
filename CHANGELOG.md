@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.3.3-dev] - Unreleased
+### Added
+- Add IP Rotator Tools CLI section and DNS rotation rule management
+- Features:
+  - Allows users to select a Cloudflare account and zone.
+  - Fetches and displays A/AAAA DNS records for the selected zone.
+  - Prompts the user for a custom list of IP addresses and a rotation interval.
+  - Saves the rotation rule (account, zone, record details, IP list, interval) to `configs.json` under a new 'rotations' key.
+
 ## [2.3.2-dev+12] - Unreleased
 ## [2.3.2-dev+11] - Unreleased
 ## [2.3.2-dev+10] - Unreleased
