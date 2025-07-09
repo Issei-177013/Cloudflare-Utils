@@ -76,16 +76,18 @@ get_versions() {
             exit 0
         elif [[ "$user_choice" -gt 0 && "$user_choice" -le ${#versions[@]} ]]; then
             selected_version="${versions[$((user_choice-1))]}"
+            # Clean ANSI codes first
             selected_version=$(echo "$selected_version" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
-            echo -e "\e[1;32mSelected: $selected_version\e[0m"
+            echo -e "\e[1;32mSelected: $selected_version\e[0m" >&2 # Redirect to stderr
             break
         elif [[ "$user_choice" -eq $(( ${#versions[@]} + 1 )) ]]; then
             read -r -p "Enter version (tag, commit hash, or branch name): " selected_version
+            # Clean ANSI codes first
             selected_version=$(echo "$selected_version" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
             if [[ -z "$selected_version" ]]; then
-                echo -e "\e[1;31mVersion cannot be empty.\e[0m"
+                echo -e "\e[1;31mVersion cannot be empty.\e[0m" >&2 # Redirect to stderr
             else
-                echo -e "\e[1;32mSelected manually: $selected_version\e[0m"
+                echo -e "\e[1;32mSelected manually: $selected_version\e[0m" >&2 # Redirect to stderr
                 break
             fi
         else
