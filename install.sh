@@ -118,9 +118,9 @@ main_menu() {
                 break
                 ;;
             "Update existing installation")
-                UPDATE_SCRIPT_PATH="$(dirname "$0")/update.sh"
+                UPDATE_SCRIPT_PATH="$PROGRAM_DIR/update.sh" # Corrected path
                 if [ -f "$UPDATE_SCRIPT_PATH" ]; then
-                    echo -e "\e[1;34mLaunching updater...\e[0m"
+                    echo -e "\e[1;34mLaunching updater from $UPDATE_SCRIPT_PATH...\e[0m"
                     chmod +x "$UPDATE_SCRIPT_PATH" # Ensure update script is executable
                     # Execute with sudo as update.sh has internal sudo check and re-launch
                     # but better to call it with sudo from here if install.sh is already sudo.
@@ -130,8 +130,9 @@ main_menu() {
                         sudo "$UPDATE_SCRIPT_PATH"
                     fi
                 else
-                    echo -e "\e[1;31m❌ Error: update.sh not found in the script directory.\e[0m"
-                    echo -e "\e[1;33mPlease ensure update.sh is in the same directory as install.sh.\e[0m"
+                    echo -e "\e[1;31m❌ Error: $UPDATE_SCRIPT_PATH not found.\e[0m"
+                    echo -e "\e[1;33mThe program might not be installed correctly, or update.sh is missing.\e[0m"
+                    echo -e "\e[1;33mPlease try the 'Install' option first. If the issue persists, consider reinstalling.\e[0m"
                 fi
                 # After update, usually exit or loop back to menu. For now, break.
                 break
