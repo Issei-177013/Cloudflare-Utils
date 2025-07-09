@@ -57,9 +57,6 @@ def select_from_list(items, prompt):
         except ValueError:
             print("Invalid input. Please enter a number.")
 
-def input_list(prompt):
-    return input(prompt).strip().split(',')
-
 def add_account():
     data = load_config()
     name = input("Account name: ").strip()
@@ -73,258 +70,6 @@ def add_account():
     data["accounts"].append({"name": name, "api_token": token, "zones": []})
     save_config(data)
     print("✅ Account added")
-
-def add_zone():
-    data = load_config()
-    if not data["accounts"]:
-        print("❌ No accounts available. Please add an account first.")
-        return
-    
-    acc = select_from_list(data["accounts"], "Select an account:")
-    if not acc:
-        return
-
-    domain = input("Zone domain (e.g. example.com): ").strip()
-    zone_id = input("Zone ID: ").strip()
-    if find_zone(acc, domain):
-        print("❌ Zone already exists")
-        return
-    acc["zones"].append({"domain": domain, "zone_id": zone_id, "records": []})
-    save_config(data)
-    print("✅ Zone added")
-
-def add_record():
-    data = load_config()
-    if not data["accounts"]:
-        print("❌ No accounts available. Please add an account first.")
-        return
-
-    acc = select_from_list(data["accounts"], "Select an account:")
-    if not acc:
-        return
-
-    if not acc["zones"]:
-        print("❌ No zones available in this account. Please add a zone first.")
-        return
-
-    zone = select_from_list(acc["zones"], "Select a zone:")
-    if not zone:
-        return
-
-    # Attempt to fetch and display existing records for selection
-    record_name = None
-    try:
-        cf = Cloudflare(api_token=acc["api_token"])
-        zone_id = zone["zone_id"]
-        print(f"🔄 Fetching records for zone {zone['domain']}...")
-        records_from_cf_paginator = cf.dns.records.list(zone_id=zone_id)
-        # Convert paginator object to a list to use len() and indexing
-        actual_records_list = list(records_from_cf_paginator)
-        
-        if actual_records_list: # Check if the list is not empty
-            print("\n--- Existing Records ---")
-            for i, cf_record in enumerate(actual_records_list):
-                print(f"{i+1}. {cf_record.name} (Type: {cf_record.type}, Content: {cf_record.content})")
-            print(f"{len(actual_records_list)+1}. Enter a new record name manually")
-            print("-------------------------")
-            
-            while True:
-                try:
-                    choice = int(input("👉 Select a record to use/update or choose manual entry: "))
-                    if 1 <= choice <= len(actual_records_list):
-                        record_name = actual_records_list[choice-1].name
-                        print(f"ℹ️ Using existing record: {record_name}")
-                        # Check if this record already exists in local config to prevent duplicate *local* entries
-                        # but allow updating if it's just a Cloudflare record not yet in local config for this specific IP list.
-                        # The original find_record check will still apply later if we decide to keep it as is.
-                        break
-                    elif choice == len(actual_records_list) + 1:
-                        print("✍️ Manual record name entry selected.")
-                        break
-                    else:
-                        print("❌ Invalid choice. Please enter a number from the list.")
-                except ValueError:
-                    print("❌ Invalid input. Please enter a number.")
-        else:
-            print(f"ℹ️ No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
-
-    except APIError as e:
-        print(f"❌ Cloudflare API Error fetching records: {e}")
-        print("⚠️ Proceeding with manual record name entry.")
-    except Exception as e: # Catch other potential errors like network issues
-        print(f"❌ An unexpected error occurred while fetching records: {e}")
-        print("⚠️ Proceeding with manual record name entry.")
-
-    if not record_name: # If no record was selected from the list (or fetching failed)
-        name_input = input("Record name (e.g. vpn.example.com): ").strip()
-        if not name_input:
-            print("❌ Record name cannot be empty.")
-            return
-        record_name = name_input
-    
-    # Check if the chosen/entered record name already exists in the local config for this zone
-    if find_record(zone, record_name):
-        # If we selected an existing CF record, this check might seem redundant,
-        # but it's crucial if the user manually types a name that matches an existing local entry.
-        # Also, the intention is to add a *new set of IPs* for rotation under this name.
-        # The current structure implies one record entry in config per name.
-        # For this feature, we are selecting a name, then defining IPs for it.
-        # If the record *name* is already in our config, we should prevent adding it again.
-        # The user should perhaps use an "update existing record" feature if that's the intent.
-        # For now, maintaining the original check for local config duplicates.
-        print(f"❌ Record '{record_name}' already exists in the local configuration for this zone.")
-        print("ℹ️ If you want to change its IPs or other settings, consider deleting and re-adding, or a future 'update' feature.")
-        return
-
-    ip_list = input_list("Enter IPs (comma separated): ")
-    rec_type = input("Record type (A/CNAME): ").strip().upper()
-    proxied = input("Proxied (yes/no): ").strip().lower() == 'yes'
-    
-    rotation_interval_minutes_str = input("Rotation interval in minutes (optional, default 30): ").strip()
-    rotation_interval_minutes = None
-    if rotation_interval_minutes_str:
-        try:
-            rotation_interval_minutes = int(rotation_interval_minutes_str)
-            if rotation_interval_minutes < 5: # Enforce minimum of 5 minutes
-                print("❌ Rotation interval must be at least 5 minutes.")
-                return
-        except ValueError:
-            print("❌ Invalid input for rotation interval. Must be a number.")
-            return
-    # If rotation_interval_minutes_str is empty, rotation_interval_minutes remains None (for default handling)
-
-    record_data = {
-        "name": record_name, # Use the determined record_name
-        "type": rec_type,
-        "ips": ip_list,
-        "proxied": proxied
-    }
-    if rotation_interval_minutes is not None:
-        record_data["rotation_interval_minutes"] = rotation_interval_minutes
-
-    zone["records"].append(record_data)
-
-    save_config(data)
-    print("✅ Record added successfully!")
-
-def list_all():
-    data = load_config()
-    if not data["accounts"]:
-        print("ℹ️ No accounts, zones, or records to display.")
-        return
-
-    print("\n--- All Accounts, Zones, and Records ---")
-    for acc_idx, acc in enumerate(data["accounts"]):
-        print(f"\n[{acc_idx+1}] 🧾 Account: {acc['name']}")
-        if not acc["zones"]:
-            print("  ℹ️ No zones in this account.")
-            continue
-        for zone_idx, zone in enumerate(acc["zones"]):
-            print(f"  [{zone_idx+1}] 🌐 Zone: {zone['domain']} (ID: {zone['zone_id']})")
-            if not zone["records"]:
-                print("    ℹ️ No records in this zone.")
-                continue
-            for rec_idx, r in enumerate(zone["records"]):
-                proxied_status = "Yes" if r['proxied'] else "No"
-                interval_str = f" | Rotation Interval: {r.get('rotation_interval_minutes', 'Default (30)')} min"
-                print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])} | Proxied: {proxied_status}{interval_str}")
-    print("----------------------------------------")
-
-def delete_record():
-    data = load_config()
-    if not data["accounts"]:
-        print("❌ No accounts available.")
-        return
-
-    acc = select_from_list(data["accounts"], "Select an account to delete a record from:")
-    if not acc:
-        return
-
-    if not acc["zones"]:
-        print(f"❌ No zones available in account '{acc['name']}'.")
-        return
-
-    zone = select_from_list(acc["zones"], f"Select a zone in '{acc['name']}' to delete a record from:")
-    if not zone:
-        return
-
-    if not zone["records"]:
-        print(f"❌ No records available in zone '{zone['domain']}'.")
-        return
-
-    record_to_delete = select_from_list(zone["records"], f"Select a record in '{zone['domain']}' to delete:")
-    if not record_to_delete:
-        return
-
-    if confirm_action(f"Are you sure you want to delete the record '{record_to_delete['name']}' from zone '{zone['domain']}'?"):
-        zone["records"].remove(record_to_delete)
-        save_config(data)
-        print(f"✅ Record '{record_to_delete['name']}' deleted successfully from local configuration.")
-    else:
-        print("ℹ️ Deletion cancelled.")
-
-def edit_record():
-    data = load_config()
-    if not data["accounts"]:
-        print("❌ No accounts available.")
-        return
-
-    acc = select_from_list(data["accounts"], "Select an account to edit a record in:")
-    if not acc:
-        return
-
-    if not acc["zones"]:
-        print(f"❌ No zones available in account '{acc['name']}'.")
-        return
-
-    zone = select_from_list(acc["zones"], f"Select a zone in '{acc['name']}' to edit a record in:")
-    if not zone:
-        return
-
-    if not zone["records"]:
-        print(f"❌ No records available in zone '{zone['domain']}'.")
-        return
-
-    record_to_edit = select_from_list(zone["records"], f"Select a record in '{zone['domain']}' to edit:")
-    if not record_to_edit:
-        return
-
-    print(f"\n--- Editing Record: {record_to_edit['name']} ---")
-    print(f"Current IPs: {', '.join(record_to_edit['ips'])}")
-    new_ips_str = input(f"Enter new IPs (comma separated) or press Enter to keep current: ").strip()
-    if new_ips_str:
-        record_to_edit['ips'] = [ip.strip() for ip in new_ips_str.split(',')]
-
-    print(f"Current Type: {record_to_edit['type']}")
-    new_type = input(f"Enter new type (A/CNAME) or press Enter to keep current: ").strip().upper()
-    if new_type:
-        record_to_edit['type'] = new_type
-
-    print(f"Current Proxied: {'Yes' if record_to_edit['proxied'] else 'No'}")
-    new_proxied_str = input(f"Proxied (yes/no) or press Enter to keep current: ").strip().lower()
-    if new_proxied_str:
-        record_to_edit['proxied'] = new_proxied_str == 'yes'
-
-    current_interval = record_to_edit.get('rotation_interval_minutes', 'Default (30)')
-    print(f"Current Rotation Interval (minutes): {current_interval}")
-    new_interval_str = input(f"Enter new interval (minutes, min 5, or 'none' to use default) or press Enter to keep current: ").strip()
-    if new_interval_str:
-        if new_interval_str.lower() == 'none':
-            if 'rotation_interval_minutes' in record_to_edit:
-                del record_to_edit['rotation_interval_minutes']
-            print("ℹ️ Rotation interval set to default (30 minutes).")
-        else:
-            try:
-                new_interval = int(new_interval_str)
-                if new_interval < 5:
-                    print("❌ Rotation interval must be at least 5 minutes. Value not changed.")
-                else:
-                    record_to_edit['rotation_interval_minutes'] = new_interval
-            except ValueError:
-                print("❌ Invalid input for interval. Must be a number or 'none'. Value not changed.")
-    
-    save_config(data)
-    print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
 
 def manage_cloudflare_accounts():
     """Handles management of Cloudflare accounts."""
@@ -555,33 +300,18 @@ def main_menu():
 
     while True:
         print("\n--- Main Menu ---")
-        print("1. 🌍 Add Zone to Account")
-        print("2. 📝 Add Record to Zone")
-        print("3. ✏️ Edit Record in Zone")
-        print("4. 🗑️ Delete Record from Zone")
-        print("5. 📋 List All Records")
-        print("6. 🌐 Manage Cloudflare Accounts")
-        print("7. 🛠️ IP Rotator Tools")
+        print("1. 🌐 Manage Cloudflare Accounts")
+        print("2. 🛠️ IP Rotator Tools")
         print("0. 🚪 Exit")
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
         
         if choice == "1":
-            add_zone()
-        elif choice == "2":
-            add_record()
-        elif choice == "3":
-            edit_record() # Placeholder for now
-        elif choice == "4":
-            delete_record() # Placeholder for now
-        elif choice == "5":
-            list_all()
-        elif choice == "6":
             manage_cloudflare_accounts()
-        elif choice == "7":
+        elif choice == "2":
             ip_rotator_tools_menu()
-        elif choice == "0": # Changed from "8" to "0"
+        elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
                 print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
                 break
@@ -593,23 +323,192 @@ def ip_rotator_tools_menu():
     while True:
         clear_screen()
         print("\n--- 🛠️ IP Rotator Tools ---")
-        print("1. 🔃 Rotate a DNS Record using IP List")
+        print("1. ➕ Create New Rotation Rule")
+        print("2. 📄 View Configured Rotations")
+        print("3. ✏️ Edit Existing Rotation Settings")
+        print("4. 🗑️ Delete Existing Rotation Rule")
         print("0. Back to Main Menu")
         print("---------------------------")
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == "1":
-            rotate_dns_record_with_custom_list()
+            create_new_rotation_rule() # Renamed from rotate_dns_record_with_custom_list
+        elif choice == "2":
+            view_configured_rotations()
+        elif choice == "3":
+            edit_rotation_settings()
+        elif choice == "4":
+            delete_rotation_rule()
         elif choice == "0":
             break
         else:
             print("❌ Invalid choice. Please select a valid option.")
             input("Press Enter to continue...")
 
-def rotate_dns_record_with_custom_list():
+def view_configured_rotations(selection_mode=False):
+    """Displays all configured rotation rules.
+    If selection_mode is True, it allows selecting a rule and returns it.
+    """
+    config = load_config()
+    rotations = config.get("rotations", [])
+    if not rotations:
+        print("ℹ️ No rotation rules configured yet.")
+        if selection_mode:
+            input("Press Enter to continue...")  # Allow returning to previous menu
+            return None
+        else:
+            input("Press Enter to return to IP Rotator Menu...")
+            return
+
+    print("\n--- ⚙️ Configured Rotation Rules ---")
+    print(f"{'#':<3} {'Account':<20} {'Zone':<25} {'Record':<30} {'Interval (min)':<15} {'IPs'}")
+    print("-" * 120)
+    for i, rule in enumerate(rotations):
+        ips_str = ', '.join(rule.get('ip_list', []))
+        if len(ips_str) > 40: # Truncate long IP lists for display
+            ips_str = ips_str[:37] + "..."
+        print(f"{i+1:<3} {rule.get('account_label', 'N/A'):<20} {rule.get('zone_name', 'N/A'):<25} {rule.get('record_name', 'N/A'):<30} {rule.get('rotate_interval_minutes', 'N/A'):<15} {ips_str}")
+    print("-" * 120)
+
+    if selection_mode:
+        while True:
+            try:
+                choice_str = input("👉 Select a rule to edit/delete (number, 0 to go back): ")
+                choice = int(choice_str)
+                if choice == 0:
+                    return None
+                if 1 <= choice <= len(rotations):
+                    return rotations[choice-1]
+                else:
+                    print("Invalid choice. Please enter a number from the list or 0.")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+    else:
+        input("\nPress Enter to return to IP Rotator Menu...")
+
+
+def edit_rotation_settings():
+    """Allows editing an existing rotation rule's IP list or interval."""
+    clear_screen()
+    print("\n--- ✏️ Edit Rotation Settings ---")
+    
+    selected_rule = view_configured_rotations(selection_mode=True)
+    if not selected_rule:
+        return
+
+    config = load_config()
+    # Find the actual rule in the config to modify it directly
+    # This is safer than modifying a copy
+    rule_to_edit = None
+    for rule in config.get("rotations", []):
+        # Assuming record_id and zone_id make a unique enough key for a rotation rule.
+        # Or, if we had a unique ID per rule, that would be better.
+        # For now, let's assume the selection by index is sufficient, and selected_rule is a reference
+        # if view_configured_rotations returns parts of the original config list.
+        # However, to be absolutely safe, let's find it by a unique identifier if possible,
+        # or by comparing multiple fields if the returned object is a copy.
+        # Python's list.index(selected_rule) might work if selected_rule is indeed an element from the list.
+        # Let's find the index of the selected_rule to modify it in place.
+        try:
+            rule_index = config["rotations"].index(selected_rule)
+            rule_to_edit = config["rotations"][rule_index]
+        except ValueError:
+            print("❌ Error: Could not find the selected rule in the configuration. This should not happen.")
+            input("Press Enter to continue...")
+            return
+
+    print(f"\n--- Editing Rule for: {rule_to_edit['record_name']} in {rule_to_edit['zone_name']} ---")
+
+    # Edit IP List
+    current_ips_str = ', '.join(rule_to_edit.get('ip_list', []))
+    print(f"Current IPs: {current_ips_str}")
+    new_ips_str = input(f"Enter new IPs (comma separated) or press Enter to keep current: ").strip()
+    if new_ips_str:
+        new_ip_list = [ip.strip() for ip in new_ips_str.split(',') if ip.strip()]
+        if new_ip_list:
+            rule_to_edit['ip_list'] = new_ip_list
+            print("✅ IP list updated.")
+        else:
+            print("ℹ️ IP list cannot be empty. Kept current IPs.")
+
+    # Edit Rotation Interval
+    current_interval = rule_to_edit.get('rotate_interval_minutes', 'N/A')
+    print(f"Current Rotation Interval (minutes): {current_interval}")
+    new_interval_str = input(f"Enter new interval (minutes, min 5) or press Enter to keep current: ").strip()
+    if new_interval_str:
+        try:
+            new_interval = int(new_interval_str)
+            if new_interval < 5:
+                print("❌ Rotation interval must be at least 5 minutes. Value not changed.")
+            else:
+                rule_to_edit['rotate_interval_minutes'] = new_interval
+                print("✅ Rotation interval updated.")
+        except ValueError:
+            print("❌ Invalid input for interval. Must be a number. Value not changed.")
+    
+    try:
+        save_config(config)
+        print(f"\n✅ Rotation rule for '{rule_to_edit['record_name']}' updated successfully!")
+    except Exception as e:
+        print(f"❌ Error saving updated rotation rule: {e}")
+
+    input("Press Enter to return to IP Rotator Menu...")
+
+
+def delete_rotation_rule():
+    """Allows deleting an existing rotation rule."""
+    clear_screen()
+    print("\n--- 🗑️ Delete Rotation Rule ---")
+
+    selected_rule = view_configured_rotations(selection_mode=True)
+    if not selected_rule:
+        return
+
+    if confirm_action(f"Are you sure you want to delete the rotation rule for '{selected_rule['record_name']}' in zone '{selected_rule['zone_name']}'?"):
+        config = load_config()
+        try:
+            # Find and remove the rule.
+            # Need to be careful if selected_rule is a copy.
+            # It's better to find by some unique identifier or by iterating and comparing.
+            rotations = config.get("rotations", [])
+            rule_to_remove = None
+            for rule in rotations:
+                # This comparison might be fragile if the structure of selected_rule changes
+                # or if there are float values etc. A unique ID per rule would be best.
+                # For now, comparing key fields.
+                if (rule.get('record_id') == selected_rule.get('record_id') and
+                    rule.get('zone_id') == selected_rule.get('zone_id') and
+                    rule.get('record_name') == selected_rule.get('record_name')): # Add more fields if necessary for uniqueness
+                    rule_to_remove = rule
+                    break
+            
+            if rule_to_remove:
+                rotations.remove(rule_to_remove)
+                save_config(config)
+                print(f"✅ Rotation rule for '{selected_rule['record_name']}' deleted successfully.")
+            else:
+                # This case could happen if view_configured_rotations returns a copy and we can't find the original.
+                # The .index() method used in edit_rotation_settings is generally safer if the list contains the exact objects.
+                # Let's try removing by direct object comparison if `selected_rule` is indeed part of `rotations`
+                try:
+                    config["rotations"].remove(selected_rule) # This works if selected_rule is a direct reference
+                    save_config(config)
+                    print(f"✅ Rotation rule for '{selected_rule['record_name']}' deleted successfully.")
+                except ValueError:
+                    print("❌ Error: Could not find the selected rule in the configuration for deletion. This might indicate an issue with how rules are tracked.")
+
+        except Exception as e:
+            print(f"❌ Error deleting rotation rule: {e}")
+    else:
+        print("ℹ️ Deletion cancelled.")
+    
+    input("Press Enter to return to IP Rotator Menu...")
+
+
+def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_list
     """Manages DNS record rotation with a custom IP list."""
     clear_screen()
-    print("\n--- 🔃 Rotate a DNS Record using a Custom IP List ---")
+    print("\n--- ➕ Create New Rotation Rule ---") # Updated title
     config = load_config()
 
     if not config.get("accounts"):

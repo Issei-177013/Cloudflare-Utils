@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.3.3-dev+4] - Unreleased
+### Changed
+- Refactor: Streamline main menu and implement IP rotation rule management
+- Removed obsolete Zone/Record management options from the main menu.
+- Implemented CRUD (Create, Read, Update, Delete) functionality for IP rotation rules under 'IP Rotator Tools'.
+- Users can now create new rotation rules, view existing ones, edit their IP lists and intervals, and delete them.
+- Removed unused functions from cli.py related to the old menu structure.
+
+## [2.3.3-dev+4] - Unreleased
 ## [2.3.3-dev+3] - Unreleased
 ## [2.3.3-dev+2] - Unreleased
 ## [2.3.3-dev+1] - Unreleased
