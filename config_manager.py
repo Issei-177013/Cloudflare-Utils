@@ -34,6 +34,70 @@ def load_config():
         # Optionally, handle this more gracefully, e.g., by backing up the broken file.
         return {"accounts": [], "rotations": []} # Default structure on error
 
+def get_zone_id(cf_client, zone_name):
+    """Fetches the zone ID for a given zone name using the Cloudflare API."""
+    try:
+        zones = cf_client.zones.get(params={'name': zone_name})
+        if zones:
+            return zones[0].id # Assuming the first match is the correct one
+        else:
+            print(f"Warning: Zone '{zone_name}' not found on Cloudflare account.")
+            return None
+    except APIError as e:
+        print(f"Error: API error while fetching zone ID for '{zone_name}': {e}")
+        return None
+    except Exception as e: # Catch any other unexpected errors
+        print(f"Error: An unexpected error occurred while fetching zone ID for '{zone_name}': {e}")
+        return None
+
+def load_config():
+    """Loads the configuration from the JSON file."""
+    if not os.path.exists(CONFIG_PATH):
+        # If the config file doesn't exist, create it with default structure
+        print(f"Info: Config file not found at {CONFIG_PATH}. Creating a new one.")
+        new_config = {"accounts": [], "rotations": []}
+        save_config(new_config) # Save default structure
+        return new_config
+    try:
+        with open(CONFIG_PATH, "r") as f:
+            config_data = json.load(f)
+            if "accounts" not in config_data: # Ensure accounts key exists
+                config_data["accounts"] = []
+            if "rotations" not in config_data: # Ensure rotations key exists
+                config_data["rotations"] = []
+
+            # Iterate through accounts and zones to fetch missing zone_ids
+            for account in config_data.get("accounts", []):
+                if "api_token" not in account:
+                    print(f"Warning: Account '{account.get('name', 'Unnamed Account')}' is missing API token. Skipping zone ID fetches for this account.")
+                    continue
+
+                cf_client = Cloudflare(api_token=account["api_token"])
+                valid_zones = []
+                for zone in account.get("zones", []):
+                    if "zone_id" not in zone or not zone["zone_id"]:
+                        if "domain" not in zone:
+                            print(f"Warning: Zone in account '{account.get('name', 'Unnamed Account')}' is missing 'domain' field. Cannot fetch zone_id.")
+                            continue # Skip this zone if domain is missing
+
+                        zone_name = zone["domain"]
+                        print(f"Info: 'zone_id' missing for zone '{zone_name}' in account '{account.get('name', 'Unnamed Account')}'. Attempting to fetch.")
+                        zone_id = get_zone_id(cf_client, zone_name)
+                        if zone_id:
+                            zone["zone_id"] = zone_id
+                            print(f"Info: Successfully fetched 'zone_id' for '{zone_name}': {zone_id}")
+                            valid_zones.append(zone)
+                        else:
+                            print(f"Warning: Could not fetch 'zone_id' for zone '{zone_name}'. This zone will be skipped.")
+                    else:
+                        valid_zones.append(zone) # Zone already has a zone_id
+                account["zones"] = valid_zones # Update account's zones list with potentially modified zones
+
+            return config_data
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {CONFIG_PATH}. Returning default config.")
+        return {"accounts": [], "rotations": []} # Default structure on error
+
 def save_config(data):
     """Saves the configuration data to the JSON file."""
     # Ensure both keys exist before saving, even if empty
