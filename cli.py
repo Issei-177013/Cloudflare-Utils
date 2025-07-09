@@ -373,7 +373,7 @@ def add_new_account_workflow():
     clear_screen()
     print("\n--- ➕ Add New Cloudflare Account ---")
     data = load_config()
-    
+
     account_label = input("Enter a label for this account (e.g., 'My Personal Account'): ").strip()
     if not account_label:
         print("❌ Account label cannot be empty.")
@@ -391,26 +391,40 @@ def add_new_account_workflow():
         input("Press Enter to return to account management...")
         return
 
-    # Optional: Validate token by attempting to fetch a list of zones.
-    # For now, we'll skip this step as per the task description (optional).
-    # try:
-    #     cf = Cloudflare(api_token=api_token)
-    #     cf.zones.get() # Simple call to check token validity
-    #     print("✅ API Token validated successfully.")
-    # except APIError as e:
-    #     print(f"❌ Invalid API Token. Cloudflare API Error: {e}")
-    #     print("Please ensure the token is correct and has the necessary permissions.")
-    #     input("Press Enter to return to account management...")
-    #     return
-    # except Exception as e:
-    #     print(f"❌ An unexpected error occurred during token validation: {e}")
-    #     input("Press Enter to return to account management...")
-    #     return
+    # 🔄 Try fetching zones from Cloudflare to verify the token and get zone data
+    print("🔍 Connecting to Cloudflare API and fetching zones...")
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json"
+    }
 
-    new_account = {"name": account_label, "api_token": api_token, "zones": []}
+    try:
+        response = requests.get("https://api.cloudflare.com/client/v4/zones", headers=headers, params={"per_page": 50})
+        if response.status_code != 200:
+            raise Exception(f"HTTP {response.status_code}: {response.text}")
+
+        result = response.json()
+        if not result.get("success"):
+            raise Exception(result.get("errors", ["Unknown API error"]))
+
+        zones = result.get("result", [])
+        print(f"✅ {len(zones)} zones fetched successfully.")
+    except Exception as e:
+        print(f"❌ Failed to fetch zones: {e}")
+        input("Press Enter to return to account management...")
+        return
+
+    # ✅ Store the new account with fetched zones
+    new_account = {
+        "name": account_label,
+        "api_token": api_token,
+        "zones": zones  # ⬅️ Saved zones directly
+    }
+
     data["accounts"].append(new_account)
     save_config(data)
-    print(f"✅ Account '{account_label}' added successfully!")
+
+    print(f"✅ Account '{account_label}' added successfully with {len(zones)} zone(s).")
     input("Press Enter to return to account management...")
 
 def edit_existing_account_workflow():
