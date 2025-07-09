@@ -118,21 +118,50 @@ main_menu() {
                 break
                 ;;
             "Update existing installation")
-                UPDATE_SCRIPT_PATH="$PROGRAM_DIR/update.sh" # Corrected path
+                # Determine the correct path for update.sh.
+                # If PROGRAM_DIR is set (e.g., during a full install), use it. Otherwise, assume current directory.
+                SCRIPT_DIR_FOR_UPDATE="${PROGRAM_DIR:-.}"
+                UPDATE_SCRIPT_PATH="$SCRIPT_DIR_FOR_UPDATE/update.sh"
+
+                if [ ! -f "$UPDATE_SCRIPT_PATH" ]; then
+                    echo -e "\e[1;33m⚠️ update.sh not found at $UPDATE_SCRIPT_PATH.\e[0m"
+                    echo -e "\e[1;34mAttempting to download from GitHub (branch '$BRANCH')...\e[0m"
+                    
+                    # Ensure target directory exists if it's PROGRAM_DIR
+                    if [ "$SCRIPT_DIR_FOR_UPDATE" == "$PROGRAM_DIR" ] && [ ! -d "$PROGRAM_DIR" ]; then
+                        echo -e "\e[1;34mCreating program directory: $PROGRAM_DIR\e[0m"
+                        mkdir -p "$PROGRAM_DIR"
+                    fi
+
+                    DOWNLOAD_URL="https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/$BRANCH/update.sh"
+                    if curl -fsSL "$DOWNLOAD_URL" -o "$UPDATE_SCRIPT_PATH"; then
+                        echo -e "\e[1;32m✅ Successfully downloaded update.sh to $UPDATE_SCRIPT_PATH\e[0m"
+                        chmod +x "$UPDATE_SCRIPT_PATH"
+                    else
+                        echo -e "\e[1;31m❌ Failed to download update.sh from $DOWNLOAD_URL.\e[0m"
+                        echo -e "\e[1;33mPlease ensure the branch '$BRANCH' exists and the URL is correct.\e[0m"
+                        echo -e "\e[1;33mYou might need to clone the repository manually to get all scripts.\e[0m"
+                        # After failure, break or ask user to retry/exit. For now, break.
+                        break 
+                    fi
+                fi
+
                 if [ -f "$UPDATE_SCRIPT_PATH" ]; then
                     echo -e "\e[1;34mLaunching updater from $UPDATE_SCRIPT_PATH...\e[0m"
                     chmod +x "$UPDATE_SCRIPT_PATH" # Ensure update script is executable
                     # Execute with sudo as update.sh has internal sudo check and re-launch
                     # but better to call it with sudo from here if install.sh is already sudo.
                     if [ "$EUID" -eq 0 ]; then
-                        "$UPDATE_SCRIPT_PATH"
+                        "$UPDATE_SCRIPT_PATH" "$BRANCH" # Pass branch to update script
                     else
-                        sudo "$UPDATE_SCRIPT_PATH"
+                        sudo "$UPDATE_SCRIPT_PATH" "$BRANCH" # Pass branch to update script
                     fi
                 else
-                    echo -e "\e[1;31m❌ Error: $UPDATE_SCRIPT_PATH not found.\e[0m"
-                    echo -e "\e[1;33mThe program might not be installed correctly, or update.sh is missing.\e[0m"
-                    echo -e "\e[1;33mPlease try the 'Install' option first. If the issue persists, consider reinstalling.\e[0m"
+                    # This case should ideally not be reached if download was attempted and failed,
+                    # but as a safeguard:
+                    echo -e "\e[1;31m❌ Error: $UPDATE_SCRIPT_PATH still not found after attempting download.\e[0m"
+                    echo -e "\e[1;33mThe program might not be installed correctly or update.sh is missing.\e[0m"
+                    echo -e "\e[1;33mPlease try the 'Install' option first. If the issue persists, consider reinstalling by cloning the repository.\e[0m"
                 fi
                 # After update, usually exit or loop back to menu. For now, break.
                 break

@@ -16,23 +16,33 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 
 ## Installation
 
-To install and set up the Cloudflare Utils on an Ubuntu server, follow these steps:
+To install and set up Cloudflare Utils on an Ubuntu server, the recommended method is to clone the repository and then run the installer script. This ensures all necessary files, including `update.sh` and `uninstall.sh`, are available locally.
 
-### Using cURL
+Follow these steps:
 
-Run the following command to download and execute the installation script using `curl`:
+1.  **Clone the repository:**
+    You can choose a specific branch to clone. For the latest stable version, use `main`. For the development version, use `dev`.
 
-```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
-```
+    ```bash
+    # Replace 'main' with 'dev' or another branch if needed
+    # This will clone into /opt/Cloudflare-Utils
+    sudo git clone -b main https://github.com/Issei-177013/Cloudflare-Utils.git /opt/Cloudflare-Utils
+    ```
 
-### Using wget
+2.  **Navigate into the cloned directory:**
 
-Alternatively, you can use `wget` to download and execute the installation script:
+    ```bash
+    cd /opt/Cloudflare-Utils
+    ```
 
-```bash
-sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
-```
+3.  **Run the installation script:**
+
+    ```bash
+    sudo bash install.sh
+    ```
+    The script will guide you through the installation options, including installing dependencies, setting up configuration files, and scheduling cron jobs.
+
+    *Note: While running `install.sh` directly via `curl` or `wget` might still function due to fallbacks for missing scripts, the `git clone` method is preferred for reliability and access to all utility scripts.*
 
 ---
 
@@ -123,22 +133,28 @@ The output of the cron job and script executions (like `config_manager.py`) will
 
 ## Updating
 
-Cloudflare Utils can be updated by re-running the main installation script. This script now includes an option to specifically update an existing installation.
+Cloudflare Utils can be updated using its built-in update mechanism, accessed via the `install.sh` script.
 
-1.  **Run the installer script again:**
-
-    ### Using cURL
+1.  **Navigate to the program directory:**
+    If you are not already there, change to the directory where Cloudflare Utils was cloned:
     ```bash
-    sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
+    cd /opt/Cloudflare-Utils
     ```
 
-    ### Using wget
+2.  **Ensure you have the latest version of the scripts (optional but recommended):**
+    You can pull the latest changes for your current branch (e.g., `main` or `dev`) to ensure the installer and updater scripts themselves are up-to-date:
     ```bash
-    sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
+    sudo git pull
+    ```
+    If you originally cloned a specific version tag and are not on a branch, you might need to fetch tags (`sudo git fetch --tags`) and potentially checkout a newer branch or tag if desired, before running `install.sh`.
+
+3.  **Run the installer script:**
+    ```bash
+    sudo bash install.sh
     ```
 
-2.  **Choose "Update existing installation" from the menu.**
-    This will launch the `update.sh` script, which provides more control over the update process.
+4.  **Choose "Update existing installation" from the menu.**
+    This will launch the `update.sh` script, which provides more control over the update process, allowing you to switch between versions or update to the latest commit on your branch.
 
 ### Update Script Features (`update.sh`)
 

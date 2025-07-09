@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.3.2-dev+5] - Unreleased
+### Changed
+- Update installation instructions in README, enhance update script handling in install.sh.
+
 ## [2.3.2-dev+4] - Unreleased
 ### Changed
 - Update changelog for version 2.3.2-dev+4, correct update script path, and enhance error messages in install script
