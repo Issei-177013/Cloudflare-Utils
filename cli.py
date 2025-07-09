@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-import requests 
+import requests
+from tabulate import tabulate # Added for better table display
 from config_manager import load_config, save_config, find_account, find_zone, find_record, CONFIG_PATH
 from cloudflare import Cloudflare, APIError # Added for Cloudflare API interaction
 import os
@@ -83,15 +84,14 @@ def manage_cloudflare_accounts():
             print("No accounts configured yet.")
         else:
             print("Saved Cloudflare Accounts:")
-            print("--------------------------------------------------------------------------")
-            print(f"{'#':<3} {'Account Label':<30} {'API Token (Masked)':<25} {'Zones Count':<10}")
-            print("--------------------------------------------------------------------------")
+            headers = ["#", "Account Label", "API Token (Masked)", "Zones Count"]
+            table_data = []
             for i, acc in enumerate(accounts):
                 token = acc.get("api_token", "N/A")
                 masked_token = f"{token[:4]}...{token[-4:]}" if len(token) > 8 else token
                 zones_count = len(acc.get("zones", []))
-                print(f"{i+1:<3} {acc.get('name', 'N/A'):<30} {masked_token:<25} {zones_count:<10}")
-            print("--------------------------------------------------------------------------")
+                table_data.append([i+1, acc.get('name', 'N/A'), masked_token, zones_count])
+            print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
         print("\nOptions:")
         print("1) Add new account")
@@ -100,18 +100,18 @@ def manage_cloudflare_accounts():
         print("0) Back to main menu") # Changed from 4 to 0
         print("-----------------")
 
-        choice = input("👉 Enter your choice: ").strip()
+        choice_str = input("👉 Enter your choice: ").strip()
 
-        if choice == "1":
+        if choice_str == "1":
             add_new_account_workflow()
-        elif choice == "2":
+        elif choice_str == "2":
             edit_existing_account_workflow()
-        elif choice == "3":
+        elif choice_str == "3":
             delete_account_workflow()
-        elif choice == "0": # Changed from 4 to 0
+        elif choice_str == "0": # Changed from 4 to 0
             break
         else:
-            print("❌ Invalid choice. Please select a valid option.")
+            print("❌ Invalid choice. Please enter a number from the menu.")
             input("Press Enter to continue...")
 
 def add_new_account_workflow():
@@ -305,18 +305,19 @@ def main_menu():
         print("0. 🚪 Exit")
         print("-----------------")
 
-        choice = input("👉 Enter your choice: ").strip()
+        choice_str = input("👉 Enter your choice: ").strip()
         
-        if choice == "1":
+        if choice_str == "1":
             manage_cloudflare_accounts()
-        elif choice == "2":
+        elif choice_str == "2":
             ip_rotator_tools_menu()
-        elif choice == "0":
+        elif choice_str == "0":
             if confirm_action("Are you sure you want to exit?"):
                 print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
                 break
         else:
-            print("❌ Invalid choice. Please select a valid option.")
+            print("❌ Invalid choice. Please enter a number from the menu.")
+            input("Press Enter to continue...")
 
 def ip_rotator_tools_menu():
     """Displays the menu for IP Rotator Tools."""
@@ -327,14 +328,14 @@ def ip_rotator_tools_menu():
         # Placeholder for future rotation tools
         print("0. Back to Main Menu")
         print("---------------------------")
-        choice = input("👉 Enter your choice: ").strip()
+        choice_str = input("👉 Enter your choice: ").strip()
 
-        if choice == "1":
+        if choice_str == "1":
             dns_rotation_menu() # New function to be created
-        elif choice == "0":
+        elif choice_str == "0":
             break
         else:
-            print("❌ Invalid choice. Please select a valid option.")
+            print("❌ Invalid choice. Please enter a number from the menu.")
             input("Press Enter to continue...")
 
 def dns_rotation_menu():
@@ -348,20 +349,20 @@ def dns_rotation_menu():
         print("4. 🗑️ Delete Existing Rotation Rule")
         print("0. Back to IP Rotator Tools Menu")
         print("------------------------------------")
-        choice = input("👉 Enter your choice: ").strip()
+        choice_str = input("👉 Enter your choice: ").strip()
 
-        if choice == "1":
+        if choice_str == "1":
             create_new_rotation_rule()
-        elif choice == "2":
+        elif choice_str == "2":
             view_configured_rotations()
-        elif choice == "3":
+        elif choice_str == "3":
             edit_rotation_settings()
-        elif choice == "4":
+        elif choice_str == "4":
             delete_rotation_rule()
-        elif choice == "0":
+        elif choice_str == "0":
             break
         else:
-            print("❌ Invalid choice. Please select a valid option.")
+            print("❌ Invalid choice. Please enter a number from the menu.")
             input("Press Enter to continue...")
 
 def view_configured_rotations(selection_mode=False):
@@ -373,21 +374,29 @@ def view_configured_rotations(selection_mode=False):
     if not rotations:
         print("ℹ️ No rotation rules configured yet.")
         if selection_mode:
-            input("Press Enter to continue...")  # Allow returning to previous menu
+            input("Press Enter to continue...")
             return None
         else:
-            input("Press Enter to return to IP Rotator Menu...")
+            input("Press Enter to return to DNS Rotation Menu...")
             return
 
     print("\n--- ⚙️ Configured Rotation Rules ---")
-    print(f"{'#':<3} {'Account':<20} {'Zone':<25} {'Record':<30} {'Interval (min)':<15} {'IPs'}")
-    print("-" * 120)
+    headers = ["#", "Account", "Zone", "Record", "Interval (min)", "IPs"]
+    table_data = []
     for i, rule in enumerate(rotations):
         ips_str = ', '.join(rule.get('ip_list', []))
-        if len(ips_str) > 40: # Truncate long IP lists for display
+        # Tabulate handles width, but explicit truncation can still be useful for very long strings
+        if len(ips_str) > 40: 
             ips_str = ips_str[:37] + "..."
-        print(f"{i+1:<3} {rule.get('account_label', 'N/A'):<20} {rule.get('zone_name', 'N/A'):<25} {rule.get('record_name', 'N/A'):<30} {rule.get('rotate_interval_minutes', 'N/A'):<15} {ips_str}")
-    print("-" * 120)
+        table_data.append([
+            i+1, 
+            rule.get('account_label', 'N/A'), 
+            rule.get('zone_name', 'N/A'), 
+            rule.get('record_name', 'N/A'), 
+            rule.get('rotate_interval_minutes', 'N/A'), 
+            ips_str
+        ])
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     if selection_mode:
         while True:
@@ -399,9 +408,9 @@ def view_configured_rotations(selection_mode=False):
                 if 1 <= choice <= len(rotations):
                     return rotations[choice-1]
                 else:
-                    print("Invalid choice. Please enter a number from the list or 0.")
+                    print("❌ Invalid choice. Please enter a number from the list or 0.")
             except ValueError:
-                print("Invalid input. Please enter a number.")
+                print("❌ Invalid input. Please enter a number.")
     else:
         input("\nPress Enter to return to DNS Rotation Menu...")
 
@@ -579,11 +588,16 @@ def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_lis
 
     # Display zones
     print("\n--- Available Zones ---")
-    print(f"{'#':<3} {'Zone Name':<30} {'Zone ID':<35} {'Associated Account':<25}")
-    print("-" * 95)
+    headers = ["#", "Zone Name", "Zone ID", "Associated Account"]
+    table_data = []
     for i, zone_detail in enumerate(all_zones_details):
-        print(f"{i+1:<3} {zone_detail['name']:<30} {zone_detail['id']:<35} {zone_detail['account_label']:<25}")
-    print("-------------------------")
+        table_data.append([
+            i+1,
+            zone_detail['name'],
+            zone_detail['id'],
+            zone_detail['account_label']
+        ])
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
     print("0. Back")
 
     selected_zone_detail = None
@@ -591,16 +605,16 @@ def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_lis
         try:
             choice = int(input("👉 Select a zone (number, 0 to go back): "))
             if choice == 0:
-                return
+                return # Handled by calling function or loop
             if 1 <= choice <= len(all_zones_details):
                 selected_zone_detail = all_zones_details[choice-1]
                 break
             else:
-                print("Invalid choice. Please enter a number from the list or 0.")
+                print("❌ Invalid choice. Please enter a number from the list or 0.")
         except ValueError:
-            print("Invalid input. Please enter a number.")
+            print("❌ Invalid input. Please enter a number.")
 
-    if not selected_zone_detail:
+    if not selected_zone_detail: # Should not happen if loop is exited by returning
         return
 
     # Fetch DNS records (A and AAAA)
@@ -643,12 +657,18 @@ def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_lis
 
     # Show available DNS records
     print("\n--- Available DNS Records (A/AAAA) ---")
-    print(f"{'#':<3} {'Record Name':<40} {'Type':<6} {'Current IP':<20} {'Proxied?':<10}")
-    print("-" * 85)
+    headers = ["#", "Record Name", "Type", "Current IP", "Proxied?"]
+    table_data = []
     for i, rec_detail in enumerate(dns_records_details):
         proxied_status = "Yes" if rec_detail['proxied'] else "No"
-        print(f"{i+1:<3} {rec_detail['name']:<40} {rec_detail['type']:<6} {rec_detail['content']:<20} {proxied_status:<10}")
-    print("--------------------------------------")
+        table_data.append([
+            i+1,
+            rec_detail['name'],
+            rec_detail['type'],
+            rec_detail['content'],
+            proxied_status
+        ])
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
     print("0. Back")
 
     selected_record_detail = None
@@ -656,16 +676,16 @@ def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_lis
         try:
             choice = int(input("👉 Select a record to rotate (number, 0 to go back): "))
             if choice == 0:
-                return
+                return # Handled by calling function or loop
             if 1 <= choice <= len(dns_records_details):
                 selected_record_detail = dns_records_details[choice-1]
                 break
             else:
-                print("Invalid choice.")
+                print("❌ Invalid choice. Please enter a number from the list or 0.")
         except ValueError:
-            print("Invalid input.")
+            print("❌ Invalid input. Please enter a number.")
 
-    if not selected_record_detail:
+    if not selected_record_detail: # Should not happen if loop is exited by returning
         return
 
     # Prompt for IPs
@@ -684,9 +704,9 @@ def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_lis
             if interval >= 5:
                 break
             else:
-                print("❌ Interval must be 5 minutes or more.")
+                print("❌ Interval must be 5 minutes or more. Please try again.")
         except ValueError:
-            print("❌ Please enter a valid number.")
+            print("❌ Invalid input. Please enter a valid number for the interval.")
 
     # Save rule
     new_rotation_rule = {

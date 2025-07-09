@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.4.0] - pre-release
+### Added
+- Integrated `tabulate` library for improved, grid-style table displays of accounts, rotation rules, zones, and DNS records in the CLI. (Requires `pip install tabulate`)
+
+### Changed
+- Enhanced user input validation in the CLI:
+    - Improved handling of non-numeric inputs for menu choices.
+    - Standardized error messages and prompts for consistency.
+- Ensured "0. Back" option is clearly and consistently functional across all menus.
+- Verified and confirmed consistent screen clearing (`clear_screen()`) when new menus are opened to prevent overlap.
+
 ## [2.3.4-dev+1] - Unreleased
 ## [2.3.4-dev] - Unreleased
 ### Changed
