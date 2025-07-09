@@ -13,7 +13,6 @@ install_packages() {
     sudo apt-get update
     sudo apt-get install -y git python3-pip
 
-    # Determine Python minor version
     PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)")
     if [[ "$PY_MINOR" -ge 11 ]]; then
         pip3 install --break-system-packages cloudflare python-dotenv
@@ -22,7 +21,7 @@ install_packages() {
     fi
 }
 
-# Clone or update the repository from the specified branch
+# Clone or update the repository
 clone_repository() {
     echo -e "\e[1;34mCloning from branch '$BRANCH'...\e[0m"
     if [ -d "$PROGRAM_DIR/.git" ]; then
@@ -39,7 +38,7 @@ clone_repository() {
     cd - > /dev/null
 }
 
-# Create the runner script for cron usage
+# Create runner script for cron
 create_runner() {
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash
@@ -51,7 +50,7 @@ EOF
     chmod +x "$PROGRAM_DIR/run.sh"
 }
 
-# Create the initial configuration file if not exists
+# Create initial config file if not exists
 setup_config_file() {
     echo -e "\e[1;34mSetting up config file...\e[0m"
     CONFIG_FILE_PATH="$PROGRAM_DIR/configs.json"
@@ -62,34 +61,35 @@ setup_config_file() {
         echo -e "\e[1;33mConfig file already exists: $CONFIG_FILE_PATH\e[0m"
     fi
 
-    # Set file ownership to the original user who ran sudo
     if [ -n "$SUDO_USER" ]; then
         chown "$SUDO_USER:$SUDO_USER" "$CONFIG_FILE_PATH"
-        echo -e "\e[1;32mSet owner of $CONFIG_FILE_PATH to $SUDO_USER\e[0m"
+        echo -e "\e[1;32mSet owner of config file to $SUDO_USER\e[0m"
     else
         echo -e "\e[1;33mWarning: SUDO_USER not set. File permissions may need manual adjustment.\e[0m"
     fi
 }
 
-# Configure cron jobs to run the tool periodically
+# Set up cron to run the runner script
 setup_cron() {
     echo -e "\e[1;34mSetting up cron...\e[0m"
     CRON_JOB_RUNNER="/bin/bash $PROGRAM_DIR/run.sh"
-    
-    # Remove existing entries
+
     (crontab -l 2>/dev/null | grep -v -F "$CRON_JOB_RUNNER" || true) | crontab -
-    
-    # Add new entries
     (crontab -l 2>/dev/null; echo "*/1 * * * * $CRON_JOB_RUNNER") | crontab -
     (crontab -l 2>/dev/null; echo "@reboot $CRON_JOB_RUNNER") | crontab -
-    
-    echo -e "\e[1;32mCron job set to run every 1 minute and on system reboot.\e[0m"
+
+    echo -e "\e[1;32m✅ Cron job set to run every 1 minute and on reboot.\e[0m"
 }
 
 # Main interactive menu
 main_menu() {
     PS3="Please choose: "
-    options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Update existing installation" "Remove $PROGRAM_NAME" "Exit")
+    options=(
+        "Install $PROGRAM_NAME (branch '$BRANCH')"
+        "Update existing installation"
+        "Remove $PROGRAM_NAME"
+        "Exit"
+    )
     select opt in "${options[@]}"; do
         case $opt in
             "Install $PROGRAM_NAME (branch '$BRANCH')")
@@ -99,86 +99,61 @@ main_menu() {
                 setup_config_file
                 setup_cron
 
-                # Create global command alias
                 CLI_PATH="$PROGRAM_DIR/cli.py"
                 GLOBAL_CMD_PATH="/usr/local/bin/cfutils"
                 echo -e "\e[1;34mCreating global command '$GLOBAL_CMD_PATH'...\e[0m"
                 if [ -f "$CLI_PATH" ]; then
-                    # Create/update symlink
-                    ln -sf "$CLI_PATH" "$GLOBAL_CMD_PATH"
-                    chmod +x "$CLI_PATH" # cli.py
-                    chmod +x "$GLOBAL_CMD_PATH" # symlink itself
+                    sudo ln -sf "$CLI_PATH" "$GLOBAL_CMD_PATH"
+                    sudo chmod +x "$CLI_PATH"
+                    sudo chmod +x "$GLOBAL_CMD_PATH"
                     echo -e "\e[1;32m✅ Global command 'cfutils' created. You can now use 'cfutils' from anywhere.\e[0m"
                 else
                     echo -e "\e[1;31m❌ Error: $CLI_PATH not found. Cannot create global command.\e[0m"
                 fi
 
                 echo -e "\e[1;32m✅ Installed version: $VERSION_TAG\e[0m"
-                echo -e "\e[1;32m📌 You can also run: \`python3 $PROGRAM_DIR/cli.py\`\e[0m"
+                echo -e "\e[1;34m📌 Tip: You can also run: \e[33mpython3 $PROGRAM_DIR/cli.py\e[0m"
                 break
                 ;;
+
             "Update existing installation")
-                # Determine the correct path for update.sh.
-                # If PROGRAM_DIR is set (e.g., during a full install), use it. Otherwise, assume current directory.
-                SCRIPT_DIR_FOR_UPDATE="${PROGRAM_DIR:-.}"
-                UPDATE_SCRIPT_PATH="$SCRIPT_DIR_FOR_UPDATE/update.sh"
+                UPDATE_SCRIPT_PATH="$PROGRAM_DIR/update.sh"
 
                 if [ ! -f "$UPDATE_SCRIPT_PATH" ]; then
                     echo -e "\e[1;33m⚠️ update.sh not found at $UPDATE_SCRIPT_PATH.\e[0m"
-                    echo -e "\e[1;34mAttempting to download from GitHub (branch '$BRANCH')...\e[0m"
-                    
-                    # Ensure target directory exists if it's PROGRAM_DIR
-                    if [ "$SCRIPT_DIR_FOR_UPDATE" == "$PROGRAM_DIR" ] && [ ! -d "$PROGRAM_DIR" ]; then
-                        echo -e "\e[1;34mCreating program directory: $PROGRAM_DIR\e[0m"
-                        mkdir -p "$PROGRAM_DIR"
-                    fi
+                    echo -e "\e[1;34mAttempting to download from GitHub...\e[0m"
+
+                    mkdir -p "$PROGRAM_DIR"
 
                     DOWNLOAD_URL="https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/$BRANCH/update.sh"
                     if curl -fsSL "$DOWNLOAD_URL" -o "$UPDATE_SCRIPT_PATH"; then
-                        echo -e "\e[1;32m✅ Successfully downloaded update.sh to $UPDATE_SCRIPT_PATH\e[0m"
+                        echo -e "\e[1;32m✅ Successfully downloaded update.sh\e[0m"
                         chmod +x "$UPDATE_SCRIPT_PATH"
                     else
-                        echo -e "\e[1;31m❌ Failed to download update.sh from $DOWNLOAD_URL.\e[0m"
-                        echo -e "\e[1;33mPlease ensure the branch '$BRANCH' exists and the URL is correct.\e[0m"
-                        echo -e "\e[1;33mYou might need to clone the repository manually to get all scripts.\e[0m"
-                        # After failure, break or ask user to retry/exit. For now, break.
-                        break 
+                        echo -e "\e[1;31m❌ Failed to download update.sh from $DOWNLOAD_URL\e[0m"
+                        break
                     fi
                 fi
 
-                if [ -f "$UPDATE_SCRIPT_PATH" ]; then
-                    echo -e "\e[1;34mLaunching updater from $UPDATE_SCRIPT_PATH...\e[0m"
-                    chmod +x "$UPDATE_SCRIPT_PATH" # Ensure update script is executable
-                    # Execute with sudo as update.sh has internal sudo check and re-launch
-                    # but better to call it with sudo from here if install.sh is already sudo.
-                    if [ "$EUID" -eq 0 ]; then
-                        "$UPDATE_SCRIPT_PATH" "$BRANCH" # Pass branch to update script
-                    else
-                        sudo "$UPDATE_SCRIPT_PATH" "$BRANCH" # Pass branch to update script
-                    fi
+                echo -e "\e[1;34mLaunching updater...\e[0m"
+                if [ "$EUID" -eq 0 ]; then
+                    "$UPDATE_SCRIPT_PATH"
                 else
-                    # This case should ideally not be reached if download was attempted and failed,
-                    # but as a safeguard:
-                    echo -e "\e[1;31m❌ Error: $UPDATE_SCRIPT_PATH still not found after attempting download.\e[0m"
-                    echo -e "\e[1;33mThe program might not be installed correctly or update.sh is missing.\e[0m"
-                    echo -e "\e[1;33mPlease try the 'Install' option first. If the issue persists, consider reinstalling by cloning the repository.\e[0m"
+                    sudo "$UPDATE_SCRIPT_PATH"
                 fi
-                # After update, usually exit or loop back to menu. For now, break.
                 break
                 ;;
+
             "Remove $PROGRAM_NAME")
                 echo -e "\e[1;34mRemoving $PROGRAM_NAME...\e[0m"
-                # Ensure this script is run with sudo for rm and crontab operations
                 if [ "$EUID" -ne 0 ]; then
-                    echo -e "\e[1;33mRemoval requires sudo privileges. Attempting to re-run with sudo...\e[0m"
-                    sudo "$0" "$@" # This will re-present the menu under sudo.
-                    # It's a bit clunky. A better way would be to pass a parameter to directly trigger removal.
-                    # For now, user will have to select "Remove" again.
-                    exit 0 # Exit the non-sudo instance.
+                    echo -e "\e[1;33mRemoval requires sudo. Re-running...\e[0m"
+                    sudo "$0" "$@"
+                    exit 0
                 fi
 
                 sudo rm -rf "$PROGRAM_DIR"
-                # Ensure crontab modification is also done with appropriate privileges
+
                 (crontab -l 2>/dev/null | grep -v -F "$PROGRAM_DIR/run.sh" || true) | sudo crontab -u "$SUDO_USER" - 2>/dev/null || \
                 (crontab -l 2>/dev/null | grep -v -F "$PROGRAM_DIR/run.sh" || true) | sudo crontab - -
 
@@ -189,13 +164,18 @@ main_menu() {
                     echo -e "\e[1;32m✅ Global command 'cfutils' removed.\e[0m"
                 fi
 
-                echo -e "\e[1;31mRemoved $PROGRAM_NAME and cron jobs.\e[0m"
+                echo -e "\e[1;31m$PROGRAM_NAME removed.\e[0m"
                 break
                 ;;
+
             "Exit")
+                echo -e "\e[1;34mGoodbye!\e[0m"
                 break
                 ;;
-            *) echo "Invalid option $REPLY";;
+
+            *)
+                echo -e "\e[1;31mInvalid option. Try again.\e[0m"
+                ;;
         esac
     done
 }
