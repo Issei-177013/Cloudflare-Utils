@@ -128,12 +128,14 @@ main_menu() {
                     DOWNLOAD_URL="https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/$BRANCH/update.sh"
                     if curl -fsSL "$DOWNLOAD_URL" -o "$UPDATE_SCRIPT_PATH"; then
                         echo -e "\e[1;32m✅ Successfully downloaded update.sh\e[0m"
-                        chmod +x "$UPDATE_SCRIPT_PATH"
                     else
                         echo -e "\e[1;31m❌ Failed to download update.sh from $DOWNLOAD_URL\e[0m"
                         break
                     fi
                 fi
+
+                # ✅ Ensure it's executable even if it already existed
+                chmod +x "$UPDATE_SCRIPT_PATH"
 
                 echo -e "\e[1;34mLaunching updater...\e[0m"
                 if [ "$EUID" -eq 0 ]; then
