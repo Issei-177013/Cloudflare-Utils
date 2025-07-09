@@ -15,9 +15,9 @@ install_packages() {
 
     PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)")
     if [[ "$PY_MINOR" -ge 11 ]]; then
-        pip3 install --break-system-packages cloudflare python-dotenv
+        pip3 install --break-system-packages cloudflare python-dotenv tabulate
     else
-        pip3 install cloudflare python-dotenv
+        pip3 install cloudflare python-dotenv tabulate
     fi
 }
 

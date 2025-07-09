@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.4.0] - pre-release
+## [2.4.1] - Unreleased
+### Fixed
+- Added `tabulate` to `pip3 install` command in `install.sh` to ensure the dependency is correctly installed, resolving a `ModuleNotFoundError` at runtime.
+
+## [2.4.0] - Unreleased
 ### Added
 - Integrated `tabulate` library for improved, grid-style table displays of accounts, rotation rules, zones, and DNS records in the CLI. (Requires `pip install tabulate`)
 
