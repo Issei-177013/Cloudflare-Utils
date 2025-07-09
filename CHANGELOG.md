@@ -2,10 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.3] - Unreleased
+### Fixed
+- Fixed an issue where a warning for a missing 'domain' field in zone configuration was displayed if the 'name' field was present. The system now correctly uses the 'name' field to look up the zone and populates the 'domain' field in the configuration if it was initially missing.
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.4.2] - pre-release
+## [2.4.2] - Unreleased
 ### Fixed
 - Resolved a `KeyError: 'zone_id'` that could occur if a zone in `configs.json` was missing the `zone_id` field. The script now attempts to fetch the missing `zone_id` from the Cloudflare API using the zone's domain name. If fetching fails (e.g., domain not found on the account, API error), the affected zone is skipped during rotation to prevent the error.
 

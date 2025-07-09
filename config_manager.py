@@ -34,21 +34,30 @@ def load_config():
         # Optionally, handle this more gracefully, e.g., by backing up the broken file.
         return {"accounts": [], "rotations": []} # Default structure on error
 
-def get_zone_id(cf_client, zone_name):
-    """Fetches the zone ID for a given zone name using the Cloudflare API."""
+def get_zone_id(cf_client, zone_data):
+    """Fetches the zone ID and name for a given zone_data using the Cloudflare API."""
+    zone_name_to_lookup = zone_data.get("domain") or zone_data.get("name")
+
+    if not zone_name_to_lookup:
+        # This case should ideally be caught before calling get_zone_id,
+        # but as a safeguard:
+        print(f"Warning: Zone data for account '{zone_data.get('_account_name', 'Unknown Account')}' is missing both 'domain' and 'name' fields. Cannot fetch zone_id.")
+        return None, None
+
     try:
-        zones = cf_client.zones.get(params={'name': zone_name})
+        zones = cf_client.zones.get(params={'name': zone_name_to_lookup})
         if zones:
-            return zones[0].id # Assuming the first match is the correct one
+            # Assuming the first match is the correct one
+            return zones[0].id, zones[0].name
         else:
-            print(f"Warning: Zone '{zone_name}' not found on Cloudflare account.")
-            return None
+            print(f"Warning: Zone '{zone_name_to_lookup}' not found on Cloudflare account.")
+            return None, None
     except APIError as e:
-        print(f"Error: API error while fetching zone ID for '{zone_name}': {e}")
-        return None
+        print(f"Error: API error while fetching zone ID for '{zone_name_to_lookup}': {e}")
+        return None, None
     except Exception as e: # Catch any other unexpected errors
-        print(f"Error: An unexpected error occurred while fetching zone ID for '{zone_name}': {e}")
-        return None
+        print(f"Error: An unexpected error occurred while fetching zone ID for '{zone_name_to_lookup}': {e}")
+        return None, None
 
 def load_config():
     """Loads the configuration from the JSON file."""
@@ -74,24 +83,45 @@ def load_config():
 
                 cf_client = Cloudflare(api_token=account["api_token"])
                 valid_zones = []
+                account_name_for_logging = account.get('name', 'Unnamed Account')
                 for zone in account.get("zones", []):
-                    if "zone_id" not in zone or not zone["zone_id"]:
-                        if "domain" not in zone:
-                            print(f"Warning: Zone in account '{account.get('name', 'Unnamed Account')}' is missing 'domain' field. Cannot fetch zone_id.")
-                            continue # Skip this zone if domain is missing
+                    # Add account name to zone data for logging purposes in get_zone_id, if needed
+                    zone['_account_name'] = account_name_for_logging
 
-                        zone_name = zone["domain"]
-                        print(f"Info: 'zone_id' missing for zone '{zone_name}' in account '{account.get('name', 'Unnamed Account')}'. Attempting to fetch.")
-                        zone_id = get_zone_id(cf_client, zone_name)
+                    if "zone_id" not in zone or not zone["zone_id"]:
+                        # Domain might be missing, get_zone_id will try zone.get("name")
+                        domain_present_in_config = bool(zone.get("domain"))
+                        
+                        # Pass the whole zone dictionary
+                        zone_id, fetched_zone_name = get_zone_id(cf_client, zone) 
+
                         if zone_id:
                             zone["zone_id"] = zone_id
-                            print(f"Info: Successfully fetched 'zone_id' for '{zone_name}': {zone_id}")
+                            print(f"Info: Successfully fetched 'zone_id' for '{fetched_zone_name}': {zone_id}")
+                            if not domain_present_in_config and fetched_zone_name:
+                                zone["domain"] = fetched_zone_name
+                                print(f"Info: Populated 'domain' field with '{fetched_zone_name}' for zone in account '{account_name_for_logging}'.")
                             valid_zones.append(zone)
                         else:
-                            print(f"Warning: Could not fetch 'zone_id' for zone '{zone_name}'. This zone will be skipped.")
+                            # get_zone_id already prints warnings/errors
+                            print(f"Warning: Could not fetch 'zone_id' for zone initially identified by data: {zone}. This zone will be skipped.")
                     else:
+                        # If zone_id is present, ensure domain is also present if possible.
+                        # This might be redundant if we assume configs with zone_id always have domain,
+                        # but good for robustness.
+                        if not zone.get("domain") and zone.get("name"):
+                             # This scenario is less likely if zone_id is present, but as a fallback.
+                            print(f"Info: Zone '{zone.get('name')}' in account '{account_name_for_logging}' has 'zone_id' but no 'domain'. Attempting to use 'name' as 'domain'.")
+                            zone["domain"] = zone["name"]
+                        elif not zone.get("domain") and not zone.get("name"):
+                            print(f"Warning: Zone in account '{account_name_for_logging}' has 'zone_id' but is missing 'domain' and 'name'. Cannot ensure 'domain' field consistency.")
                         valid_zones.append(zone) # Zone already has a zone_id
-                account["zones"] = valid_zones # Update account's zones list with potentially modified zones
+                
+                # Clean up temporary '_account_name' field from zones before saving
+                for z in valid_zones:
+                    if '_account_name' in z:
+                        del z['_account_name']
+                account["zones"] = valid_zones
 
             return config_data
     except json.JSONDecodeError:
