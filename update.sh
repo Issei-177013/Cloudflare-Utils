@@ -75,7 +75,22 @@ get_versions() {
 
 # Function to re-create the runner script
 create_runner() {
-    VERSION_TAG=$(git -C "$PROGRAM_DIR" describe --tags --abbrev=0 2>/dev/null || git -C "$PROGRAM_DIR" rev-parse --short HEAD)
+    local git_dir_arg="-C $PROGRAM_DIR"
+    # Attempt to get a tag
+    VERSION_TAG=$(git $git_dir_arg describe --tags --abbrev=0 2>/dev/null)
+
+    if [ -z "$VERSION_TAG" ]; then
+        # If no tag, check if we are on a branch
+        current_ref=$(git $git_dir_arg symbolic-ref -q HEAD)
+        if [ -n "$current_ref" ]; then
+            # Use branch name, e.g., refs/heads/dev -> dev
+            VERSION_TAG=$(git $git_dir_arg rev-parse --abbrev-ref HEAD)
+        else
+            # Detached HEAD, use short commit hash
+            VERSION_TAG=$(git $git_dir_arg rev-parse --short HEAD)
+        fi
+    fi
+
     echo -e "\e[1;34mUpdating runner script for version $VERSION_TAG...\e[0m"
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash
