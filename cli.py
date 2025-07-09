@@ -323,16 +323,35 @@ def ip_rotator_tools_menu():
     while True:
         clear_screen()
         print("\n--- 🛠️ IP Rotator Tools ---")
-        print("1. ➕ Create New Rotation Rule")
-        print("2. 📄 View Configured Rotations")
-        print("3. ✏️ Edit Existing Rotation Settings")
-        print("4. 🗑️ Delete Existing Rotation Rule")
+        print("1. Rotate a DNS Record using IP List")
+        # Placeholder for future rotation tools
         print("0. Back to Main Menu")
         print("---------------------------")
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == "1":
-            create_new_rotation_rule() # Renamed from rotate_dns_record_with_custom_list
+            dns_rotation_menu() # New function to be created
+        elif choice == "0":
+            break
+        else:
+            print("❌ Invalid choice. Please select a valid option.")
+            input("Press Enter to continue...")
+
+def dns_rotation_menu():
+    """Displays the menu for DNS Rotation features."""
+    while True:
+        clear_screen()
+        print("\n--- 🔄 Rotate a DNS Record using IP List ---")
+        print("1. ➕ Create New Rotation Rule")
+        print("2. 📄 View Configured Rotations")
+        print("3. ✏️ Edit Existing Rotation Settings")
+        print("4. 🗑️ Delete Existing Rotation Rule")
+        print("0. Back to IP Rotator Tools Menu")
+        print("------------------------------------")
+        choice = input("👉 Enter your choice: ").strip()
+
+        if choice == "1":
+            create_new_rotation_rule()
         elif choice == "2":
             view_configured_rotations()
         elif choice == "3":
@@ -384,7 +403,7 @@ def view_configured_rotations(selection_mode=False):
             except ValueError:
                 print("Invalid input. Please enter a number.")
     else:
-        input("\nPress Enter to return to IP Rotator Menu...")
+        input("\nPress Enter to return to DNS Rotation Menu...")
 
 
 def edit_rotation_settings():
@@ -452,7 +471,7 @@ def edit_rotation_settings():
     except Exception as e:
         print(f"❌ Error saving updated rotation rule: {e}")
 
-    input("Press Enter to return to IP Rotator Menu...")
+    input("Press Enter to return to DNS Rotation Menu...")
 
 
 def delete_rotation_rule():
@@ -502,7 +521,7 @@ def delete_rotation_rule():
     else:
         print("ℹ️ Deletion cancelled.")
     
-    input("Press Enter to return to IP Rotator Menu...")
+    input("Press Enter to return to DNS Rotation Menu...")
 
 
 def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_list
@@ -689,7 +708,7 @@ def create_new_rotation_rule(): # Renamed from rotate_dns_record_with_custom_lis
     except Exception as e:
         print(f"❌ Error saving rotation rule: {e}")
 
-    input("Press Enter to return to IP Rotator Menu...")
+    input("Press Enter to return to DNS Rotation Menu...")
 
 
 if __name__ == "__main__":
