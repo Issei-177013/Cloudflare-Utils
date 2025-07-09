@@ -12,41 +12,64 @@ get_current_branch() {
 
 # Function to list available versions
 get_versions() {
-    echo -e "\e[1;34mFetching available versions...\e[0m"
-    git -C "$PROGRAM_DIR" fetch --all --tags --prune
+    echo -e "\e[1;34mFetching available versions...\e[0m" >&2
+    if ! git -C "$PROGRAM_DIR" fetch --all --tags --prune; then
+        echo -e "\e[1;31mError: Failed to fetch updates from the repository.\e[0m" >&2
+        echo -e "\e[1;33mPlease check your internet connection and repository access.\e[0m" >&2
+        # Return a special value or exit to indicate failure to get_versions caller
+        # For now, let's echo an empty string which will cancel the update in the caller
+        echo "" 
+        return 1 # Indicate error
+    fi
 
     current_branch=$(get_current_branch)
-    echo -e "\e[1;33mCurrent branch: $current_branch\e[0m"
+    if [ -z "$current_branch" ]; then
+        echo -e "\e[1;31mError: Could not determine the current branch in $PROGRAM_DIR.\e[0m" >&2
+        echo ""
+        return 1 # Indicate error
+    fi
+    echo -e "\e[1;33mCurrent branch: $current_branch\e[0m" >&2
 
     versions=()
+    local list_title=""
 
-    if [[ "$current_branch" == "dev" ]]; then
-        echo -e "\e[1;34mShowing last 10 dev versions:\e[0m"
+    if [[ "$current_branch" == "dev" ]];then
+        list_title="Showing last 10 dev versions (tags containing 'dev'):"
         mapfile -t versions < <(
             git -C "$PROGRAM_DIR" tag --sort=-v:refname | grep 'dev' | head -n 10
         )
     else
-        echo -e "\e[1;34mShowing last 10 release versions:\e[0m"
+        list_title="Showing last 10 release versions (tags not containing 'dev'):"
         mapfile -t versions < <(
             git -C "$PROGRAM_DIR" tag --sort=-v:refname | grep -v 'dev' | head -n 10
         )
     fi
+    
+    echo -e "\e[1;34m$list_title\e[0m" >&2
 
     if [ ${#versions[@]} -eq 0 ]; then
-        echo -e "\e[1;33m⚠ No tagged versions found. Falling back to latest commits...\e[0m"
+        echo -e "\e[1;33m⚠ No matching tagged versions found for this branch criteria.\e[0m" >&2
+        echo -e "\e[1;34mFalling back to showing latest 5 commits on branch '$current_branch':\e[0m" >&2
         mapfile -t versions < <(
             git -C "$PROGRAM_DIR" log "$current_branch" --pretty=format:"%h (%s, %ar)" --abbrev-commit --max-count=5
         )
+        if [ ${#versions[@]} -eq 0 ]; then
+            echo -e "\e[1;31mError: Could not list any versions or commits from the repository.\e[0m" >&2
+            echo ""
+            return 1 # Indicate error
+        fi
     fi
 
     for i in "${!versions[@]}"; do
-        echo "$((i+1))) ${versions[$i]}"
+        echo "$((i+1))) ${versions[$i]}" >&2 # Print list to stderr
     done
 
-    echo "$(( ${#versions[@]} + 1 ))) Enter version manually"
-    echo "0) Cancel update"
+    echo "$(( ${#versions[@]} + 1 ))) Enter version manually" >&2
+    echo "0) Cancel update" >&2
 
+    local user_choice
     while true; do
+        # The prompt from read -p already goes to stderr by default if stdin is a tty
         read -r -p "Select version to update to: " user_choice
         if [[ "$user_choice" -eq 0 ]]; then
             echo -e "\e[1;31mUpdate cancelled.\e[0m"
