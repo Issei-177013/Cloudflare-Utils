@@ -1,8 +1,12 @@
-#!/usr/bin/env python3
-from config_manager import load_config, save_config, find_account, find_zone, find_record, CONFIG_PATH
-from cloudflare import Cloudflare, APIError # Added for Cloudflare API interaction
 import os
-import sys # For exiting the program
+import sys
+import logging
+from .config import load_config, save_config, find_account, find_zone, find_record, CONFIG_PATH
+from .cloudflare_api import CloudflareAPI
+from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config
+from cloudflare import APIError
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def clear_screen():
     """Clears the terminal screen."""
@@ -16,19 +20,15 @@ def clear_screen():
 def check_config_permissions():
     """Checks if the config file exists and is writable."""
     if not os.path.exists(CONFIG_PATH):
-        print(f"❌ Error: Config file not found at {CONFIG_PATH}.")
+        logging.error(f"Config file not found at {CONFIG_PATH}.")
         print("Please ensure the program is installed correctly using install.sh.")
         sys.exit(1)
     
     if not os.access(CONFIG_PATH, os.W_OK):
-        print(f"❌ Error: Config file at {CONFIG_PATH} is not writable.")
+        logging.error(f"Config file at {CONFIG_PATH} is not writable.")
         print(f"Please check the file permissions or try running the script with sudo if appropriate:")
         print(f"  sudo python3 {os.path.abspath(__file__)}")
         sys.exit(1)
-    
-    # Further checks for JSON validity could be added here,
-    # but load_config() will raise an exception if the file is malformed.
-    # The current checks for existence and writability are the primary concerns for cli.py.
 
 def select_from_list(items, prompt):
     """Displays a numbered list of items and returns the selected item."""
@@ -63,15 +63,18 @@ def add_account():
     print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
     print("This provides better security and scoped permissions.")
     if find_account(data, name):
+        logging.warning("Account already exists")
         print("❌ Account already exists")
         return
     data["accounts"].append({"name": name, "api_token": token, "zones": []})
     save_config(data)
+    logging.info(f"Account '{name}' added.")
     print("✅ Account added")
 
 def add_zone():
     data = load_config()
     if not data["accounts"]:
+        logging.warning("No accounts available.")
         print("❌ No accounts available. Please add an account first.")
         return
     
@@ -82,15 +85,18 @@ def add_zone():
     domain = input("Zone domain (e.g. example.com): ").strip()
     zone_id = input("Zone ID: ").strip()
     if find_zone(acc, domain):
+        logging.warning(f"Zone '{domain}' already exists in account '{acc['name']}'.")
         print("❌ Zone already exists")
         return
     acc["zones"].append({"domain": domain, "zone_id": zone_id, "records": []})
     save_config(data)
+    logging.info(f"Zone '{domain}' added to account '{acc['name']}'.")
     print("✅ Zone added")
 
 def add_record():
     data = load_config()
     if not data["accounts"]:
+        logging.warning("No accounts available.")
         print("❌ No accounts available. Please add an account first.")
         return
 
@@ -99,6 +105,7 @@ def add_record():
         return
 
     if not acc["zones"]:
+        logging.warning(f"No zones available in account '{acc['name']}'.")
         print("❌ No zones available in this account. Please add a zone first.")
         return
 
@@ -109,10 +116,10 @@ def add_record():
     # Attempt to fetch and display existing records for selection
     record_name = None
     try:
-        cf = Cloudflare(api_token=acc["api_token"])
+        cf_api = CloudflareAPI(acc["api_token"])
         zone_id = zone["zone_id"]
-        print(f"🔄 Fetching records for zone {zone['domain']}...")
-        records_from_cf_paginator = cf.dns.records.list(zone_id=zone_id)
+        logging.info(f"Fetching records for zone {zone['domain']}...")
+        records_from_cf_paginator = cf_api.list_dns_records(zone_id)
         # Convert paginator object to a list to use len() and indexing
         actual_records_list = list(records_from_cf_paginator)
         
@@ -128,46 +135,35 @@ def add_record():
                     choice = int(input("👉 Select a record to use/update or choose manual entry: "))
                     if 1 <= choice <= len(actual_records_list):
                         record_name = actual_records_list[choice-1].name
-                        print(f"ℹ️ Using existing record: {record_name}")
-                        # Check if this record already exists in local config to prevent duplicate *local* entries
-                        # but allow updating if it's just a Cloudflare record not yet in local config for this specific IP list.
-                        # The original find_record check will still apply later if we decide to keep it as is.
+                        logging.info(f"Using existing record: {record_name}")
                         break
                     elif choice == len(actual_records_list) + 1:
-                        print("✍️ Manual record name entry selected.")
+                        logging.info("Manual record name entry selected.")
                         break
                     else:
                         print("❌ Invalid choice. Please enter a number from the list.")
                 except ValueError:
                     print("❌ Invalid input. Please enter a number.")
         else:
-            print(f"ℹ️ No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
+            logging.info(f"No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
 
     except APIError as e:
-        print(f"❌ Cloudflare API Error fetching records: {e}")
+        logging.error(f"Cloudflare API Error fetching records: {e}")
         print("⚠️ Proceeding with manual record name entry.")
     except Exception as e: # Catch other potential errors like network issues
-        print(f"❌ An unexpected error occurred while fetching records: {e}")
+        logging.error(f"An unexpected error occurred while fetching records: {e}")
         print("⚠️ Proceeding with manual record name entry.")
 
     if not record_name: # If no record was selected from the list (or fetching failed)
         name_input = input("Record name (e.g. vpn.example.com): ").strip()
         if not name_input:
-            print("❌ Record name cannot be empty.")
+            logging.error("Record name cannot be empty.")
             return
         record_name = name_input
     
     # Check if the chosen/entered record name already exists in the local config for this zone
     if find_record(zone, record_name):
-        # If we selected an existing CF record, this check might seem redundant,
-        # but it's crucial if the user manually types a name that matches an existing local entry.
-        # Also, the intention is to add a *new set of IPs* for rotation under this name.
-        # The current structure implies one record entry in config per name.
-        # For this feature, we are selecting a name, then defining IPs for it.
-        # If the record *name* is already in our config, we should prevent adding it again.
-        # The user should perhaps use an "update existing record" feature if that's the intent.
-        # For now, maintaining the original check for local config duplicates.
-        print(f"❌ Record '{record_name}' already exists in the local configuration for this zone.")
+        logging.warning(f"Record '{record_name}' already exists in the local configuration for this zone.")
         print("ℹ️ If you want to change its IPs or other settings, consider deleting and re-adding, or a future 'update' feature.")
         return
 
@@ -181,31 +177,19 @@ def add_record():
         try:
             rotation_interval_minutes = int(rotation_interval_minutes_str)
             if rotation_interval_minutes < 5: # Enforce minimum of 5 minutes
-                print("❌ Rotation interval must be at least 5 minutes.")
+                logging.error("Rotation interval must be at least 5 minutes.")
                 return
         except ValueError:
-            print("❌ Invalid input for rotation interval. Must be a number.")
+            logging.error("Invalid input for rotation interval. Must be a number.")
             return
-    # If rotation_interval_minutes_str is empty, rotation_interval_minutes remains None (for default handling)
 
-    record_data = {
-        "name": record_name, # Use the determined record_name
-        "type": rec_type,
-        "ips": ip_list,
-        "proxied": proxied
-    }
-    if rotation_interval_minutes is not None:
-        record_data["rotation_interval_minutes"] = rotation_interval_minutes
-
-    zone["records"].append(record_data)
-
-    save_config(data)
-    print("✅ Record added successfully!")
+    add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, proxied, rotation_interval_minutes)
+    logging.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
 
 def list_all():
     data = load_config()
     if not data["accounts"]:
-        print("ℹ️ No accounts, zones, or records to display.")
+        logging.info("No accounts, zones, or records to display.")
         return
 
     print("\n--- All Accounts, Zones, and Records ---")
@@ -228,6 +212,7 @@ def list_all():
 def delete_record():
     data = load_config()
     if not data["accounts"]:
+        logging.warning("No accounts available.")
         print("❌ No accounts available.")
         return
 
@@ -236,6 +221,7 @@ def delete_record():
         return
 
     if not acc["zones"]:
+        logging.warning(f"No zones available in account '{acc['name']}'.")
         print(f"❌ No zones available in account '{acc['name']}'.")
         return
 
@@ -244,6 +230,7 @@ def delete_record():
         return
 
     if not zone["records"]:
+        logging.warning(f"No records available in zone '{zone['domain']}'.")
         print(f"❌ No records available in zone '{zone['domain']}'.")
         return
 
@@ -252,15 +239,15 @@ def delete_record():
         return
 
     if confirm_action(f"Are you sure you want to delete the record '{record_to_delete['name']}' from zone '{zone['domain']}'?"):
-        zone["records"].remove(record_to_delete)
-        save_config(data)
-        print(f"✅ Record '{record_to_delete['name']}' deleted successfully from local configuration.")
+        delete_record_from_config(acc['name'], zone['domain'], record_to_delete['name'])
+        logging.info(f"Record '{record_to_delete['name']}' deleted from zone '{zone['domain']}'.")
     else:
-        print("ℹ️ Deletion cancelled.")
+        logging.info("Deletion cancelled.")
 
 def edit_record():
     data = load_config()
     if not data["accounts"]:
+        logging.warning("No accounts available.")
         print("❌ No accounts available.")
         return
 
@@ -269,6 +256,7 @@ def edit_record():
         return
 
     if not acc["zones"]:
+        logging.warning(f"No zones available in account '{acc['name']}'.")
         print(f"❌ No zones available in account '{acc['name']}'.")
         return
 
@@ -277,6 +265,7 @@ def edit_record():
         return
 
     if not zone["records"]:
+        logging.warning(f"No records available in zone '{zone['domain']}'.")
         print(f"❌ No records available in zone '{zone['domain']}'.")
         return
 
@@ -287,39 +276,21 @@ def edit_record():
     print(f"\n--- Editing Record: {record_to_edit['name']} ---")
     print(f"Current IPs: {', '.join(record_to_edit['ips'])}")
     new_ips_str = input(f"Enter new IPs (comma separated) or press Enter to keep current: ").strip()
-    if new_ips_str:
-        record_to_edit['ips'] = [ip.strip() for ip in new_ips_str.split(',')]
+    new_ips = [ip.strip() for ip in new_ips_str.split(',')] if new_ips_str else None
 
     print(f"Current Type: {record_to_edit['type']}")
-    new_type = input(f"Enter new type (A/CNAME) or press Enter to keep current: ").strip().upper()
-    if new_type:
-        record_to_edit['type'] = new_type
+    new_type = input(f"Enter new type (A/CNAME) or press Enter to keep current: ").strip().upper() or None
 
     print(f"Current Proxied: {'Yes' if record_to_edit['proxied'] else 'No'}")
     new_proxied_str = input(f"Proxied (yes/no) or press Enter to keep current: ").strip().lower()
-    if new_proxied_str:
-        record_to_edit['proxied'] = new_proxied_str == 'yes'
+    new_proxied = new_proxied_str == 'yes' if new_proxied_str else None
 
     current_interval = record_to_edit.get('rotation_interval_minutes', 'Default (30)')
     print(f"Current Rotation Interval (minutes): {current_interval}")
     new_interval_str = input(f"Enter new interval (minutes, min 5, or 'none' to use default) or press Enter to keep current: ").strip()
-    if new_interval_str:
-        if new_interval_str.lower() == 'none':
-            if 'rotation_interval_minutes' in record_to_edit:
-                del record_to_edit['rotation_interval_minutes']
-            print("ℹ️ Rotation interval set to default (30 minutes).")
-        else:
-            try:
-                new_interval = int(new_interval_str)
-                if new_interval < 5:
-                    print("❌ Rotation interval must be at least 5 minutes. Value not changed.")
-                else:
-                    record_to_edit['rotation_interval_minutes'] = new_interval
-            except ValueError:
-                print("❌ Invalid input for interval. Must be a number or 'none'. Value not changed.")
     
-    save_config(data)
-    print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
+    edit_record_in_config(acc['name'], zone['domain'], record_to_edit['name'], new_ips, new_type, new_proxied, new_interval_str)
+    logging.info(f"Record '{record_to_edit['name']}' in zone '{zone['domain']}' updated.")
 
 def confirm_action(prompt="Are you sure you want to proceed?"):
     """Asks for user confirmation."""
@@ -343,7 +314,7 @@ def main_menu():
 
     # Import version and set author
     try:
-        from version import __version__
+        from ..version import __version__
         version_str = f"Version: {__version__}"
     except ImportError:
         version_str = "Version: N/A"
@@ -389,19 +360,20 @@ def main_menu():
         elif choice == "3":
             add_record()
         elif choice == "4":
-            edit_record() # Placeholder for now
+            edit_record()
         elif choice == "5":
-            delete_record() # Placeholder for now
+            delete_record()
         elif choice == "6":
             list_all()
         elif choice == "7":
             if confirm_action("Are you sure you want to exit?"):
-                print("👋 Exiting Cloudflare Utils Manager. Goodbye!")
+                logging.info("Exiting Cloudflare Utils Manager.")
                 break
         else:
+            logging.warning(f"Invalid choice: {choice}")
             print("❌ Invalid choice. Please select a valid option.")
 
-if __name__ == "__main__":
+def main():
     try:
         main_menu()
     except KeyboardInterrupt:
