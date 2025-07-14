@@ -57,16 +57,30 @@ def select_from_list(items, prompt):
 def add_account():
     data = load_config()
     name = get_validated_input("Account name: ", lambda s: s.strip(), "Account name cannot be empty.")
-    token = get_validated_input("Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
-
-    print("ℹ️ INFO: While a Global API Key will work, it's STRONGLY recommended to use a specific API Token.")
-    print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
-    print("This provides better security and scoped permissions.")
 
     if find_account(data, name):
         logging.warning("Account already exists")
         print("❌ Account already exists")
         return
+
+    print("ℹ️ INFO: While a Global API Key will work, it's STRONGLY recommended to use a specific API Token.")
+    print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
+    print("This provides better security and scoped permissions.")
+
+    while True:
+        token = get_validated_input("Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
+        try:
+            print("🔐 Verifying token...")
+            cf_api = CloudflareAPI(token)
+            cf_api.verify_token()  # This will attempt to list zones
+            print("✅ Token is valid.")
+            break  # Exit loop if token is valid
+        except APIError as e:
+            logging.error(f"Cloudflare API Error on token verification: {e}")
+            print(f"❌ Invalid Token. Cloudflare API Error: {e}")
+            if not confirm_action("Try again?"):
+                logging.warning("User aborted account creation.")
+                return
 
     data["accounts"].append({"name": name, "api_token": token, "zones": []})
     if validate_and_save_config(data):
