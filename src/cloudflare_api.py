@@ -17,6 +17,18 @@ class CloudflareAPI:
         except APIError as e:
             raise e
 
+    def verify_token(self):
+        """
+        Verifies the API token by making a simple request to list zones.
+        This is a lightweight way to check for authentication errors.
+        """
+        try:
+            # We only need to know if the request succeeds, so we can limit the results.
+            self.cf.zones.get(params={'per_page': 1})
+        except APIError as e:
+            # Re-raise the exception to be handled by the caller
+            raise e
+
     def update_dns_record(self, zone_id, dns_record_id, name, type, content):
         try:
             self.cf.dns.records.update(
