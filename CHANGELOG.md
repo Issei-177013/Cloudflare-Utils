@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.4.0-dev+1] - 7/14/2025
+## [2.4.1-dev] - 7/14/2025
 ### Fixed
 -handle system typing-extensions package conflict during installation
   - Detect if 'python3-typing-extensions' is installed via apt
