@@ -87,66 +87,6 @@ def add_account():
         logging.info(f"Account '{name}' added.")
         print("✅ Account added")
 
-def add_zone():
-    data = load_config()
-    if not data["accounts"]:
-        logging.warning("No accounts available.")
-        print("❌ No accounts available. Please add an account first.")
-        return
-
-    acc = select_from_list(data["accounts"], "Select an account:")
-    if not acc:
-        return
-
-    try:
-        cf_api = CloudflareAPI(acc["api_token"])
-        logging.info("Fetching zones from Cloudflare...")
-        zones_from_cf = cf_api.list_zones()
-
-        if not zones_from_cf:
-            logging.warning("No zones found in this Cloudflare account.")
-            print("❌ No zones found in this Cloudflare account.")
-            return
-
-        # Filter out zones already in config
-        existing_zone_domains = {z['domain'] for z in acc.get('zones', [])}
-        available_zones = [
-            zone for zone in zones_from_cf 
-            if zone.name not in existing_zone_domains
-        ]
-
-        if not available_zones:
-            logging.info("All zones from this account are already in the config.")
-            print("ℹ️ All zones from this account are already configured.")
-            return
-
-        # In Python SDK v2, zone objects have `name` and `id` attributes
-        # We need to convert them to a list of dicts with 'domain' and 'zone_id'
-        # to maintain consistency with our config structure.
-        zone_list_for_selection = [
-            {'domain': zone.name, 'zone_id': zone.id} for zone in available_zones
-        ]
-
-        selected_zone_dict = select_from_list(zone_list_for_selection, "Select a zone to add:")
-        if not selected_zone_dict:
-            return # User cancelled selection
-
-        domain = selected_zone_dict['domain']
-        zone_id = selected_zone_dict['zone_id']
-
-        # The find_zone check is implicitly handled by filtering `available_zones`
-        acc.setdefault('zones', []).append({"domain": domain, "zone_id": zone_id, "records": []})
-        if validate_and_save_config(data):
-            logging.info(f"Zone '{domain}' added to account '{acc['name']}'.")
-            print("✅ Zone added")
-
-    except APIError as e:
-        logging.error(f"Cloudflare API Error: {e}")
-        print(f"❌ Cloudflare API Error: {e}")
-    except Exception as e:
-        logging.error(f"An unexpected error occurred: {e}")
-        print(f"❌ An unexpected error occurred: {e}")
-
 def add_record():
     data = load_config()
     if not data["accounts"]:
@@ -336,6 +276,34 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
         else:
             print("❌ Invalid input. Please enter 'yes' or 'no'.")
 
+def rotator_tools_menu():
+    """Displays the Rotator Tools submenu."""
+    clear_screen()
+    while True:
+        print("\n--- Rotator Tools ---")
+        print("1. 📝 Add Record to Zone")
+        print("2. ✏️ Edit Record in Zone")
+        print("3. 🗑️ Delete Record from Zone")
+        print("4. 📋 List All Records")
+        print("5. ⬅️ Back to Main Menu")
+        print("---------------------")
+
+        choice = input("👉 Enter your choice: ").strip()
+
+        if choice == "1":
+            add_record()
+        elif choice == "2":
+            edit_record()
+        elif choice == "3":
+            delete_record()
+        elif choice == "4":
+            list_all()
+        elif choice == "5":
+            break
+        else:
+            logging.warning(f"Invalid choice: {choice}")
+            print("❌ Invalid choice. Please select a valid option.")
+
 def main_menu():
     clear_screen() # Clear the screen at the very beginning
     check_config_permissions() # Check permissions at the start of the menu
@@ -356,13 +324,14 @@ def main_menu():
 
     # Embed ASCII art
     art = """
-  ______  _______                __    __  .___________. __   __          _______.
- /      ||   ____|              |  |  |  | |           ||  | |  |        /       |
-|  ,----'|  |__       ______    |  |  |  | `---|  |----`|  | |  |       |   (----`
-|  |     |   __|     |______|   |  |  |  |     |  |     |  | |  |        \   \    
-|  `----.|  |                   |  `--'  |     |  |     |  | |  `----.----)   |   
- \______||__|                    \______/      |__|     |__| |_______|_______/    
-                                                                                  
+
+ ██████╗███████╗    ██╗   ██╗████████╗██╗██╗     ███████╗
+██╔════╝██╔════╝    ██║   ██║╚══██╔══╝██║██║     ██╔════╝
+██║     █████╗█████╗██║   ██║   ██║   ██║██║     ███████╗
+██║     ██╔══╝╚════╝██║   ██║   ██║   ██║██║     ╚════██║
+╚██████╗██║         ╚██████╔╝   ██║   ██║███████╗███████║
+ ╚═════╝╚═╝          ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝
+                                                              
 """
     print(f"{YELLOW}{art}{RESET}")
     # Print author and version after the art
@@ -375,13 +344,9 @@ def main_menu():
 
     while True:
         print("\n--- Main Menu ---")
-        print("1. 👤 Add Account")
-        print("2. 🌍 Add Zone to Account")
-        print("3. 📝 Add Record to Zone")
-        print("4. ✏️ Edit Record in Zone")
-        print("5. 🗑️ Delete Record from Zone")
-        print("6. 📋 List All Records")
-        print("7. 🚪 Exit")
+        print("1. 👤 Add Cloudflare Account")
+        print("2. 🔄 Rotator Tools")
+        print("3. 🚪 Exit")
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -389,16 +354,8 @@ def main_menu():
         if choice == "1":
             add_account()
         elif choice == "2":
-            add_zone()
+            rotator_tools_menu()
         elif choice == "3":
-            add_record()
-        elif choice == "4":
-            edit_record()
-        elif choice == "5":
-            delete_record()
-        elif choice == "6":
-            list_all()
-        elif choice == "7":
             if confirm_action("Are you sure you want to exit?"):
                 logging.info("Exiting Cloudflare Utils Manager.")
                 break
