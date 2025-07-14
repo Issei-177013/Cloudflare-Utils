@@ -78,8 +78,7 @@ def run_rotation():
                         dns_record_id=matching_cf_record.id,
                         name=record_name,
                         type=cfg_record["type"],
-                        content=new_ip,
-                        proxied=cfg_record.get("proxied", False)
+                        content=new_ip
                     )
                     logging.info(f"Updated {record_name} to {new_ip}")
                     rotation_status[record_key] = current_time_seconds

@@ -57,7 +57,7 @@ def delete_record(account_name, zone_domain, record_name):
     print(f"✅ Record '{record_to_delete['name']}' deleted successfully from local configuration.")
 
 
-def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_proxied, new_interval):
+def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_interval):
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -79,8 +79,6 @@ def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_p
         record_to_edit['ips'] = new_ips
     if new_type:
         record_to_edit['type'] = new_type
-    if new_proxied is not None:
-        record_to_edit['proxied'] = new_proxied
     if new_interval is not None:
         if new_interval.lower() == 'none':
             if 'rotation_interval_minutes' in record_to_edit:
