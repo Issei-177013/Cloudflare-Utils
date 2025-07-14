@@ -12,7 +12,7 @@ install_packages() {
     echo -e "\e[1;34mInstalling dependencies...\e[0m"
     sudo apt-get update
     sudo apt-get install -y git python3-pip
-    pip3 install --break-system-packages cloudflare python-dotenv
+    pip3 install --break-system-packages cloudflare python-dotenv loguru
 }
 
 # کلون کردن سورس
@@ -38,7 +38,7 @@ create_runner() {
 #!/bin/bash
 cd "$PROGRAM_DIR"
 echo "\$(date) - Running Cloudflare-Utils $VERSION_TAG" >> log_file.log
-python3 config_manager.py >> log_file.log 2>&1
+python3 -m src.ip_rotator >> log_file.log 2>&1
 EOF
 
     chmod +x "$PROGRAM_DIR/run.sh"
@@ -47,7 +47,7 @@ EOF
 # Function to set up the configuration file
 setup_config_file() {
     echo -e "\e[1;34mSetting up config file...\e[0m"
-    CONFIG_FILE_PATH="$PROGRAM_DIR/configs.json"
+    CONFIG_FILE_PATH="$PROGRAM_DIR/src/configs.json"
     if [ ! -f "$CONFIG_FILE_PATH" ]; then
         echo '{"accounts": []}' > "$CONFIG_FILE_PATH"
         echo -e "\e[1;32mCreated empty config file: $CONFIG_FILE_PATH\e[0m"
@@ -63,7 +63,7 @@ setup_config_file() {
     else
         # If SUDO_USER is not set, cli.py might need to be run with sudo,
         # or file permissions adjusted manually.
-        echo -e "\e[1;33mWarning: SUDO_USER not set. Config file permissions might need manual adjustment for cli.py without sudo.\e[0m"
+        echo -e "\e[1;33mWarning: SUDO_USER not set. Config file permissions might need manual adjustment for cf-utils.py without sudo.\e[0m"
         # As a fallback, chmod 666 could be used, but it's not secure.
         # chmod 666 "$CONFIG_FILE_PATH"
     fi
@@ -96,7 +96,7 @@ main_menu() {
                 setup_cron
 
                 # Create global command
-                CLI_PATH="$PROGRAM_DIR/cli.py"
+                CLI_PATH="$PROGRAM_DIR/cf-utils.py"
                 GLOBAL_CMD_PATH="/usr/local/bin/cfutils"
                 echo -e "\e[1;34mCreating global command '$GLOBAL_CMD_PATH'...\e[0m"
                 if [ -f "$CLI_PATH" ]; then
@@ -109,7 +109,7 @@ main_menu() {
                 fi
 
                 echo -e "\e[1;32m✅ Installed version: $VERSION_TAG\e[0m"
-                echo -e "\e[1;32m📌 You can also use \`python3 $PROGRAM_DIR/cli.py\` to manage settings.\e[0m"
+                echo -e "\e[1;32m📌 You can also use \`python3 $PROGRAM_DIR/cf-utils.py\` to manage settings.\e[0m"
                 break
                 ;;
             "Remove $PROGRAM_NAME")

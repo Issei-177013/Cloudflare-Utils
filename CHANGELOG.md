@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [2.4.0-dev] - 7/14/2025
+### Changed
+- I created a `src` directory to house the core application logic.
+- I modularized the code by breaking down `cli.py` and `config_manager.py` into smaller, more focused modules: `app.py`, `config.py`, `cloudflare_api.py`, `dns_manager.py`, and `ip_rotator.py`.
+- I moved the code from `config_manager.py` and `cli.py` to the new modules.
+- I refactored the code to use the new modular structure, including updating imports and function calls.
+- I implemented dependency injection where appropriate.
+- I added logging to all modules.
+- I updated the main entry point to `cf-utils.py` and updated it to call the main function in `src/app.py`.
+- I updated the `install.sh` script to reflect the new file structure.
+- I was unable to add unit tests due to a persistent file system error that prevented me from creating files in the `tests` directory.
+
 ## [2.3.0-dev] - Unreleased
 ### Added
 - **Record Management in CLI**:
@@ -30,9 +45,6 @@ All notable changes to this project will be documented in this file.
 ## [2.2.7-dev] - Unreleased
 ### Changed
 - Updated CLI and README to recommend using Cloudflare API Tokens instead of Global API Keys for enhanced security.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/)
-and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.2.6-dev] - Unreleased
 ### Fixed
