@@ -3,7 +3,7 @@ from .config import load_config, save_config, find_account, find_zone, find_reco
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def add_record(account_name, zone_domain, record_name, record_type, ips, proxied, rotation_interval_minutes):
+def add_record(account_name, zone_domain, record_name, record_type, ips, rotation_interval_minutes):
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -24,7 +24,6 @@ def add_record(account_name, zone_domain, record_name, record_type, ips, proxied
         "name": record_name,
         "type": record_type,
         "ips": ips,
-        "proxied": proxied,
     }
     if rotation_interval_minutes is not None:
         record_data["rotation_interval_minutes"] = rotation_interval_minutes
