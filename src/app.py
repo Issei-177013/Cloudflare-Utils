@@ -1,7 +1,7 @@
 import os
 import sys
 import logging
-from .config import load_config, save_config, find_account, find_zone, find_record, CONFIG_PATH
+from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, CONFIG_PATH
 from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config
 from cloudflare import APIError
@@ -67,8 +67,8 @@ def add_account():
         print("❌ Account already exists")
         return
     data["accounts"].append({"name": name, "api_token": token, "zones": []})
-    save_config(data)
-    logging.info(f"Account '{name}' added.")
+    if validate_and_save_config(data):
+        logging.info(f"Account '{name}' added.")
     print("✅ Account added")
 
 def add_zone():
@@ -89,9 +89,9 @@ def add_zone():
         print("❌ Zone already exists")
         return
     acc["zones"].append({"domain": domain, "zone_id": zone_id, "records": []})
-    save_config(data)
-    logging.info(f"Zone '{domain}' added to account '{acc['name']}'.")
-    print("✅ Zone added")
+    if validate_and_save_config(data):
+        logging.info(f"Zone '{domain}' added to account '{acc['name']}'.")
+        print("✅ Zone added")
 
 def add_record():
     data = load_config()

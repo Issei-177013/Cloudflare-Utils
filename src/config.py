@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+from .validator import validate_config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -27,10 +28,20 @@ def load_config():
         # Optionally, handle this more gracefully, e.g., by backing up the broken file.
         return {"accounts": []} # Default structure on error
 
+def validate_and_save_config(data):
+    """Validates the configuration and saves it if valid."""
+    try:
+        validate_config(data)
+        with open(CONFIG_PATH, "w") as f:
+            json.dump(data, f, indent=2)
+        return True
+    except ValueError as e:
+        logging.error(f"Configuration validation failed: {e}")
+        return False
+
 def save_config(data):
     """Saves the configuration data to the JSON file."""
-    with open(CONFIG_PATH, "w") as f:
-        json.dump(data, f, indent=2)
+    validate_and_save_config(data)
 
 def find_account(data, account_name):
     """Finds an account by name in the config data."""
