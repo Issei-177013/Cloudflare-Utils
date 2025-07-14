@@ -7,15 +7,34 @@ BRANCH="${1:-$DEFAULT_BRANCH}"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 VERSION_TAG=""
 
-# نصب وابستگی‌ها
 install_packages() {
     echo -e "\e[1;34mInstalling dependencies...\e[0m"
     sudo apt-get update
     sudo apt-get install -y git python3-pip
+
+    # Check if typing-extensions is installed by apt
+    if dpkg -s python3-typing-extensions &> /dev/null; then
+        echo -e "\e[1;33mDetected 'python3-typing-extensions' package installed by apt, which may conflict with pip.\e[0m"
+        read -p "Do you want to remove 'python3-typing-extensions' to avoid conflicts? [y/N]: " answer
+        case "$answer" in
+            [Yy]* )
+                echo -e "\e[1;34mRemoving 'python3-typing-extensions'...\e[0m"
+                sudo apt-get remove -y python3-typing-extensions || {
+                    echo -e "\e[1;31mFailed to remove 'python3-typing-extensions'. Aborting installation.\e[0m"
+                    exit 1
+                }
+                ;;
+            * )
+                echo -e "\e[1;31mCannot proceed without removing 'python3-typing-extensions'. Aborting.\e[0m"
+                exit 1
+                ;;
+        esac
+    fi
+
     pip3 install --break-system-packages cloudflare python-dotenv loguru
 }
 
-# کلون کردن سورس
+
 clone_repository() {
     echo -e "\e[1;34mCloning from branch '$BRANCH'...\e[0m"
     if [ -d "$PROGRAM_DIR/.git" ]; then
@@ -32,7 +51,6 @@ clone_repository() {
     cd - > /dev/null
 }
 
-# ساخت run.sh برای اجرای برنامه اصلی
 create_runner() {
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash

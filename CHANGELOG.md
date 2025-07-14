@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.4.0-dev+1] - 7/14/2025
+### Fixed
+-handle system typing-extensions package conflict during installation
+  - Detect if 'python3-typing-extensions' is installed via apt
+  - Prompt user to remove it to avoid pip installation conflicts
+  - Abort installation if user refuses or removal fails
+  - Proceed with pip package installation only if no conflict remains
+This prevents pip errors when upgrading typing-extensions and improves install reliability.
+
 ## [2.4.0-dev] - 7/14/2025
 ### Changed
 - I created a `src` directory to house the core application logic.
