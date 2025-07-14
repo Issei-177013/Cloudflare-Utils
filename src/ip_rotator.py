@@ -86,3 +86,6 @@ def run_rotation():
                     logging.error(f"Update error for {record_name}: {e}")
     
     save_rotation_status(rotation_status)
+
+if __name__ == "__main__":
+    run_rotation()
