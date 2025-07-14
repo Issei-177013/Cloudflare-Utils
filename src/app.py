@@ -168,10 +168,9 @@ def add_record():
         return
 
     ip_list = input_list("Enter IPs (comma separated): ")
-    rec_type = input("Record type (A/CNAME): ").strip().upper()
-    proxied = input("Proxied (yes/no): ").strip().lower() == 'yes'
+    rec_type = input("Record type (A/AAAA): ").strip().upper()
     
-    rotation_interval_minutes_str = input("Rotation interval in minutes (optional, default 30): ").strip()
+    rotation_interval_minutes_str = input("Rotation interval in minutes (min 5, default 30): ").strip()
     rotation_interval_minutes = None
     if rotation_interval_minutes_str:
         try:
@@ -183,7 +182,7 @@ def add_record():
             logging.error("Invalid input for rotation interval. Must be a number.")
             return
 
-    add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, proxied, rotation_interval_minutes)
+    add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, rotation_interval_minutes)
     logging.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
 
 def list_all():
