@@ -1,9 +1,14 @@
 import logging
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record
+from .validator import is_valid_record_type
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def add_record(account_name, zone_domain, record_name, record_type, ips, rotation_interval_minutes):
+    if not is_valid_record_type(record_type):
+        logging.error(f"Invalid record type: {record_type}")
+        print(f"❌ Invalid record type '{record_type}'. Must be 'A' or 'AAAA'.")
+        return
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -78,7 +83,12 @@ def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_i
     if new_ips:
         record_to_edit['ips'] = new_ips
     if new_type:
-        record_to_edit['type'] = new_type
+        if is_valid_record_type(new_type):
+            record_to_edit['type'] = new_type
+        else:
+            logging.error(f"Invalid record type provided for edit: {new_type}")
+            print(f"❌ Invalid record type '{new_type}'. Value not changed.")
+            
     if new_interval is not None:
         if new_interval.lower() == 'none':
             if 'rotation_interval_minutes' in record_to_edit:

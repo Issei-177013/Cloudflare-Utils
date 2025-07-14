@@ -13,6 +13,31 @@ def is_valid_ipv6(ip):
     pattern = re.compile(r"^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$", re.IGNORECASE)
     return pattern.match(ip) is not None
 
+def is_valid_domain(domain):
+    """Validate a domain name."""
+    # Basic domain validation regex
+    pattern = re.compile(
+        r'^(?:[a-zA-Z0-9]'  # First character of the domain
+        r'(?:[a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)'  # Subdomain
+        r'+[a-zA-Z]{2,6}$'  # Top-level domain
+    )
+    return pattern.match(domain) is not None
+
+def is_valid_zone_id(zone_id):
+    """Validate a Cloudflare Zone ID."""
+    # 32-character hexadecimal string
+    pattern = re.compile(r'^[a-f0-9]{32}$')
+    return pattern.match(zone_id) is not None
+
+def is_valid_record_name(name):
+    """Validate a DNS record name."""
+    # This is a basic check, can be improved for more complex FQDN rules
+    return isinstance(name, str) and len(name) > 0
+
+def is_valid_record_type(record_type):
+    """Validate a DNS record type."""
+    return record_type in ['A', 'AAAA']
+
 def validate_record(record):
     """Validate a single DNS record."""
     if 'name' not in record or not isinstance(record['name'], str) or not record['name']:
