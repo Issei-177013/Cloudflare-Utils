@@ -19,15 +19,16 @@ class CloudflareAPI:
 
     def verify_token(self):
         """
-        Verifies the API token by making a simple request to list zones.
-        This is a lightweight way to check for authentication errors.
+        Verifies the API token by attempting to fetch zones.
+        If the token is invalid or insufficient, it will raise an APIError.
         """
         try:
-            # We only need to know if the request succeeds, so we can limit the results.
-            self.cf.zones.get(params={'per_page': 1})
-        except APIError as e:
-            # Re-raise the exception to be handled by the caller
-            raise e
+            zones = self.cf.zones.get()
+            if not isinstance(zones, list):
+                raise APIError("Unexpected API response format.")
+        except Exception as e:
+            raise APIError(f"Cloudflare API Error on token verification: {e}")
+
 
     def update_dns_record(self, zone_id, dns_record_id, name, type, content):
         try:
