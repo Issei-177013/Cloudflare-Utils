@@ -322,7 +322,7 @@ def rotator_tools_menu():
         print("2. ✏️ Edit Record in Zone")
         print("3. 🗑️ Delete Record from Zone")
         print("4. 📋 List All Records")
-        print("5. ⬅️ Back to Main Menu")
+        print("0. ⬅️ Back to Main Menu")
         print("---------------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -335,7 +335,7 @@ def rotator_tools_menu():
             delete_record()
         elif choice == "4":
             list_all()
-        elif choice == "5":
+        elif choice == "0":
             break
         else:
             logging.warning(f"Invalid choice: {choice}")
@@ -349,7 +349,7 @@ def account_management_menu():
         print("1. 👤 Add Cloudflare Account")
         print("2. ✏️ Edit Cloudflare Account")
         print("3. 🗑️ Delete Cloudflare Account")
-        print("4. ⬅️ Back to Main Menu")
+        print("0. ⬅️ Back to Main Menu")
         print("---------------------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -360,7 +360,7 @@ def account_management_menu():
             edit_account()
         elif choice == "3":
             delete_account()
-        elif choice == "4":
+        elif choice == "0":
             break
         else:
             logging.warning(f"Invalid choice: {choice}")
@@ -408,7 +408,7 @@ def main_menu():
         print("\n--- Main Menu ---")
         print("1. 👤 Account Management")
         print("2. 🔄 Rotator Tools")
-        print("3. 🚪 Exit")
+        print("0. 🚪 Exit")
         print("-----------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -417,7 +417,7 @@ def main_menu():
             account_management_menu()
         elif choice == "2":
             rotator_tools_menu()
-        elif choice == "3":
+        elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
                 logging.info("Exiting Cloudflare Utils Manager.")
                 break
