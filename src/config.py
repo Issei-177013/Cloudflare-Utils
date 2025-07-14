@@ -55,6 +55,7 @@ def find_record(zone_data, record_name):
 
 def load_rotation_status():
     if not os.path.exists(ROTATION_STATUS_PATH):
+        save_rotation_status({})
         return {}
     with open(ROTATION_STATUS_PATH, "r") as f:
         try:
