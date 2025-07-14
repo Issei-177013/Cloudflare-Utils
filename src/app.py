@@ -3,7 +3,7 @@ import sys
 import logging
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, CONFIG_PATH
 from .cloudflare_api import CloudflareAPI
-from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config
+from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from cloudflare import APIError
@@ -86,6 +86,43 @@ def add_account():
     if validate_and_save_config(data):
         logging.info(f"Account '{name}' added.")
         print("✅ Account added")
+
+def edit_account():
+    data = load_config()
+    if not data["accounts"]:
+        logging.warning("No accounts available.")
+        print("❌ No accounts available.")
+        return
+
+    acc = select_from_list(data["accounts"], "Select an account to edit:")
+    if not acc:
+        return
+
+    print(f"\n--- Editing Account: {acc['name']} ---")
+    new_name = get_validated_input(f"Enter new name (or press Enter to keep '{acc['name']}'): ", lambda s: s.strip(), allow_empty=True)
+    new_token = get_validated_input("Enter new API token (or press Enter to keep current): ", lambda s: s.strip(), allow_empty=True)
+
+    if new_name or new_token:
+        edit_account_in_config(acc['name'], new_name, new_token)
+    else:
+        print("No changes made.")
+
+def delete_account():
+    data = load_config()
+    if not data["accounts"]:
+        logging.warning("No accounts available.")
+        print("❌ No accounts available.")
+        return
+
+    acc = select_from_list(data["accounts"], "Select an account to delete:")
+    if not acc:
+        return
+
+    if confirm_action(f"Are you sure you want to delete the account '{acc['name']}'?"):
+        delete_account_from_config(acc['name'])
+        logging.info(f"Account '{acc['name']}' deleted.")
+    else:
+        logging.info("Deletion cancelled.")
 
 def add_record():
     data = load_config()
@@ -304,6 +341,31 @@ def rotator_tools_menu():
             logging.warning(f"Invalid choice: {choice}")
             print("❌ Invalid choice. Please select a valid option.")
 
+def account_management_menu():
+    """Displays the Account Management submenu."""
+    clear_screen()
+    while True:
+        print("\n--- 👤 Account Management ---")
+        print("1. 👤 Add Cloudflare Account")
+        print("2. ✏️ Edit Cloudflare Account")
+        print("3. 🗑️ Delete Cloudflare Account")
+        print("4. ⬅️ Back to Main Menu")
+        print("---------------------------")
+
+        choice = input("👉 Enter your choice: ").strip()
+
+        if choice == "1":
+            add_account()
+        elif choice == "2":
+            edit_account()
+        elif choice == "3":
+            delete_account()
+        elif choice == "4":
+            break
+        else:
+            logging.warning(f"Invalid choice: {choice}")
+            print("❌ Invalid choice. Please select a valid option.")
+
 def main_menu():
     clear_screen() # Clear the screen at the very beginning
     check_config_permissions() # Check permissions at the start of the menu
@@ -344,7 +406,7 @@ def main_menu():
 
     while True:
         print("\n--- Main Menu ---")
-        print("1. 👤 Add Cloudflare Account")
+        print("1. 👤 Account Management")
         print("2. 🔄 Rotator Tools")
         print("3. 🚪 Exit")
         print("-----------------")
@@ -352,7 +414,7 @@ def main_menu():
         choice = input("👉 Enter your choice: ").strip()
         
         if choice == "1":
-            add_account()
+            account_management_menu()
         elif choice == "2":
             rotator_tools_menu()
         elif choice == "3":
