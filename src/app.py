@@ -82,7 +82,7 @@ def add_account():
                 logging.warning("User aborted account creation.")
                 return
 
-    data["accounts"].append({"name": name, "api_token": token, "zones": []})
+    data["accounts"].append({"name": name, "api_token": token})
     if validate_and_save_config(data):
         logging.info(f"Account '{name}' added.")
         print("✅ Account added")
@@ -135,13 +135,39 @@ def add_record():
     if not acc:
         return
 
-    if not acc["zones"]:
-        logging.warning(f"No zones available in account '{acc['name']}'.")
-        print("❌ No zones available in this account. Please add a zone first.")
-        return
+    try:
+        cf_api = CloudflareAPI(acc["api_token"])
+        zones_from_cf = cf_api.list_zones()
+        
+        # Convert the generator to a list of dictionaries for selection
+        zones_for_selection = [{"id": zone.id, "name": zone.name} for zone in zones_from_cf]
 
-    zone = select_from_list(acc["zones"], "Select a zone:")
-    if not zone:
+        if not zones_for_selection:
+            logging.warning(f"No zones found for account '{acc['name']}' in Cloudflare.")
+            print("❌ No zones available in this account. Please add a zone in your Cloudflare account first.")
+            return
+
+        selected_zone_info = select_from_list(zones_for_selection, "Select a zone from Cloudflare:")
+        if not selected_zone_info:
+            return
+
+        # Check if the zone is already in the local config, if not, add it.
+        zone_domain = selected_zone_info['name']
+        zone_id = selected_zone_info['id']
+        zone = find_zone(acc, zone_domain)
+        if not zone:
+            if "zones" not in acc:
+                acc["zones"] = []
+            zone = {"domain": zone_domain, "zone_id": zone_id, "records": []}
+            acc["zones"].append(zone)
+            validate_and_save_config(data)
+            logging.info(f"Zone '{zone_domain}' added to local config.")
+        else:
+            logging.info(f"Zone '{zone_domain}' already exists in local config.")
+
+    except APIError as e:
+        logging.error(f"Cloudflare API Error fetching zones: {e}")
+        print("❌ Could not fetch zones from Cloudflare.")
         return
 
     record_name = None
@@ -204,23 +230,50 @@ def add_record():
 def list_all():
     data = load_config()
     if not data["accounts"]:
-        logging.info("No accounts, zones, or records to display.")
+        logging.info("No accounts to display.")
+        print("No accounts configured. Please add an account first.")
         return
 
     print("\n--- All Accounts, Zones, and Records ---")
     for acc_idx, acc in enumerate(data["accounts"]):
         print(f"\n[{acc_idx+1}] 🧾 Account: {acc['name']}")
-        if not acc["zones"]:
-            print("  ℹ️ No zones in this account.")
-            continue
-        for zone_idx, zone in enumerate(acc["zones"]):
-            print(f"  [{zone_idx+1}] 🌐 Zone: {zone['domain']} (ID: {zone['zone_id']})")
-            if not zone["records"]:
-                print("    ℹ️ No records in this zone.")
+        try:
+            cf_api = CloudflareAPI(acc["api_token"])
+            zones_from_cf = cf_api.list_zones()
+            
+            zones_for_display = list(zones_from_cf)
+            if not zones_for_display:
+                print("  ℹ️ No zones found in this Cloudflare account.")
                 continue
-            for rec_idx, r in enumerate(zone["records"]):
-                interval_str = f" | Rotation Interval: {r.get('rotation_interval_minutes', 'Default (30)')} min"
-                print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])}{interval_str}")
+
+            for zone_idx, cf_zone in enumerate(zones_for_display):
+                print(f"  [{zone_idx+1}] 🌐 Zone: {cf_zone.name} (ID: {cf_zone.id})")
+                
+                # Find local records for this zone to display rotation info
+                local_zone_config = find_zone(acc, cf_zone.name)
+                
+                records_from_cf = cf_api.list_dns_records(cf_zone.id)
+                records_for_display = list(records_from_cf)
+
+                if not records_for_display:
+                    print("    ℹ️ No DNS records found in this zone.")
+                    continue
+
+                for rec_idx, cf_record in enumerate(records_for_display):
+                    rotation_info = ""
+                    if local_zone_config:
+                        local_record_config = find_record(local_zone_config, cf_record.name)
+                        if local_record_config:
+                            interval = local_record_config.get('rotation_interval_minutes', 'Default (30)')
+                            ips = ', '.join(local_record_config.get('ips', []))
+                            rotation_info = f" | 🔄 Rotation Config: {ips} every {interval} min"
+                    
+                    print(f"    [{rec_idx+1}] 📌 Record: {cf_record.name} | Type: {cf_record.type} | Content: {cf_record.content}{rotation_info}")
+
+        except APIError as e:
+            logging.error(f"Cloudflare API Error for account '{acc['name']}': {e}")
+            print(f"  ❌ Error fetching data for this account: {e}")
+            continue
     print("----------------------------------------")
 
 def delete_record():
