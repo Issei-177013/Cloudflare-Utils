@@ -25,17 +25,20 @@ class CloudflareAPI:
     def verify_token(self):
         """
         Verifies the API token by attempting to list zones.
-        Raises an APIError if the token is invalid or lacks permissions.
+        If the token is invalid, an APIError is raised.
         """
         try:
-            response = self.cf.zones.list()
-            if not isinstance(response, dict) or "result" not in response:
-                raise APIError("Unexpected API response format", request=None, body=response)
-        except APIError:
-            raise  # Let upstream handle it
+            zones = self.cf.zones.list()  # This returns an iterable of Zone objects
+            # Just check if we got something iterable with expected attributes
+            if not hasattr(zones, '__iter__'):
+                raise APIError("Unexpected API response format", request=None, body=None)
+            # Optionally check if first item has id and name (basic sanity check)
+            first_zone = next(iter(zones), None)
+            if first_zone is None or not hasattr(first_zone, 'id') or not hasattr(first_zone, 'name'):
+                raise APIError("Unexpected API response format", request=None, body=None)
         except Exception as e:
-            raise APIError("Cloudflare API Error during token verification", request=None, body=str(e))
-
+            # Wrap all exceptions into APIError with message
+            raise APIError(f"Cloudflare API Error on token verification: {e}", request=None, body=None)
 
     def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied=False):
         """
