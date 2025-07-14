@@ -1,5 +1,5 @@
 import logging
-from .config import load_config, save_config, find_account, find_zone, find_record
+from .config import load_config, validate_and_save_config, find_account, find_zone, find_record
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -29,9 +29,9 @@ def add_record(account_name, zone_domain, record_name, record_type, ips, rotatio
         record_data["rotation_interval_minutes"] = rotation_interval_minutes
 
     zone["records"].append(record_data)
-    save_config(data)
-    logging.info(f"Record '{record_name}' added to zone '{zone_domain}'.")
-    print("✅ Record added successfully!")
+    if validate_and_save_config(data):
+        logging.info(f"Record '{record_name}' added to zone '{zone_domain}'.")
+        print("✅ Record added successfully!")
 
 def delete_record(account_name, zone_domain, record_name):
     data = load_config()
@@ -52,9 +52,9 @@ def delete_record(account_name, zone_domain, record_name):
         return
 
     zone["records"].remove(record_to_delete)
-    save_config(data)
-    logging.info(f"Record '{record_to_delete['name']}' deleted successfully from local configuration.")
-    print(f"✅ Record '{record_to_delete['name']}' deleted successfully from local configuration.")
+    if validate_and_save_config(data):
+        logging.info(f"Record '{record_to_delete['name']}' deleted successfully from local configuration.")
+        print(f"✅ Record '{record_to_delete['name']}' deleted successfully from local configuration.")
 
 
 def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_interval):
@@ -93,6 +93,6 @@ def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_i
             except ValueError:
                 logging.error("Invalid input for interval. Must be a number or 'none'. Value not changed.")
 
-    save_config(data)
-    logging.info(f"Record '{record_to_edit['name']}' updated successfully.")
-    print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
+    if validate_and_save_config(data):
+        logging.info(f"Record '{record_to_edit['name']}' updated successfully.")
+        print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
