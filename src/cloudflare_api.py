@@ -10,6 +10,13 @@ class CloudflareAPI:
         except APIError as e:
             raise e
 
+    def list_zones(self):
+        """Lists all zones in the account."""
+        try:
+            return self.cf.zones.get()
+        except APIError as e:
+            raise e
+
     def update_dns_record(self, zone_id, dns_record_id, name, type, content):
         try:
             self.cf.dns.records.update(

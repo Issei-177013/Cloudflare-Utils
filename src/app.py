@@ -79,31 +79,59 @@ def add_zone():
         logging.warning("No accounts available.")
         print("❌ No accounts available. Please add an account first.")
         return
-    
+
     acc = select_from_list(data["accounts"], "Select an account:")
     if not acc:
         return
 
-    domain = get_validated_input(
-        "Zone domain (e.g. example.com): ",
-        is_valid_domain,
-        "Invalid domain format."
-    )
-    zone_id = get_validated_input(
-        "Zone ID: ",
-        is_valid_zone_id,
-        "Invalid Zone ID format. Must be a 32-character hexadecimal string."
-    )
+    try:
+        cf_api = CloudflareAPI(acc["api_token"])
+        logging.info("Fetching zones from Cloudflare...")
+        zones_from_cf = cf_api.list_zones()
 
-    if find_zone(acc, domain):
-        logging.warning(f"Zone '{domain}' already exists in account '{acc['name']}'.")
-        print("❌ Zone already exists")
-        return
+        if not zones_from_cf:
+            logging.warning("No zones found in this Cloudflare account.")
+            print("❌ No zones found in this Cloudflare account.")
+            return
 
-    acc["zones"].append({"domain": domain, "zone_id": zone_id, "records": []})
-    if validate_and_save_config(data):
-        logging.info(f"Zone '{domain}' added to account '{acc['name']}'.")
-        print("✅ Zone added")
+        # Filter out zones already in config
+        existing_zone_domains = {z['domain'] for z in acc.get('zones', [])}
+        available_zones = [
+            zone for zone in zones_from_cf 
+            if zone.name not in existing_zone_domains
+        ]
+
+        if not available_zones:
+            logging.info("All zones from this account are already in the config.")
+            print("ℹ️ All zones from this account are already configured.")
+            return
+
+        # In Python SDK v2, zone objects have `name` and `id` attributes
+        # We need to convert them to a list of dicts with 'domain' and 'zone_id'
+        # to maintain consistency with our config structure.
+        zone_list_for_selection = [
+            {'domain': zone.name, 'zone_id': zone.id} for zone in available_zones
+        ]
+
+        selected_zone_dict = select_from_list(zone_list_for_selection, "Select a zone to add:")
+        if not selected_zone_dict:
+            return # User cancelled selection
+
+        domain = selected_zone_dict['domain']
+        zone_id = selected_zone_dict['zone_id']
+
+        # The find_zone check is implicitly handled by filtering `available_zones`
+        acc.setdefault('zones', []).append({"domain": domain, "zone_id": zone_id, "records": []})
+        if validate_and_save_config(data):
+            logging.info(f"Zone '{domain}' added to account '{acc['name']}'.")
+            print("✅ Zone added")
+
+    except APIError as e:
+        logging.error(f"Cloudflare API Error: {e}")
+        print(f"❌ Cloudflare API Error: {e}")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+        print(f"❌ An unexpected error occurred: {e}")
 
 def add_record():
     data = load_config()
