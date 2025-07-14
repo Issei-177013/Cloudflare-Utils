@@ -106,3 +106,31 @@ def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_i
     if validate_and_save_config(data):
         logging.info(f"Record '{record_to_edit['name']}' updated successfully.")
         print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
+
+def edit_account_in_config(account_name, new_name, new_token):
+    data = load_config()
+    acc = find_account(data, account_name)
+    if not acc:
+        logging.error(f"Account '{account_name}' not found.")
+        return
+
+    if new_name:
+        acc['name'] = new_name
+    if new_token:
+        acc['api_token'] = new_token
+
+    if validate_and_save_config(data):
+        logging.info(f"Account '{account_name}' updated successfully.")
+        print(f"✅ Account '{account_name}' updated successfully.")
+
+def delete_account_from_config(account_name):
+    data = load_config()
+    acc = find_account(data, account_name)
+    if not acc:
+        logging.error(f"Account '{account_name}' not found.")
+        return
+
+    data['accounts'].remove(acc)
+    if validate_and_save_config(data):
+        logging.info(f"Account '{account_name}' deleted successfully.")
+        print(f"✅ Account '{account_name}' deleted successfully.")
