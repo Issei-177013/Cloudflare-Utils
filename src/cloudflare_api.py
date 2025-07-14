@@ -28,14 +28,14 @@ class CloudflareAPI:
         Raises an APIError if the token is invalid or lacks permissions.
         """
         try:
-            zones = self.cf.zones.list()
-            if not isinstance(zones, list):
-                raise APIError("Unexpected API response format", request=None, body=None)
+            response = self.cf.zones.list()
+            if not isinstance(response, dict) or "result" not in response:
+                raise APIError("Unexpected API response format", request=None, body=response)
         except APIError:
-            raise  # pass original Cloudflare error through
+            raise  # Let upstream handle it
         except Exception as e:
-            # Wrap all other exceptions into APIError
             raise APIError("Cloudflare API Error during token verification", request=None, body=str(e))
+
 
     def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied=False):
         """
