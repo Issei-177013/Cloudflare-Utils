@@ -55,7 +55,7 @@ def validate_account(account):
     """Validate a single account."""
     if 'name' not in account or not isinstance(account['name'], str) or not account['name']:
         raise ValueError("Account 'name' is required and must be a non-empty string.")
-    
+    # TODO: Validate with Connectivity Check 
     if 'api_token' not in account or not isinstance(account['api_token'], str) or not account['api_token']:
         raise ValueError("Account 'api_token' is required and must be a non-empty string.")
         
