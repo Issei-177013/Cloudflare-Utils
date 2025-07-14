@@ -82,7 +82,7 @@ def add_account():
                 logging.warning("User aborted account creation.")
                 return
 
-    data["accounts"].append({"name": name, "api_token": token})
+    data["accounts"].append({"name": name, "api_token": token, "zones": []})
     if validate_and_save_config(data):
         logging.info(f"Account '{name}' added.")
         print("✅ Account added")
