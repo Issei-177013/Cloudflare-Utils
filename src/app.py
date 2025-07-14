@@ -4,6 +4,8 @@ import logging
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, CONFIG_PATH
 from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config
+from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
+from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from cloudflare import APIError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -52,24 +54,24 @@ def select_from_list(items, prompt):
         except ValueError:
             print("Invalid input. Please enter a number.")
 
-def input_list(prompt):
-    return input(prompt).strip().split(',')
-
 def add_account():
     data = load_config()
-    name = input("Account name: ").strip()
-    token = input("Cloudflare API Token: ").strip()
+    name = get_validated_input("Account name: ", lambda s: s.strip(), "Account name cannot be empty.")
+    token = get_validated_input("Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
+
     print("ℹ️ INFO: While a Global API Key will work, it's STRONGLY recommended to use a specific API Token.")
     print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
     print("This provides better security and scoped permissions.")
+
     if find_account(data, name):
         logging.warning("Account already exists")
         print("❌ Account already exists")
         return
+
     data["accounts"].append({"name": name, "api_token": token, "zones": []})
     if validate_and_save_config(data):
         logging.info(f"Account '{name}' added.")
-    print("✅ Account added")
+        print("✅ Account added")
 
 def add_zone():
     data = load_config()
@@ -82,12 +84,22 @@ def add_zone():
     if not acc:
         return
 
-    domain = input("Zone domain (e.g. example.com): ").strip()
-    zone_id = input("Zone ID: ").strip()
+    domain = get_validated_input(
+        "Zone domain (e.g. example.com): ",
+        is_valid_domain,
+        "Invalid domain format."
+    )
+    zone_id = get_validated_input(
+        "Zone ID: ",
+        is_valid_zone_id,
+        "Invalid Zone ID format. Must be a 32-character hexadecimal string."
+    )
+
     if find_zone(acc, domain):
         logging.warning(f"Zone '{domain}' already exists in account '{acc['name']}'.")
         print("❌ Zone already exists")
         return
+
     acc["zones"].append({"domain": domain, "zone_id": zone_id, "records": []})
     if validate_and_save_config(data):
         logging.info(f"Zone '{domain}' added to account '{acc['name']}'.")
@@ -113,35 +125,32 @@ def add_record():
     if not zone:
         return
 
-    # Attempt to fetch and display existing records for selection
     record_name = None
     try:
         cf_api = CloudflareAPI(acc["api_token"])
         zone_id = zone["zone_id"]
         logging.info(f"Fetching records for zone {zone['domain']}...")
-        records_from_cf_paginator = cf_api.list_dns_records(zone_id)
-        # Convert paginator object to a list to use len() and indexing
-        actual_records_list = list(records_from_cf_paginator)
+        records_from_cf = list(cf_api.list_dns_records(zone_id))
         
-        if actual_records_list: # Check if the list is not empty
+        if records_from_cf:
             print("\n--- Existing Records ---")
-            for i, cf_record in enumerate(actual_records_list):
+            for i, cf_record in enumerate(records_from_cf):
                 print(f"{i+1}. {cf_record.name} (Type: {cf_record.type}, Content: {cf_record.content})")
-            print(f"{len(actual_records_list)+1}. Enter a new record name manually")
+            print(f"{len(records_from_cf)+1}. Enter a new record name manually")
             print("-------------------------")
             
             while True:
                 try:
                     choice = int(input("👉 Select a record to use/update or choose manual entry: "))
-                    if 1 <= choice <= len(actual_records_list):
-                        record_name = actual_records_list[choice-1].name
+                    if 1 <= choice <= len(records_from_cf):
+                        record_name = records_from_cf[choice-1].name
                         logging.info(f"Using existing record: {record_name}")
                         break
-                    elif choice == len(actual_records_list) + 1:
+                    elif choice == len(records_from_cf) + 1:
                         logging.info("Manual record name entry selected.")
                         break
                     else:
-                        print("❌ Invalid choice. Please enter a number from the list.")
+                        print("❌ Invalid choice.")
                 except ValueError:
                     print("❌ Invalid input. Please enter a number.")
         else:
@@ -150,37 +159,25 @@ def add_record():
     except APIError as e:
         logging.error(f"Cloudflare API Error fetching records: {e}")
         print("⚠️ Proceeding with manual record name entry.")
-    except Exception as e: # Catch other potential errors like network issues
-        logging.error(f"An unexpected error occurred while fetching records: {e}")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
         print("⚠️ Proceeding with manual record name entry.")
 
-    if not record_name: # If no record was selected from the list (or fetching failed)
-        name_input = input("Record name (e.g. vpn.example.com): ").strip()
-        if not name_input:
-            logging.error("Record name cannot be empty.")
-            return
-        record_name = name_input
-    
-    # Check if the chosen/entered record name already exists in the local config for this zone
+    if not record_name:
+        record_name = get_validated_input(
+            "Record name (e.g., vpn.example.com): ",
+            is_valid_record_name,
+            "Invalid record name."
+        )
+
     if find_record(zone, record_name):
-        logging.warning(f"Record '{record_name}' already exists in the local configuration for this zone.")
-        print("ℹ️ If you want to change its IPs or other settings, consider deleting and re-adding, or a future 'update' feature.")
+        logging.warning(f"Record '{record_name}' already exists locally.")
+        print("ℹ️ To update, please delete and re-add it.")
         return
 
-    ip_list = input_list("Enter IPs (comma separated): ")
-    rec_type = input("Record type (A/AAAA): ").strip().upper()
-    
-    rotation_interval_minutes_str = input("Rotation interval in minutes (min 5, default 30): ").strip()
-    rotation_interval_minutes = None
-    if rotation_interval_minutes_str:
-        try:
-            rotation_interval_minutes = int(rotation_interval_minutes_str)
-            if rotation_interval_minutes < 5: # Enforce minimum of 5 minutes
-                logging.error("Rotation interval must be at least 5 minutes.")
-                return
-        except ValueError:
-            logging.error("Invalid input for rotation interval. Must be a number.")
-            return
+    rec_type = get_record_type()
+    ip_list = get_ip_list(rec_type)
+    rotation_interval_minutes = get_rotation_interval()
 
     add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, rotation_interval_minutes)
     logging.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
