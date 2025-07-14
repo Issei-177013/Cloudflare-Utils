@@ -10,15 +10,14 @@ class CloudflareAPI:
         except APIError as e:
             raise e
 
-    def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied):
+    def update_dns_record(self, zone_id, dns_record_id, name, type, content):
         try:
             self.cf.dns.records.update(
                 zone_id=zone_id,
                 dns_record_id=dns_record_id,
                 name=name,
                 type=type,
-                content=content,
-                proxied=proxied
+                content=content
             )
         except APIError as e:
             raise e

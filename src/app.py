@@ -203,9 +203,8 @@ def list_all():
                 print("    ℹ️ No records in this zone.")
                 continue
             for rec_idx, r in enumerate(zone["records"]):
-                proxied_status = "Yes" if r['proxied'] else "No"
                 interval_str = f" | Rotation Interval: {r.get('rotation_interval_minutes', 'Default (30)')} min"
-                print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])} | Proxied: {proxied_status}{interval_str}")
+                print(f"    [{rec_idx+1}] 📌 Record: {r['name']} | Type: {r['type']} | IPs: {', '.join(r['ips'])}{interval_str}")
     print("----------------------------------------")
 
 def delete_record():
@@ -280,15 +279,11 @@ def edit_record():
     print(f"Current Type: {record_to_edit['type']}")
     new_type = input(f"Enter new type (A/CNAME) or press Enter to keep current: ").strip().upper() or None
 
-    print(f"Current Proxied: {'Yes' if record_to_edit['proxied'] else 'No'}")
-    new_proxied_str = input(f"Proxied (yes/no) or press Enter to keep current: ").strip().lower()
-    new_proxied = new_proxied_str == 'yes' if new_proxied_str else None
-
     current_interval = record_to_edit.get('rotation_interval_minutes', 'Default (30)')
     print(f"Current Rotation Interval (minutes): {current_interval}")
     new_interval_str = input(f"Enter new interval (minutes, min 5, or 'none' to use default) or press Enter to keep current: ").strip()
     
-    edit_record_in_config(acc['name'], zone['domain'], record_to_edit['name'], new_ips, new_type, new_proxied, new_interval_str)
+    edit_record_in_config(acc['name'], zone['domain'], record_to_edit['name'], new_ips, new_type, new_interval_str)
     logging.info(f"Record '{record_to_edit['name']}' in zone '{zone['domain']}' updated.")
 
 def confirm_action(prompt="Are you sure you want to proceed?"):
