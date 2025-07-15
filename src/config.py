@@ -1,7 +1,7 @@
 import json
 import os
 from .validator import validate_config
-from .logger import config_logger
+from .logger import logger
 
 # Determine the absolute path to the directory where this script (config_manager.py) is located.
 # This ensures that configs.json and rotation_status.json are found relative to the script's location,
@@ -15,14 +15,14 @@ DEFAULT_ROTATION_INTERVAL_MINUTES = 30
 def load_config():
     """Loads the configuration from the JSON file."""
     if not os.path.exists(CONFIG_PATH):
-        config_logger.info(f"Config file not found at {CONFIG_PATH}. Creating a new one.")
+        logger.info(f"Config file not found at {CONFIG_PATH}. Creating a new one.")
         save_config({"accounts": []}) # Save default structure
         return {"accounts": []}
     try:
         with open(CONFIG_PATH, "r") as f:
             return json.load(f)
     except json.JSONDecodeError:
-        config_logger.error(f"Could not decode JSON from {CONFIG_PATH}. Returning default config.")
+        logger.error(f"Could not decode JSON from {CONFIG_PATH}. Returning default config.")
         # Optionally, handle this more gracefully, e.g., by backing up the broken file.
         return {"accounts": []} # Default structure on error
 
@@ -34,7 +34,7 @@ def validate_and_save_config(data):
             json.dump(data, f, indent=2)
         return True
     except ValueError as e:
-        config_logger.error(f"Configuration validation failed: {e}")
+        logger.error(f"Configuration validation failed: {e}")
         return False
 
 def save_config(data):
@@ -70,7 +70,7 @@ def load_rotation_status():
         try:
             return json.load(f)
         except json.JSONDecodeError:
-            config_logger.error(f"Could not decode JSON from {ROTATION_STATUS_PATH}. Returning empty status.")
+            logger.error(f"Could not decode JSON from {ROTATION_STATUS_PATH}. Returning empty status.")
             return {} # Return empty dict if file is corrupted or empty
 
 def save_rotation_status(status_data):
