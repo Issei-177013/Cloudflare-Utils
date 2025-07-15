@@ -444,15 +444,26 @@ def rotator_tools_menu():
             print("❌ Invalid choice. Please select a valid option.")
 
 def list_accounts():
-    """Lists all configured accounts in a table."""
+    """Lists all configured accounts, including the number of zones for each."""
     data = load_config()
     if not data["accounts"]:
         print("No accounts configured.")
         return
 
-    accounts_data = [{"Name": acc["name"]} for acc in data["accounts"]]
+    accounts_data = []
+    for acc in data["accounts"]:
+        try:
+            cf_api = CloudflareAPI(acc["api_token"])
+            zones = list(cf_api.list_zones())
+            zone_count = len(zones)
+        except APIError as e:
+            app_logger.error(f"Failed to fetch zones for account {acc['name']}: {e}")
+            zone_count = "Error"
+        
+        accounts_data.append({"Name": acc["name"], "Zones": zone_count})
+
     print("\n--- Configured Accounts ---")
-    display_as_table(accounts_data, ["Name"])
+    display_as_table(accounts_data, headers={"Name": "Name", "Zones": "Zones"})
 
 def account_management_menu():
     """Displays the Account Management submenu."""
