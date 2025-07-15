@@ -6,6 +6,7 @@ from .dns_manager import add_record as add_record_to_config, delete_record as de
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from .logger import app_logger
+from .display import display_as_table
 from cloudflare import APIError
 
 def clear_screen():
@@ -227,29 +228,30 @@ def add_record():
 
 def list_records_from_config():
     data = load_config()
-    if not data["accounts"]:
-        app_logger.info("No accounts to display.")
-        print("No accounts configured. Please add an account first.")
+    if not any(acc.get("zones") for acc in data["accounts"]):
+        app_logger.info("No records to display.")
+        print("No records configured for rotation. Please add a record first.")
         return
 
     print("\n--- Records Configured for Rotation ---")
-    for acc_idx, acc in enumerate(data["accounts"]):
-        print(f"\n[{acc_idx+1}] 🧾 Account: {acc['name']}")
-        if not acc.get("zones"):
-            print("  ℹ️ No zones configured for this account.")
-            continue
+    
+    all_records_data = []
+    for acc in data["accounts"]:
+        for zone in acc.get("zones", []):
+            for record in zone.get("records", []):
+                all_records_data.append({
+                    "Account": acc["name"],
+                    "Zone": zone["domain"],
+                    "Record": record["name"],
+                    "Type": record["type"],
+                    "IPs": ", ".join(record.get("ips", [])),
+                    "Interval (min)": record.get('rotation_interval_minutes', 'Default (30)')
+                })
 
-        for zone_idx, zone in enumerate(acc["zones"]):
-            print(f"  [{zone_idx+1}] 🌐 Zone: {zone['domain']}")
-            if not zone.get("records"):
-                print("    ℹ️ No records configured in this zone.")
-                continue
-
-            for rec_idx, record in enumerate(zone["records"]):
-                interval = record.get('rotation_interval_minutes', 'Default (30)')
-                ips = ', '.join(record.get('ips', []))
-                print(f"    [{rec_idx+1}] 📌 Record: {record['name']} | Type: {record['type']} | IPs: {ips} | Interval: {interval} min")
-    print("----------------------------------------")
+    if all_records_data:
+        display_as_table(all_records_data, ["Account", "Zone", "Record", "Type", "IPs", "Interval (min)"])
+    else:
+        print("No records configured for rotation.")
 
 
 def list_all():
@@ -259,47 +261,51 @@ def list_all():
         print("No accounts configured. Please add an account first.")
         return
 
-    print("\n--- All Accounts, Zones, and Records ---")
-    for acc_idx, acc in enumerate(data["accounts"]):
-        print(f"\n[{acc_idx+1}] 🧾 Account: {acc['name']}")
+    print("\n--- All Accounts, Zones, and Records from Cloudflare ---")
+    for acc in data["accounts"]:
+        print(f"\n\n--- Account: {acc['name']} ---")
         try:
             cf_api = CloudflareAPI(acc["api_token"])
-            zones_from_cf = cf_api.list_zones()
-            
-            zones_for_display = list(zones_from_cf)
-            if not zones_for_display:
-                print("  ℹ️ No zones found in this Cloudflare account.")
+            zones_from_cf = list(cf_api.list_zones())
+
+            if not zones_from_cf:
+                print("No zones found in this Cloudflare account.")
                 continue
 
-            for zone_idx, cf_zone in enumerate(zones_for_display):
-                print(f"  [{zone_idx+1}] 🌐 Zone: {cf_zone.name} (ID: {cf_zone.id})")
-                
-                # Find local records for this zone to display rotation info
-                local_zone_config = find_zone(acc, cf_zone.name)
-                
-                records_from_cf = cf_api.list_dns_records(cf_zone.id)
-                records_for_display = list(records_from_cf)
+            zones_data = [{"Name": zone.name, "ID": zone.id} for zone in zones_from_cf]
+            print("\nZones:")
+            display_as_table(zones_data, ["Name", "ID"])
 
-                if not records_for_display:
-                    print("    ℹ️ No DNS records found in this zone.")
+            for cf_zone in zones_from_cf:
+                print(f"\n--- Records for Zone: {cf_zone.name} ---")
+                records_from_cf = list(cf_api.list_dns_records(cf_zone.id))
+
+                if not records_from_cf:
+                    print("No DNS records found in this zone.")
                     continue
 
-                for rec_idx, cf_record in enumerate(records_for_display):
-                    rotation_info = ""
+                records_data = []
+                local_zone_config = find_zone(acc, cf_zone.name)
+                for cf_record in records_from_cf:
+                    rotation_info = "Not Configured"
                     if local_zone_config:
                         local_record_config = find_record(local_zone_config, cf_record.name)
                         if local_record_config:
                             interval = local_record_config.get('rotation_interval_minutes', 'Default (30)')
-                            ips = ', '.join(local_record_config.get('ips', []))
-                            rotation_info = f" | 🔄 Rotation Config: {ips} every {interval} min"
-                    
-                    print(f"    [{rec_idx+1}] 📌 Record: {cf_record.name} | Type: {cf_record.type} | Content: {cf_record.content}{rotation_info}")
+                            rotation_info = f"Yes ({interval} min)"
+
+                    records_data.append({
+                        "Name": cf_record.name,
+                        "Type": cf_record.type,
+                        "Content": cf_record.content,
+                        "Rotation": rotation_info
+                    })
+                display_as_table(records_data, ["Name", "Type", "Content", "Rotation"])
 
         except APIError as e:
             app_logger.error(f"Cloudflare API Error for account '{acc['name']}': {e}")
             print(f"  ❌ Error fetching data for this account: {e}")
             continue
-    print("----------------------------------------")
 
 def delete_record():
     data = load_config()
@@ -393,13 +399,13 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
 
 def rotate_based_on_ip_list_menu():
     """Displays the submenu for rotation based on a list of IPs."""
-    clear_screen()
     while True:
+        clear_screen()
         print("\n--- Rotate Based on a List of IPs ---")
-        print("1. 📝 Add Record to Rotate")
+        list_records_from_config() # Always display the list
+        print("\n1. 📝 Add Record to Rotate")
         print("2. ✏️ Edit Record to Rotate")
         print("3. 🗑️ Delete Record to Rotate")
-        print("4. 📋 List Records to Rotate")
         print("0. ⬅️ Back to Rotator Tools")
         print("------------------------------------")
 
@@ -411,8 +417,6 @@ def rotate_based_on_ip_list_menu():
             edit_record()
         elif choice == "3":
             delete_record()
-        elif choice == "4":
-            list_records_from_config()
         elif choice == "0":
             break
         else:
@@ -439,12 +443,24 @@ def rotator_tools_menu():
             app_logger.warning(f"Invalid choice: {choice}")
             print("❌ Invalid choice. Please select a valid option.")
 
+def list_accounts():
+    """Lists all configured accounts in a table."""
+    data = load_config()
+    if not data["accounts"]:
+        print("No accounts configured.")
+        return
+
+    accounts_data = [{"Name": acc["name"]} for acc in data["accounts"]]
+    print("\n--- Configured Accounts ---")
+    display_as_table(accounts_data, ["Name"])
+
 def account_management_menu():
     """Displays the Account Management submenu."""
     clear_screen()
     while True:
         print("\n--- 👤 Account Management ---")
-        print("1. 👤 Add Cloudflare Account")
+        list_accounts()  # Display accounts at the top of the menu
+        print("\n1. 👤 Add Cloudflare Account")
         print("2. ✏️ Edit Cloudflare Account")
         print("3. 🗑️ Delete Cloudflare Account")
         print("0. ⬅️ Back to Main Menu")
@@ -465,7 +481,6 @@ def account_management_menu():
             print("❌ Invalid choice. Please select a valid option.")
 
 def main_menu():
-    clear_screen() # Clear the screen at the very beginning
     check_config_permissions() # Check permissions at the start of the menu
 
     # Define ANSI escape codes for colors
@@ -493,19 +508,20 @@ def main_menu():
  ╚═════╝╚═╝          ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝
                                                               
 """
-    print(f"{YELLOW}{art}{RESET}")
-    # Print author and version after the art
-    print(f"{CYAN}{author_str}{RESET}")
-    print(f"{CYAN}{version_str}{RESET}")
     
-    print("===================================")
-    print("🚀 Cloudflare Utils Manager 🚀")
-    print("===================================")
-
     while True:
+        clear_screen() # Clear screen on each loop iteration
+        print(f"{YELLOW}{art}{RESET}")
+        # Print author and version after the art
+        print(f"{CYAN}{author_str}{RESET}")
+        print(f"{CYAN}{version_str}{RESET}")
+        
+        print("===================================")
+
         print("\n--- Main Menu ---")
         print("1. 👤 Account Management")
         print("2. 🔄 Rotator Tools")
+        print("3. 🌐 List All Cloudflare Data")
         print("0. 🚪 Exit")
         print("-----------------")
 
@@ -515,6 +531,9 @@ def main_menu():
             account_management_menu()
         elif choice == "2":
             rotator_tools_menu()
+        elif choice == "3":
+            list_all()
+            input("\nPress Enter to return to the main menu...")
         elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
                 app_logger.info("Exiting Cloudflare Utils Manager.")
