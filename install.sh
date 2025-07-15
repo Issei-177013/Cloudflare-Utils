@@ -31,7 +31,7 @@ install_packages() {
         esac
     fi
 
-    pip3 install --break-system-packages cloudflare python-dotenv loguru tabulate
+    pip3 install --break-system-packages cloudflare python-dotenv coloredlogs tabulate
 }
 
 

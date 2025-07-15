@@ -5,7 +5,7 @@ from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
-from .logger import app_logger, LOGS_DIR
+from .logger import logger, LOGS_DIR
 from .display import display_as_table
 from cloudflare import APIError
 
@@ -21,12 +21,12 @@ def clear_screen():
 def check_config_permissions():
     """Checks if the config file exists and is writable."""
     if not os.path.exists(CONFIG_PATH):
-        app_logger.error(f"Config file not found at {CONFIG_PATH}.")
+        logger.error(f"Config file not found at {CONFIG_PATH}.")
         print("Please ensure the program is installed correctly using install.sh.")
         sys.exit(1)
     
     if not os.access(CONFIG_PATH, os.W_OK):
-        app_logger.error(f"Config file at {CONFIG_PATH} is not writable.")
+        logger.error(f"Config file at {CONFIG_PATH} is not writable.")
         print(f"Please check the file permissions or try running the script with sudo if appropriate:")
         print(f"  sudo python3 {os.path.abspath(__file__)}")
         sys.exit(1)
@@ -58,7 +58,7 @@ def add_account():
     name = get_validated_input("Account name: ", lambda s: s.strip(), "Account name cannot be empty.")
 
     if find_account(data, name):
-        app_logger.warning("Account already exists")
+        logger.warning("Account already exists")
         print("❌ Account already exists")
         return
 
@@ -75,21 +75,21 @@ def add_account():
             print("✅ Token is valid.")
             break  # Exit loop if token is valid
         except APIError as e:
-            app_logger.error(f"Cloudflare API Error on token verification: {e}")
+            logger.error(f"Cloudflare API Error on token verification: {e}")
             print(f"❌ Invalid Token. Cloudflare API Error: {e}")
             if not confirm_action("Try again?"):
-                app_logger.warning("User aborted account creation.")
+                logger.warning("User aborted account creation.")
                 return
 
     data["accounts"].append({"name": name, "api_token": token, "zones": []})
     if validate_and_save_config(data):
-        app_logger.info(f"Account '{name}' added.")
+        logger.info(f"Account '{name}' added.")
         print("✅ Account added")
 
 def edit_account():
     data = load_config()
     if not data["accounts"]:
-        app_logger.warning("No accounts available.")
+        logger.warning("No accounts available.")
         print("❌ No accounts available.")
         return
 
@@ -109,7 +109,7 @@ def edit_account():
 def delete_account():
     data = load_config()
     if not data["accounts"]:
-        app_logger.warning("No accounts available.")
+        logger.warning("No accounts available.")
         print("❌ No accounts available.")
         return
 
@@ -119,14 +119,14 @@ def delete_account():
 
     if confirm_action(f"Are you sure you want to delete the account '{acc['name']}'?"):
         delete_account_from_config(acc['name'])
-        app_logger.info(f"Account '{acc['name']}' deleted.")
+        logger.info(f"Account '{acc['name']}' deleted.")
     else:
-        app_logger.info("Deletion cancelled.")
+        logger.info("Deletion cancelled.")
 
 def add_record():
     data = load_config()
     if not data["accounts"]:
-        app_logger.warning("No accounts available.")
+        logger.warning("No accounts available.")
         print("❌ No accounts available. Please add an account first.")
         return
 
@@ -142,7 +142,7 @@ def add_record():
         zones_for_selection = [{"id": zone.id, "name": zone.name} for zone in zones_from_cf]
 
         if not zones_for_selection:
-            app_logger.warning(f"No zones found for account '{acc['name']}' in Cloudflare.")
+            logger.warning(f"No zones found for account '{acc['name']}' in Cloudflare.")
             print("❌ No zones available in this account. Please add a zone in your Cloudflare account first.")
             return
 
@@ -160,12 +160,12 @@ def add_record():
             zone = {"domain": zone_domain, "zone_id": zone_id, "records": []}
             acc["zones"].append(zone)
             validate_and_save_config(data)
-            app_logger.info(f"Zone '{zone_domain}' added to local config.")
+            logger.info(f"Zone '{zone_domain}' added to local config.")
         else:
-            app_logger.info(f"Zone '{zone_domain}' already exists in local config.")
+            logger.info(f"Zone '{zone_domain}' already exists in local config.")
 
     except APIError as e:
-        app_logger.error(f"Cloudflare API Error fetching zones: {e}")
+        logger.error(f"Cloudflare API Error fetching zones: {e}")
         print("❌ Could not fetch zones from Cloudflare.")
         return
 
@@ -173,7 +173,7 @@ def add_record():
     try:
         cf_api = CloudflareAPI(acc["api_token"])
         zone_id = zone["zone_id"]
-        app_logger.info(f"Fetching records for zone {zone['domain']}...")
+        logger.info(f"Fetching records for zone {zone['domain']}...")
         records_from_cf = list(cf_api.list_dns_records(zone_id))
         
         if records_from_cf:
@@ -188,23 +188,23 @@ def add_record():
                     choice = int(input("👉 Select a record to use/update or choose manual entry: "))
                     if 1 <= choice <= len(records_from_cf):
                         record_name = records_from_cf[choice-1].name
-                        app_logger.info(f"Using existing record: {record_name}")
+                        logger.info(f"Using existing record: {record_name}")
                         break
                     elif choice == len(records_from_cf) + 1:
-                        app_logger.info("Manual record name entry selected.")
+                        logger.info("Manual record name entry selected.")
                         break
                     else:
                         print("❌ Invalid choice.")
                 except ValueError:
                     print("❌ Invalid input. Please enter a number.")
         else:
-            app_logger.info(f"No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
+            logger.info(f"No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
 
     except APIError as e:
-        app_logger.error(f"Cloudflare API Error fetching records: {e}")
+        logger.error(f"Cloudflare API Error fetching records: {e}")
         print("⚠️ Proceeding with manual record name entry.")
     except Exception as e:
-        app_logger.error(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         print("⚠️ Proceeding with manual record name entry.")
 
     if not record_name:
@@ -215,7 +215,7 @@ def add_record():
         )
 
     if find_record(zone, record_name):
-        app_logger.warning(f"Record '{record_name}' already exists locally.")
+        logger.warning(f"Record '{record_name}' already exists locally.")
         print("ℹ️ To update, please delete and re-add it.")
         return
 
@@ -224,12 +224,12 @@ def add_record():
     rotation_interval_minutes = get_rotation_interval()
 
     add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, rotation_interval_minutes)
-    app_logger.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
+    logger.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
 
 def list_records_from_config():
     data = load_config()
     if not any(acc.get("zones") for acc in data["accounts"]):
-        app_logger.info("No records to display.")
+        logger.info("No records to display.")
         print("No records configured for rotation. Please add a record first.")
         return
 
@@ -265,7 +265,7 @@ def list_records_from_config():
 def list_all():
     data = load_config()
     if not data["accounts"]:
-        app_logger.info("No accounts to display.")
+        logger.info("No accounts to display.")
         print("No accounts configured. Please add an account first.")
         return
 
@@ -317,14 +317,14 @@ def list_all():
                 display_as_table(records_data, headers)
 
         except APIError as e:
-            app_logger.error(f"Cloudflare API Error for account '{acc['name']}': {e}")
+            logger.error(f"Cloudflare API Error for account '{acc['name']}': {e}")
             print(f"  ❌ Error fetching data for this account: {e}")
             continue
 
 def delete_record():
     data = load_config()
     if not data["accounts"]:
-        app_logger.warning("No accounts available.")
+        logger.warning("No accounts available.")
         print("❌ No accounts available.")
         return
 
@@ -333,7 +333,7 @@ def delete_record():
         return
 
     if not acc["zones"]:
-        app_logger.warning(f"No zones available in account '{acc['name']}'.")
+        logger.warning(f"No zones available in account '{acc['name']}'.")
         print(f"❌ No zones available in account '{acc['name']}'.")
         return
 
@@ -342,7 +342,7 @@ def delete_record():
         return
 
     if not zone["records"]:
-        app_logger.warning(f"No records available in zone '{zone['domain']}'.")
+        logger.warning(f"No records available in zone '{zone['domain']}'.")
         print(f"❌ No records available in zone '{zone['domain']}'.")
         return
 
@@ -352,14 +352,14 @@ def delete_record():
 
     if confirm_action(f"Are you sure you want to delete the record '{record_to_delete['name']}' from zone '{zone['domain']}'?"):
         delete_record_from_config(acc['name'], zone['domain'], record_to_delete['name'])
-        app_logger.info(f"Record '{record_to_delete['name']}' deleted from zone '{zone['domain']}'.")
+        logger.info(f"Record '{record_to_delete['name']}' deleted from zone '{zone['domain']}'.")
     else:
-        app_logger.info("Deletion cancelled.")
+        logger.info("Deletion cancelled.")
 
 def edit_record():
     data = load_config()
     if not data["accounts"]:
-        app_logger.warning("No accounts available.")
+        logger.warning("No accounts available.")
         print("❌ No accounts available.")
         return
 
@@ -368,7 +368,7 @@ def edit_record():
         return
 
     if not acc["zones"]:
-        app_logger.warning(f"No zones available in account '{acc['name']}'.")
+        logger.warning(f"No zones available in account '{acc['name']}'.")
         print(f"❌ No zones available in account '{acc['name']}'.")
         return
 
@@ -377,7 +377,7 @@ def edit_record():
         return
 
     if not zone["records"]:
-        app_logger.warning(f"No records available in zone '{zone['domain']}'.")
+        logger.warning(f"No records available in zone '{zone['domain']}'.")
         print(f"❌ No records available in zone '{zone['domain']}'.")
         return
 
@@ -398,7 +398,7 @@ def edit_record():
     new_interval_str = input(f"Enter new interval (minutes, min 5, or 'none' to use default) or press Enter to keep current: ").strip()
     
     edit_record_in_config(acc['name'], zone['domain'], record_to_edit['name'], new_ips, new_type, new_interval_str)
-    app_logger.info(f"Record '{record_to_edit['name']}' in zone '{zone['domain']}' updated.")
+    logger.info(f"Record '{record_to_edit['name']}' in zone '{zone['domain']}' updated.")
 
 def confirm_action(prompt="Are you sure you want to proceed?"):
     """Asks for user confirmation."""
@@ -411,61 +411,6 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
         else:
             print("❌ Invalid input. Please enter 'yes' or 'no'.")
 
-def view_record_logs():
-    """Lists and displays logs for specific records."""
-    clear_screen()
-    print("\n--- View Record Logs ---")
-    
-    try:
-        # Filter for rotation logs, which start with "rotation_" and end with ".log"
-        log_files = [f for f in os.listdir(LOGS_DIR) if f.startswith('rotation_') and f.endswith('.log')]
-        
-        if not log_files:
-            print("No record-specific logs found.")
-            input("\nPress Enter to return...")
-            return
-
-        print("Select a record log to view:")
-        for i, log_file in enumerate(log_files):
-            # Extract record name from filename, e.g., "rotation_my.domain.com.log" -> "my.domain.com"
-            record_name = log_file.replace('rotation_', '').replace('.log', '')
-            print(f"{i+1}. {record_name}")
-        
-        print("0. Back")
-
-        while True:
-            try:
-                choice = int(input("👉 Enter your choice: "))
-                if 0 <= choice <= len(log_files):
-                    break
-                else:
-                    print("❌ Invalid choice.")
-            except ValueError:
-                print("❌ Invalid input. Please enter a number.")
-
-        if choice == 0:
-            return
-
-        selected_log_file = log_files[choice-1]
-        record_name = selected_log_file.replace('rotation_', '').replace('.log', '')
-        
-        clear_screen()
-        print(f"\n--- Log for: {record_name} ---")
-        
-        try:
-            with open(os.path.join(LOGS_DIR, selected_log_file), 'r') as f:
-                print(f.read())
-        except FileNotFoundError:
-            print("Log file not found.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-        input("\nPress Enter to return...")
-
-    except Exception as e:
-        app_logger.error(f"Error reading log directory: {e}")
-        print(f"An error occurred while trying to list log files: {e}")
-        input("\nPress Enter to return...")
 
 def rotate_based_on_ip_list_menu():
     """Displays the submenu for rotation based on a list of IPs."""
@@ -476,7 +421,7 @@ def rotate_based_on_ip_list_menu():
         print("\n1. 📝 Add Record to Rotate")
         print("2. ✏️ Edit Record to Rotate")
         print("3. 🗑️ Delete Record to Rotate")
-        print("4. 📄 View Record Logs")
+        print("4. 📄 View Live Record Logs")
         print("0. ⬅️ Back to Rotator Tools")
         print("------------------------------------")
 
@@ -489,11 +434,30 @@ def rotate_based_on_ip_list_menu():
         elif choice == "3":
             delete_record()
         elif choice == "4":
-            view_record_logs()
+            data = load_config()
+            if not any(acc.get("zones") for acc in data["accounts"]):
+                print("No records configured for rotation. Please add a record first.")
+                input("\nPress Enter to return...")
+                continue
+            
+            records = []
+            for acc in data["accounts"]:
+                for zone in acc.get("zones", []):
+                    for record in zone.get("records", []):
+                        records.append(record)
+
+            if not records:
+                print("No records configured for rotation. Please add a record first.")
+                input("\nPress Enter to return...")
+                continue
+
+            record_to_view = select_from_list(records, "Select a record to view logs for:")
+            if record_to_view:
+                view_live_logs(record_name=record_to_view['name'])
         elif choice == "0":
             break
         else:
-            app_logger.warning(f"Invalid choice: {choice}")
+            logger.warning(f"Invalid choice: {choice}")
             print("❌ Invalid choice. Please select a valid option.")
 
 
@@ -513,7 +477,7 @@ def rotator_tools_menu():
         elif choice == "0":
             break
         else:
-            app_logger.warning(f"Invalid choice: {choice}")
+            logger.warning(f"Invalid choice: {choice}")
             print("❌ Invalid choice. Please select a valid option.")
 
 def list_accounts():
@@ -530,7 +494,7 @@ def list_accounts():
             zones = list(cf_api.list_zones())
             zone_count = len(zones)
         except APIError as e:
-            app_logger.error(f"Failed to fetch zones for account {acc['name']}: {e}")
+            logger.error(f"Failed to fetch zones for account {acc['name']}: {e}")
             zone_count = "Error"
         
         accounts_data.append({"Name": acc["name"], "Zones": zone_count})
@@ -561,8 +525,46 @@ def account_management_menu():
         elif choice == "0":
             break
         else:
-            app_logger.warning(f"Invalid choice: {choice}")
+            logger.warning(f"Invalid choice: {choice}")
             print("❌ Invalid choice. Please select a valid option.")
+
+import time
+
+def view_live_logs(record_name=None):
+    """Displays live logs from the application log file, optionally filtering for a specific record."""
+    clear_screen()
+    if record_name:
+        print(f"\n--- Live Logs for: {record_name} ---")
+    else:
+        print("\n--- Live Application Logs ---")
+    print("Press Ctrl+C to stop viewing.")
+    
+    log_file_path = os.path.join(LOGS_DIR, "app.log")
+    
+    try:
+        with open(log_file_path, 'r') as f:
+            # Go to the end of the file
+            f.seek(0, 2)
+            while True:
+                line = f.readline()
+                if not line:
+                    time.sleep(0.1)
+                    continue
+                
+                if record_name and record_name not in line:
+                    continue
+
+                print(line, end='')
+    except FileNotFoundError:
+        print("Log file not found. Logging may not be configured yet.")
+        input("\nPress Enter to return...")
+    except KeyboardInterrupt:
+        print("\n--- Stopped viewing logs. ---")
+        input("\nPress Enter to return...")
+    except Exception as e:
+        logger.error(f"Error reading log file: {e}")
+        print(f"An error occurred while trying to read the log file: {e}")
+        input("\nPress Enter to return...")
 
 def main_menu():
     check_config_permissions() # Check permissions at the start of the menu
@@ -606,6 +608,7 @@ def main_menu():
         print("1. 👤 Account Management")
         print("2. 🔄 Rotator Tools")
         print("3. 🌐 List All Cloudflare Data")
+        print("4. 📄 View Live Logs")
         print("0. 🚪 Exit")
         print("-----------------")
 
@@ -618,12 +621,14 @@ def main_menu():
         elif choice == "3":
             list_all()
             input("\nPress Enter to return to the main menu...")
+        elif choice == "4":
+            view_live_logs()
         elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
-                app_logger.info("Exiting Cloudflare Utils Manager.")
+                logger.info("Exiting Cloudflare Utils Manager.")
                 break
         else:
-            app_logger.warning(f"Invalid choice: {choice}")
+            logger.warning(f"Invalid choice: {choice}")
             print("❌ Invalid choice. Please select a valid option.")
 
 def main():
