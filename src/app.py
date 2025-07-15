@@ -225,6 +225,33 @@ def add_record():
     add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, rotation_interval_minutes)
     app_logger.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
 
+def list_records_from_config():
+    data = load_config()
+    if not data["accounts"]:
+        app_logger.info("No accounts to display.")
+        print("No accounts configured. Please add an account first.")
+        return
+
+    print("\n--- Records Configured for Rotation ---")
+    for acc_idx, acc in enumerate(data["accounts"]):
+        print(f"\n[{acc_idx+1}] 🧾 Account: {acc['name']}")
+        if not acc.get("zones"):
+            print("  ℹ️ No zones configured for this account.")
+            continue
+
+        for zone_idx, zone in enumerate(acc["zones"]):
+            print(f"  [{zone_idx+1}] 🌐 Zone: {zone['domain']}")
+            if not zone.get("records"):
+                print("    ℹ️ No records configured in this zone.")
+                continue
+
+            for rec_idx, record in enumerate(zone["records"]):
+                interval = record.get('rotation_interval_minutes', 'Default (30)')
+                ips = ', '.join(record.get('ips', []))
+                print(f"    [{rec_idx+1}] 📌 Record: {record['name']} | Type: {record['type']} | IPs: {ips} | Interval: {interval} min")
+    print("----------------------------------------")
+
+
 def list_all():
     data = load_config()
     if not data["accounts"]:
@@ -364,17 +391,17 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
         else:
             print("❌ Invalid input. Please enter 'yes' or 'no'.")
 
-def rotator_tools_menu():
-    """Displays the Rotator Tools submenu."""
+def rotate_based_on_ip_list_menu():
+    """Displays the submenu for rotation based on a list of IPs."""
     clear_screen()
     while True:
-        print("\n--- Rotator Tools ---")
-        print("1. 📝 Add Record to Zone")
-        print("2. ✏️ Edit Record in Zone")
-        print("3. 🗑️ Delete Record from Zone")
-        print("4. 📋 List All Records")
-        print("0. ⬅️ Back to Main Menu")
-        print("---------------------")
+        print("\n--- Rotate Based on a List of IPs ---")
+        print("1. 📝 Add Record to Rotate")
+        print("2. ✏️ Edit Record to Rotate")
+        print("3. 🗑️ Delete Record to Rotate")
+        print("4. 📋 List Records to Rotate")
+        print("0. ⬅️ Back to Rotator Tools")
+        print("------------------------------------")
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -385,7 +412,27 @@ def rotator_tools_menu():
         elif choice == "3":
             delete_record()
         elif choice == "4":
-            list_all()
+            list_records_from_config()
+        elif choice == "0":
+            break
+        else:
+            app_logger.warning(f"Invalid choice: {choice}")
+            print("❌ Invalid choice. Please select a valid option.")
+
+
+def rotator_tools_menu():
+    """Displays the Rotator Tools submenu."""
+    clear_screen()
+    while True:
+        print("\n--- Rotator Tools ---")
+        print("1. 🔄 Rotate Based on a List of IPs")
+        print("0. ⬅️ Back to Main Menu")
+        print("---------------------")
+
+        choice = input("👉 Enter your choice: ").strip()
+
+        if choice == "1":
+            rotate_based_on_ip_list_menu()
         elif choice == "0":
             break
         else:
