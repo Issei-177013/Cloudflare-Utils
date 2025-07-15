@@ -249,7 +249,15 @@ def list_records_from_config():
                 })
 
     if all_records_data:
-        display_as_table(all_records_data, ["Account", "Zone", "Record", "Type", "IPs", "Interval (min)"])
+        headers = {
+            "Account": "Account",
+            "Zone": "Zone",
+            "Record": "Record",
+            "Type": "Type",
+            "IPs": "IPs",
+            "Interval (min)": "Interval (min)"
+        }
+        display_as_table(all_records_data, headers)
     else:
         print("No records configured for rotation.")
 
@@ -274,7 +282,7 @@ def list_all():
 
             zones_data = [{"Name": zone.name, "ID": zone.id} for zone in zones_from_cf]
             print("\nZones:")
-            display_as_table(zones_data, ["Name", "ID"])
+            display_as_table(zones_data, headers={"Name": "Name", "ID": "ID"})
 
             for cf_zone in zones_from_cf:
                 print(f"\n--- Records for Zone: {cf_zone.name} ---")
@@ -300,7 +308,13 @@ def list_all():
                         "Content": cf_record.content,
                         "Rotation": rotation_info
                     })
-                display_as_table(records_data, ["Name", "Type", "Content", "Rotation"])
+                headers = {
+                    "Name": "Name",
+                    "Type": "Type",
+                    "Content": "Content",
+                    "Rotation": "Rotation"
+                }
+                display_as_table(records_data, headers)
 
         except APIError as e:
             app_logger.error(f"Cloudflare API Error for account '{acc['name']}': {e}")
