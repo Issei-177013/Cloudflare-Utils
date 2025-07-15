@@ -1,14 +1,12 @@
 import time
 from .config import load_config, load_rotation_status, save_rotation_status, DEFAULT_ROTATION_INTERVAL_MINUTES
 from .cloudflare_api import CloudflareAPI
-from .logger import ip_rotator_logger
+from .logger import ip_rotator_logger, setup_logger
 from cloudflare import APIError
 
-def rotate_ip(ip_list, current_ip):
-    if current_ip not in ip_list:
-        return ip_list[0]
+def rotate_ip(ip_list, current_ip, logger):
     if not ip_list:
-        ip_rotator_logger.warning("IP list is empty. Cannot rotate.")
+        logger.warning("IP list is empty. Cannot rotate.")
         return current_ip
 
     if current_ip not in ip_list:
@@ -22,7 +20,7 @@ def rotate_ip(ip_list, current_ip):
     new_ip = ip_list[next_idx]
 
     if new_ip == current_ip and len(set(ip_list)) > 1:
-        ip_rotator_logger.info(f"Initial rotation choice for {current_ip} resulted in the same IP ({new_ip}). Trying to find a different one.")
+        logger.info(f"Initial rotation choice for {current_ip} resulted in the same IP ({new_ip}). Trying to find a different one.")
         next_idx = (next_idx + 1) % len(ip_list)
         new_ip = ip_list[next_idx]
 
@@ -47,25 +45,31 @@ def run_rotation():
                 record_name = cfg_record["name"]
                 record_key = f"{zone_id}_{record_name}"
 
+                # Set up a specific logger for this record
+                record_logger = setup_logger(
+                    name=f"rotator.{record_name}",
+                    log_file=f"rotation_{record_name}.log"
+                )
+
                 custom_interval_minutes = cfg_record.get("rotation_interval_minutes")
                 rotation_interval_minutes = custom_interval_minutes if custom_interval_minutes is not None else DEFAULT_ROTATION_INTERVAL_MINUTES
                 rotation_interval_seconds = rotation_interval_minutes * 60
 
                 last_rotated_at_seconds = rotation_status.get(record_key, 0)
                 if current_time_seconds - last_rotated_at_seconds < rotation_interval_seconds:
-                    ip_rotator_logger.info(f"Rotation for {record_name} not due yet. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
+                    record_logger.info(f"Rotation not due yet. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
                     continue
                 
                 matching_cf_record = next((r for r in records_from_cf if r.name == record_name), None)
                 if not matching_cf_record:
-                    ip_rotator_logger.warning(f"Record not found in Cloudflare: {record_name}")
+                    record_logger.warning(f"Record not found in Cloudflare: {record_name}")
                     continue
 
                 current_ip_on_cf = matching_cf_record.content
-                new_ip = rotate_ip(cfg_record["ips"], current_ip_on_cf)
+                new_ip = rotate_ip(cfg_record["ips"], current_ip_on_cf, record_logger)
                 
                 if new_ip == current_ip_on_cf:
-                    ip_rotator_logger.info(f"IP for {record_name} is already {new_ip}. No update needed, but resetting rotation timer as per schedule.")
+                    record_logger.info(f"IP is already {new_ip}. No update needed, but resetting rotation timer as per schedule.")
                     rotation_status[record_key] = current_time_seconds
                     save_rotation_status(rotation_status)
                     continue
@@ -78,10 +82,10 @@ def run_rotation():
                         type=cfg_record["type"],
                         content=new_ip
                     )
-                    ip_rotator_logger.info(f"Updated {record_name} to {new_ip}")
+                    record_logger.info(f"Updated {record_name} to {new_ip}")
                     rotation_status[record_key] = current_time_seconds
                 except APIError as e:
-                    ip_rotator_logger.error(f"Update error for {record_name}: {e}")
+                    record_logger.error(f"Update error for {record_name}: {e}")
     
     save_rotation_status(rotation_status)
 
