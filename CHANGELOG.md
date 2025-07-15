@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.4.1-dev] - 7/15/2025
+- Overall change and improvement.
+
+
 ## [2.4.1-dev] - 7/14/2025
 ### Fixed
 -handle system typing-extensions package conflict during installation
