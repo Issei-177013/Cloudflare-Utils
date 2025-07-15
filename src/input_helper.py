@@ -1,5 +1,5 @@
-import logging
 from .validator import is_valid_ipv4, is_valid_ipv6
+from .logger import input_helper_logger
 
 def get_validated_input(prompt, validation_func, error_message):
     """
@@ -11,7 +11,7 @@ def get_validated_input(prompt, validation_func, error_message):
         if validation_func(user_input):
             return user_input
         else:
-            logging.warning(f"Validation failed for input: '{user_input}' using function: {validation_func.__name__}")
+            input_helper_logger.warning(f"Validation failed for input: '{user_input}' using function: {validation_func.__name__}")
             print(f"❌ {error_message}")
 
 def get_ip_list(record_type):
@@ -30,7 +30,7 @@ def get_ip_list(record_type):
         
         for ip in ips:
             if not validation_func(ip):
-                logging.warning(f"Invalid {record_type} IP: {ip}")
+                input_helper_logger.warning(f"Invalid {record_type} IP: {ip}")
                 print(f"❌ Invalid IP: '{ip}'. Please enter valid {record_type} addresses.")
                 is_valid = False
                 break
@@ -50,7 +50,7 @@ def get_record_type():
         if rec_type in ['A', 'AAAA']:
             return rec_type
         else:
-            logging.warning(f"Invalid record type entered: {rec_type}")
+            input_helper_logger.warning(f"Invalid record type entered: {rec_type}")
             print(f"❌ {error_message}")
 
 def get_rotation_interval():
@@ -69,8 +69,8 @@ def get_rotation_interval():
             if interval >= 5:
                 return interval
             else:
-                logging.warning(f"Rotation interval too low: {interval}")
+                input_helper_logger.warning(f"Rotation interval too low: {interval}")
                 print("❌ Rotation interval must be at least 5 minutes.")
         except ValueError:
-            logging.warning(f"Invalid interval input: {interval_str}")
+            input_helper_logger.warning(f"Invalid interval input: {interval_str}")
             print("❌ Invalid input. Please enter a number.")
