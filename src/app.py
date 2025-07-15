@@ -531,36 +531,42 @@ def account_management_menu():
 import time
 
 def view_live_logs(record_name=None):
-    """Displays live logs from the application log file, optionally filtering for a specific record."""
+    """
+    Displays historical and live logs from the application log file.
+    Optionally filters for a specific record.
+    """
     clear_screen()
     if record_name:
         print(f"\n--- Live Logs for: {record_name} ---")
     else:
         print("\n--- Live Application Logs ---")
     print("Press Ctrl+C to stop viewing.")
-    
+
     log_file_path = os.path.join(LOGS_DIR, "app.log")
     
     try:
         with open(log_file_path, 'r') as f:
-            # Go to the end of the file
-            f.seek(0, 2)
+            # --- Display historical logs ---
+            for line in f:
+                if not record_name or record_name in line:
+                    print(line, end='')
+            
+            # --- Wait for new logs ---
+            print("\n--- Waiting for new logs... ---")
             while True:
                 line = f.readline()
                 if not line:
                     time.sleep(0.1)
                     continue
                 
-                if record_name and record_name not in line:
-                    continue
+                if not record_name or record_name in line:
+                    print(line, end='')
 
-                print(line, end='')
     except FileNotFoundError:
         print("Log file not found. Logging may not be configured yet.")
         input("\nPress Enter to return...")
     except KeyboardInterrupt:
         print("\n--- Stopped viewing logs. ---")
-        input("\nPress Enter to return...")
     except Exception as e:
         logger.error(f"Error reading log file: {e}")
         print(f"An error occurred while trying to read the log file: {e}")
