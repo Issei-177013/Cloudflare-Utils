@@ -5,7 +5,7 @@ from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
-from .logger import app_logger
+from .logger import app_logger, LOGS_DIR
 from .display import display_as_table
 from cloudflare import APIError
 
@@ -411,6 +411,62 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
         else:
             print("❌ Invalid input. Please enter 'yes' or 'no'.")
 
+def view_record_logs():
+    """Lists and displays logs for specific records."""
+    clear_screen()
+    print("\n--- View Record Logs ---")
+    
+    try:
+        # Filter for rotation logs, which start with "rotation_" and end with ".log"
+        log_files = [f for f in os.listdir(LOGS_DIR) if f.startswith('rotation_') and f.endswith('.log')]
+        
+        if not log_files:
+            print("No record-specific logs found.")
+            input("\nPress Enter to return...")
+            return
+
+        print("Select a record log to view:")
+        for i, log_file in enumerate(log_files):
+            # Extract record name from filename, e.g., "rotation_my.domain.com.log" -> "my.domain.com"
+            record_name = log_file.replace('rotation_', '').replace('.log', '')
+            print(f"{i+1}. {record_name}")
+        
+        print("0. Back")
+
+        while True:
+            try:
+                choice = int(input("👉 Enter your choice: "))
+                if 0 <= choice <= len(log_files):
+                    break
+                else:
+                    print("❌ Invalid choice.")
+            except ValueError:
+                print("❌ Invalid input. Please enter a number.")
+
+        if choice == 0:
+            return
+
+        selected_log_file = log_files[choice-1]
+        record_name = selected_log_file.replace('rotation_', '').replace('.log', '')
+        
+        clear_screen()
+        print(f"\n--- Log for: {record_name} ---")
+        
+        try:
+            with open(os.path.join(LOGS_DIR, selected_log_file), 'r') as f:
+                print(f.read())
+        except FileNotFoundError:
+            print("Log file not found.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+        input("\nPress Enter to return...")
+
+    except Exception as e:
+        app_logger.error(f"Error reading log directory: {e}")
+        print(f"An error occurred while trying to list log files: {e}")
+        input("\nPress Enter to return...")
+
 def rotate_based_on_ip_list_menu():
     """Displays the submenu for rotation based on a list of IPs."""
     while True:
@@ -420,6 +476,7 @@ def rotate_based_on_ip_list_menu():
         print("\n1. 📝 Add Record to Rotate")
         print("2. ✏️ Edit Record to Rotate")
         print("3. 🗑️ Delete Record to Rotate")
+        print("4. 📄 View Record Logs")
         print("0. ⬅️ Back to Rotator Tools")
         print("------------------------------------")
 
@@ -431,6 +488,8 @@ def rotate_based_on_ip_list_menu():
             edit_record()
         elif choice == "3":
             delete_record()
+        elif choice == "4":
+            view_record_logs()
         elif choice == "0":
             break
         else:
