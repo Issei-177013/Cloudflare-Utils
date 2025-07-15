@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from src.app import add_account
+from unittest.mock import patch, MagicMock, mock_open
+from src.app import add_account, view_live_logs
 from cloudflare import APIError
 
 class TestApp(unittest.TestCase):
