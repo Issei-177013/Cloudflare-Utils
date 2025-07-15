@@ -51,7 +51,7 @@ def run_rotation():
 
                 last_rotated_at_seconds = rotation_status.get(record_key, 0)
                 if current_time_seconds - last_rotated_at_seconds < rotation_interval_seconds:
-                    logger.info(f"Rotation not due yet for {record_name}. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
+                    logger.debug(f"Rotation not due yet for {record_name}. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
                     continue
                 
                 matching_cf_record = next((r for r in records_from_cf if r.name == record_name), None)
