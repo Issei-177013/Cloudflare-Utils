@@ -416,13 +416,13 @@ def rotate_based_on_ip_list_menu():
     """Displays the submenu for rotation based on a list of IPs."""
     while True:
         clear_screen()
-        print("\n--- Rotate Based on a List of IPs ---")
+        print("\n--- DNS Record Rotation Management ---")
         list_records_from_config() # Always display the list
-        print("\n1. 📝 Add Record to Rotate")
-        print("2. ✏️ Edit Record to Rotate")
-        print("3. 🗑️ Delete Record to Rotate")
-        print("4. 📄 View Live Record Logs")
-        print("0. ⬅️ Back to Rotator Tools")
+        print("\n1. 📝 Create DNS Rotation")
+        print("2. ✏️ Edit an Existing DNS Rotation")
+        print("3. 🗑️ Delete a DNS Rotation")
+        print("4. 📄 View logs")
+        print("0. ⬅️ Return to previous menu")
         print("------------------------------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -465,9 +465,9 @@ def rotator_tools_menu():
     """Displays the Rotator Tools submenu."""
     clear_screen()
     while True:
-        print("\n--- Rotator Tools ---")
+        print("\n--- IP Rotator Tools ---")
         print("1. 🔄 Rotate Based on a List of IPs")
-        print("0. ⬅️ Back to Main Menu")
+        print("0. ⬅️ Return to Main Menu")
         print("---------------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -506,12 +506,12 @@ def account_management_menu():
     """Displays the Account Management submenu."""
     clear_screen()
     while True:
-        print("\n--- 👤 Account Management ---")
+        print("\n--- 👤 Cloudflare Account Management ---")
         list_accounts()  # Display accounts at the top of the menu
-        print("\n1. 👤 Add Cloudflare Account")
-        print("2. ✏️ Edit Cloudflare Account")
-        print("3. 🗑️ Delete Cloudflare Account")
-        print("0. ⬅️ Back to Main Menu")
+        print("\n1. 👤 Add a New Cloudflare Account")
+        print("2. ✏️ Edit an Existing Cloudflare Account")
+        print("3. 🗑️ Delete a Cloudflare Account")
+        print("0. ⬅️ Return to Main Menu")
         print("---------------------------")
 
         choice = input("👉 Enter your choice: ").strip()
@@ -580,14 +580,15 @@ def main_menu():
     CYAN = '\033[96m'
     RESET = '\033[0m'
 
-    # Import version and set author
+    # Fix for running as a script
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     try:
-        from ..version import __version__
+        from version import __version__
         version_str = f"Version: {__version__}"
     except ImportError:
         version_str = "Version: N/A"
     
-    author_str = "Author: Issei-177013"
+    author_str = "Author: https://github.com/Issei-177013"
 
     # Embed ASCII art
     art = """
@@ -611,10 +612,9 @@ def main_menu():
         print("===================================")
 
         print("\n--- Main Menu ---")
-        print("1. 👤 Account Management")
-        print("2. 🔄 Rotator Tools")
-        print("3. 🌐 List All Cloudflare Data")
-        print("4. 📄 View Live Logs")
+        print("1. 👤 Manage Cloudflare Accounts")
+        print("2. 🔄 IP Rotator Tools")
+        print("3. 📄 View Application Logs")
         print("0. 🚪 Exit")
         print("-----------------")
 
@@ -625,9 +625,6 @@ def main_menu():
         elif choice == "2":
             rotator_tools_menu()
         elif choice == "3":
-            list_all()
-            input("\nPress Enter to return to the main menu...")
-        elif choice == "4":
             view_live_logs()
         elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):

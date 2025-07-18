@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.4.3-dev] - 7/18/2025
+- rename the CLI command from `cfutils` to `cfu`.
+- update the author information to a GitHub URL.
+- fix the version display.
+- improve the menu section names.
+- remove 'List All Cloudflare Data' from the menu.
+
 ## [2.4.1-dev] - 7/15/2025
 - Overall change and improvement.
 
