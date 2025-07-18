@@ -34,6 +34,15 @@ Alternatively, you can use `wget` to download and execute the installation scrip
 sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
 ```
 
+**Note for Developers:** If you want to install the latest development version, you can do so by specifying the `dev` branch in the URL:
+```bash
+# Using curl
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh)"
+
+# Using wget
+sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh)"
+```
+
 ---
 
 ## Configuration
