@@ -34,34 +34,92 @@ Alternatively, you can use `wget` to download and execute the installation scrip
 sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
 ```
 
+**Note for Developers:** If you want to install the latest development version, you can do so by specifying the `dev` branch in the URL:
+```bash
+# Using curl
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh)"
+
+# Using wget
+sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh)"
+```
+
 ---
 
 ## Configuration
 
-During the installation process, you will be prompted to provide the following information:
+During the installation process, or when adding an account via the `cfutils` CLI, you will be prompted to provide the following information:
 
 - **Cloudflare API Token**: Your Cloudflare API token for authentication.
+    - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions (e.g., only to edit DNS records for a particular zone).
+    - You can create an API Token from your Cloudflare Dashboard:
+        1. Go to "My Profile" (usually top right of the dashboard).
+        2. Select "API Tokens".
+        3. Click "Create Token".
+        4. You can use a template like "Edit zone DNS" or create a custom token. Ensure it has `Zone:Read` and `DNS:Edit` permissions for the zones you want to manage.
+    - For more details, see the official Cloudflare documentation: [Creating Cloudflare API tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
+    - While the Global API Key will work, using it increases security risks as it grants broad access to your Cloudflare account.
 - **Cloudflare Zone ID**: The ID of the Cloudflare zone where your DNS records are located.
 - **Cloudflare Record Name**: The name of the DNS record you want to update (e.g., `example.com`).
 - **Cloudflare IP Addresses**: A comma-separated list of IP addresses to rotate through.
+- **Rotation Interval (Optional)**: The rotation interval in minutes for this specific record. If not provided, a default of 30 minutes will be used.
 
-These values will be stored in your `~/.bashrc` file as environment variables.
+These values will be stored in `/opt/Cloudflare-Utils/configs.json`.
 
 ## Usage
 
-After the installation is complete, the setup script will automatically create a cron job that runs every 30 minutes. This cron job will execute the `run.sh` script, which in turn runs the `change_dns.py` script to update the DNS records.
+The primary way to interact with Cloudflare Utils is through the command-line interface (CLI).
 
-### Manual Execution
+### Running the CLI
 
-If you need to manually trigger the DNS update, you can run the following command:
+The installation script (`install.sh`) creates a global command `cfutils` that allows you to easily run the Cloudflare Utils CLI from anywhere in your terminal.
+
+To start the CLI, simply type:
 
 ```bash
-/opt/Cloudflare-Utils/run.sh
+cfutils
+```
+
+Alternatively, you can still run the script directly:
+
+```bash
+python3 /opt/Cloudflare-Utils/cli.py
+```
+or if you've made `cli.py` executable:
+```bash
+/opt/Cloudflare-Utils/cli.py
+```
+
+Using the `cfutils` command is the recommended way to access the CLI after installation.
+
+### CLI Menu
+
+The CLI provides the following options:
+
+- **1. Add Account**: Add a new Cloudflare account with its API token.
+- **2. Add Zone to Account**: Add a new DNS zone (domain) to an existing account. You will be able to select the account from a list.
+- **3. Add Record to Zone**: Add a new DNS record to an existing zone. You will be able to select the account and then the zone from a list.
+- **4. List All Records**: Display all configured accounts, zones, and their records.
+- **5. Exit**: Exit the CLI.
+
+When adding zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
+When adding a record, you can optionally specify a custom rotation interval in minutes. This interval must be at least 5 minutes. If no interval is provided, it will default to 30 minutes.
+
+### Cron Job for DNS Rotation
+
+After the installation, a cron job is set up to run `config_manager.py` every 5 minutes. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (which must be 5 minutes or more, or the default 30 minutes if not specified).
+The script maintains a `rotation_status.json` file to track the last rotation time for each record, ensuring records are not rotated more frequently than their configured interval.
+
+### Manual DNS Rotation
+
+If you need to manually trigger the DNS rotation for all configured records, you can run:
+
+```bash
+python3 /opt/Cloudflare-Utils/config_manager.py
 ```
 
 ### Logs
 
-The output of the cron job and the script executions will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
+The output of the cron job and script executions (like `config_manager.py`) will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
 
 ---
 
@@ -160,5 +218,3 @@ If you encounter any issues or have any questions, please open an issue in the G
 ---
 
 #### Thanks to [roshdsupp](https://t.me/roshdsupp) for the project idea 🩵
-
-
