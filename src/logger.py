@@ -24,8 +24,15 @@ def setup_logger(log_file="app.log", level=logging.INFO, propagate=False):
     logger.addHandler(file_handler)
     logger.propagate = propagate
 
-    # Add coloredlogs to the logger
+    # Add coloredlogs to the logger for file logging
     coloredlogs.install(level=level, logger=logger, fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Add a stream handler for console output
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING) # Only show warnings and errors on console
+    console_formatter = coloredlogs.ColoredFormatter('%(levelname)s: %(message)s')
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
 
     return logger
 

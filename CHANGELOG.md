@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.4.4-dev] - 7/18/2025
+- Fix logging issue where logs appeared at the top of menus
+
 ## [2.4.3-dev] - 7/18/2025
 - rename the CLI command from `cfutils` to `cfu`.
 - update the author information to a GitHub URL.
