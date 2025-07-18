@@ -115,13 +115,13 @@ main_menu() {
 
                 # Create global command
                 CLI_PATH="$PROGRAM_DIR/cf-utils.py"
-                GLOBAL_CMD_PATH="/usr/local/bin/cfutils"
+                GLOBAL_CMD_PATH="/usr/local/bin/cfu"
                 echo -e "\e[1;34mCreating global command '$GLOBAL_CMD_PATH'...\e[0m"
                 if [ -f "$CLI_PATH" ]; then
                     ln -sf "$CLI_PATH" "$GLOBAL_CMD_PATH"
                     chmod +x "$CLI_PATH" # Ensure the script itself is executable
                     chmod +x "$GLOBAL_CMD_PATH" # Ensure the symlink is executable
-                    echo -e "\e[1;32m✅ Global command 'cfutils' created. You can now use 'cfutils' from anywhere.\e[0m"
+                    echo -e "\e[1;32m✅ Global command 'cfu' created. You can now use 'cfu' from anywhere.\e[0m"
                 else
                     echo -e "\e[1;31m❌ Error: $CLI_PATH not found. Cannot create global command.\e[0m"
                 fi
@@ -136,11 +136,11 @@ main_menu() {
                 crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
                 
                 # Remove global command
-                GLOBAL_CMD_PATH="/usr/local/bin/cfutils"
+                GLOBAL_CMD_PATH="/usr/local/bin/cfu"
                 if [ -L "$GLOBAL_CMD_PATH" ]; then # Check if it's a symlink
                     echo -e "\e[1;34mRemoving global command '$GLOBAL_CMD_PATH'...\e[0m"
                     sudo rm -f "$GLOBAL_CMD_PATH"
-                    echo -e "\e[1;32m✅ Global command 'cfutils' removed.\e[0m"
+                    echo -e "\e[1;32m✅ Global command 'cfu' removed.\e[0m"
                 fi
 
                 echo -e "\e[1;31mRemoved $PROGRAM_NAME and cron jobs.\e[0m"
