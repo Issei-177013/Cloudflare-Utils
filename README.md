@@ -37,10 +37,10 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 **Note for Developers:** If you want to install the latest development version, you can do so by specifying the `dev` branch in the URL:
 ```bash
 # Using curl
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh)"
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)" _ dev
 
 # Using wget
-sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/dev/install.sh)"
+sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)" _ dev
 ```
 
 ---
