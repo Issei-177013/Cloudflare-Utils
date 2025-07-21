@@ -2,7 +2,7 @@
 set -e
 
 PROGRAM_NAME="Cloudflare-Utils"
-DEFAULT_BRANCH="dev"
+DEFAULT_BRANCH="main"
 BRANCH="${1:-$DEFAULT_BRANCH}"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 VERSION_TAG=""
@@ -15,7 +15,7 @@ install_packages() {
     # Check if typing-extensions is installed by apt
     if dpkg -s python3-typing-extensions &> /dev/null; then
         echo -e "\e[1;33mDetected 'python3-typing-extensions' package installed by apt, which may conflict with pip.\e[0m"
-        read -p "Do you want to remove 'python3-typing-extensions' to avoid conflicts? [y/N]: " answer
+        read -rp "Do you want to remove 'python3-typing-extensions' to avoid conflicts? [y/N]: " answer
         case "$answer" in
             [Yy]* )
                 echo -e "\e[1;34mRemoving 'python3-typing-extensions'...\e[0m"
@@ -97,7 +97,7 @@ setup_cron() {
     # Add new cron jobs
     (crontab -l 2>/dev/null; echo "*/1 * * * * $CRON_JOB_RUNNER") | crontab -
     (crontab -l 2>/dev/null; echo "@reboot $CRON_JOB_RUNNER") | crontab -
-    echo -e "\e[1;32mCron job set to run every 5 minutes and on reboot.\e[0m"
+    echo -e "\e[1;32mCron job set to run every 1 minute and on reboot.\e[0m"
 }
 
 # منوی اصلی
