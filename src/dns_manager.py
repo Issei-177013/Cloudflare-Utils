@@ -1,4 +1,4 @@
-from .config import load_config, validate_and_save_config, find_account, find_zone, find_record
+from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, find_rotation_group
 from .validator import is_valid_record_type
 from .logger import logger
 
@@ -132,3 +132,102 @@ def delete_account_from_config(account_name):
     if validate_and_save_config(data):
         logger.info(f"Account '{account_name}' deleted successfully.")
         print(f"✅ Account '{account_name}' deleted successfully.")
+
+
+def add_rotation_group(account_name, zone_domain, group_name, record_names, rotation_interval_minutes):
+    """Adds a new rotation group to the configuration."""
+    data = load_config()
+    acc = find_account(data, account_name)
+    if not acc:
+        logger.error(f"Account '{account_name}' not found.")
+        print(f"❌ Account '{account_name}' not found.")
+        return
+
+    zone = find_zone(acc, zone_domain)
+    if not zone:
+        logger.error(f"Zone '{zone_domain}' not found in account '{account_name}'. Please add at least one single record to it first.")
+        print(f"❌ Zone '{zone_domain}' not found in account '{account_name}'. Please add at least one single record to it first.")
+        return
+
+    if "rotation_groups" not in zone:
+        zone["rotation_groups"] = []
+
+    if find_rotation_group(zone, group_name):
+        logger.warning(f"Rotation group '{group_name}' already exists in zone '{zone_domain}'.")
+        print(f"❌ Rotation group '{group_name}' already exists in zone '{zone_domain}'.")
+        return
+
+    group_data = {
+        "name": group_name,
+        "records": record_names,
+        "rotation_interval_minutes": rotation_interval_minutes
+    }
+
+    zone["rotation_groups"].append(group_data)
+    if validate_and_save_config(data):
+        logger.info(f"Rotation group '{group_name}' added to zone '{zone_domain}'.")
+        print("✅ Rotation group added successfully!")
+
+def edit_rotation_group(account_name, zone_domain, group_name, new_record_names, new_interval):
+    """Edits an existing rotation group."""
+    data = load_config()
+    acc = find_account(data, account_name)
+    if not acc:
+        logger.error(f"Account '{account_name}' not found.")
+        return
+
+    zone = find_zone(acc, zone_domain)
+    if not zone:
+        logger.error(f"Zone '{zone_domain}' not found.")
+        return
+
+    group_to_edit = find_rotation_group(zone, group_name)
+    if not group_to_edit:
+        logger.warning(f"Rotation group '{group_name}' not found in zone '{zone_domain}'.")
+        print(f"❌ Rotation group '{group_name}' not found.")
+        return
+
+    if new_record_names:
+        group_to_edit['records'] = new_record_names
+        
+    if new_interval is not None:
+        if new_interval.lower() == 'none':
+            if 'rotation_interval_minutes' in group_to_edit:
+                 del group_to_edit['rotation_interval_minutes']
+        else:
+            try:
+                interval = int(new_interval)
+                if interval < 5:
+                    logger.error("Rotation interval must be at least 5 minutes. Value not changed.")
+                else:
+                    group_to_edit['rotation_interval_minutes'] = interval
+            except ValueError:
+                logger.error("Invalid input for interval. Must be a number or 'none'. Value not changed.")
+
+    if validate_and_save_config(data):
+        logger.info(f"Rotation group '{group_name}' updated successfully.")
+        print(f"✅ Rotation group '{group_name}' updated successfully.")
+
+def delete_rotation_group(account_name, zone_domain, group_name):
+    """Deletes a rotation group from the configuration."""
+    data = load_config()
+    acc = find_account(data, account_name)
+    if not acc:
+        logger.error(f"Account '{account_name}' not found.")
+        return
+
+    zone = find_zone(acc, zone_domain)
+    if not zone:
+        logger.error(f"Zone '{zone_domain}' not found.")
+        return
+
+    group_to_delete = find_rotation_group(zone, group_name)
+    if not group_to_delete:
+        logger.warning(f"Rotation group '{group_name}' not found in zone '{zone_domain}'.")
+        print(f"❌ Rotation group '{group_name}' not found.")
+        return
+
+    zone["rotation_groups"].remove(group_to_delete)
+    if validate_and_save_config(data):
+        logger.info(f"Rotation group '{group_name}' deleted successfully.")
+        print(f"✅ Rotation group '{group_name}' deleted successfully.")

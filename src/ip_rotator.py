@@ -85,6 +85,7 @@ def run_rotation():
                 logger.error(f"Zone fetch error: {zone['domain']}: {e}")
                 continue
 
+            # --- Handle single record rotations ---
             for cfg_record in zone.get("records", []):
                 record_name = cfg_record["name"]
                 record_key = f"{zone_id}_{record_name}"
@@ -109,7 +110,6 @@ def run_rotation():
                 if new_ip == current_ip_on_cf:
                     logger.info(f"IP for {record_name} is already {new_ip}. No update needed, but resetting rotation timer as per schedule.")
                     rotation_status[record_key] = current_time_seconds
-                    save_rotation_status(rotation_status)
                     continue
 
                 try:
@@ -124,6 +124,39 @@ def run_rotation():
                     rotation_status[record_key] = current_time_seconds
                 except APIError as e:
                     logger.error(f"Update error for {record_name}: {e}")
+
+            # --- Handle rotation groups ---
+            for group in zone.get("rotation_groups", []):
+                group_name = group["name"]
+                group_key = f"{zone_id}_{group_name}"
+
+                rotation_interval_minutes = group.get("rotation_interval_minutes", DEFAULT_ROTATION_INTERVAL_MINUTES)
+                rotation_interval_seconds = rotation_interval_minutes * 60
+
+                last_rotated_at_seconds = rotation_status.get(group_key, 0)
+                if current_time_seconds - last_rotated_at_seconds < rotation_interval_seconds:
+                    logger.debug(f"Rotation not due yet for group '{group_name}'. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
+                    continue
+
+                # Find the CF records that match the names in the group
+                group_record_names = group["records"]
+                group_records_from_cf = [r for r in records_from_cf if r.name in group_record_names]
+
+                if len(group_records_from_cf) != len(group_record_names):
+                    logger.warning(f"Could not find all records for group '{group_name}' in zone '{zone['domain']}'. Skipping rotation.")
+                    continue
+                
+                if len(group_records_from_cf) < 2:
+                    logger.warning(f"Rotation group '{group_name}' has fewer than 2 valid records. Skipping rotation.")
+                    continue
+
+                # The rotate_ips_between_records function expects indices, so we create a list of indices
+                # corresponding to the records' positions in the *original* records_from_cf list.
+                indices_for_rotation = [i for i, record in enumerate(records_from_cf) if record.name in group_record_names]
+
+                logger.info(f"Rotating IPs for group '{group_name}'...")
+                rotate_ips_between_records(cf_api, zone_id, records_from_cf, indices_for_rotation)
+                rotation_status[group_key] = current_time_seconds
     
     save_rotation_status(rotation_status)
 

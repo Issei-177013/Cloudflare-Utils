@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0-dev.20250731.3+cf-Rotate] - 2025-07-31
+
+### Added
+- **Scheduled Rotation for Record Groups**: The "Rotate IPs Between Records" feature now supports scheduled execution. This includes a new management menu for creating, editing, and deleting scheduled rotation groups, as well as viewing logs.
+
+---
+
 ## [2.5.0-dev.20250731.2+cf-Rotate] - 2025-07-31
 
 ### Fixed

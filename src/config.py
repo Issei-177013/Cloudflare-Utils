@@ -62,6 +62,13 @@ def find_record(zone_data, record_name):
             return record
     return None
 
+def find_rotation_group(zone, group_name):
+    """Finds a rotation group by name within a zone."""
+    for group in zone.get("rotation_groups", []):
+        if group.get("name") == group_name:
+            return group
+    return None
+
 def load_rotation_status():
     if not os.path.exists(ROTATION_STATUS_PATH):
         save_rotation_status({})
