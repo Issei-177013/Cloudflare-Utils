@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0-dev.20250731.4+cf-Rotate] - 2025-07-31
+
+### Fixed
+- Fixes TypeError when rotating IPs between records due to a paginated API response not being converted to a list.
+
 ## [2.5.0-dev.20250731.3+cf-Rotate] - 2025-07-31
 
 ### Added
