@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0-dev.20250731.6+cf-Rotate] - 2025-07-31
+
+### Fixed
+- Fix install dependencies from requirements.txt in installer
 ## [2.5.0-dev.20250731.5+cf-Rotate] - 2025-07-31
 
 ### Changed
