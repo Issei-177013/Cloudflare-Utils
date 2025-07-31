@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.5.0-dev.20250731.8+cf-Rotate] - 2025-07-31
+
+### Fixed
+- The `install.sh` script now creates a wrapper for the `cfu` command to ensure it runs within the correct Python virtual environment, resolving a `ModuleNotFoundError`.
+
+---
 ## [2.5.0-dev.20250731.7+cf-Rotate] - 2025-07-31
 
 ### Added

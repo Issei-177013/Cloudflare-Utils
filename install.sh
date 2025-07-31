@@ -100,16 +100,24 @@ setup_cron_jobs() {
 
 create_global_command() {
     local cli_script="$PROGRAM_DIR/cf-utils.py"
+    local venv_python="$PROGRAM_DIR/venv/bin/python3"
     local global_cmd="/usr/local/bin/cfu"
 
     echo -e "\e[1;34mCreating global command '$global_cmd'...\e[0m"
-    if [ -f "$cli_script" ]; then
-        ln -sf "$cli_script" "$global_cmd"
-        chmod +x "$cli_script" "$global_cmd"
-        echo -e "\e[1;32m✅ Global command 'cfu' created.\e[0m"
-    else
+    if [ ! -f "$cli_script" ]; then
         echo -e "\e[1;31m❌ Cannot find $cli_script, skipping global command creation.\e[0m"
+        return
     fi
+
+    # Create a wrapper script to ensure the venv is used
+    cat > "$global_cmd" << EOF
+#!/bin/bash
+# Wrapper for Cloudflare-Utils to use the correct Python interpreter.
+exec "$venv_python" "$cli_script" "\$@"
+EOF
+
+    chmod +x "$global_cmd"
+    echo -e "\e[1;32m✅ Global command 'cfu' created.\e[0m"
 }
 
 remove_program() {
@@ -117,7 +125,7 @@ remove_program() {
     sudo rm -rf "$PROGRAM_DIR"
     (crontab -l 2>/dev/null | grep -v "$PROGRAM_DIR/run.sh" || true) | crontab -
     local global_cmd="/usr/local/bin/cfu"
-    if [ -L "$global_cmd" ]; then
+    if [ -f "$global_cmd" ]; then
         sudo rm -f "$global_cmd"
         echo -e "\e[1;32mRemoved global command 'cfu'.\e[0m"
     fi
