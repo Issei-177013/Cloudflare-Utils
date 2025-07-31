@@ -5,46 +5,48 @@ from .cloudflare_api import CloudflareAPI
 from .logger import logger
 from cloudflare import APIError
 
-def shuffle_ips_between_records(cf_api, zone_id, records):
+def rotate_ips_between_records(cf_api, zone_id, records, order):
     """
-    Shuffles the IP addresses between the selected DNS records.
+    Rotates IPs among selected DNS records based on a custom order.
+    
+    Args:
+        cf_api: CloudflareAPI instance
+        zone_id: Cloudflare zone ID
+        records: Full list of records fetched from Cloudflare
+        order: List of indices (integers) indicating user-selected order
     """
-    logger.info(f"Starting IP shuffle for {len(records)} records in zone {zone_id}.")
-    
-    # 1. Extract IPs and record details
-    original_ips = [rec.content for rec in records]
-    record_ids = [rec.id for rec in records]
-    
-    logger.info(f"Original IPs to be shuffled: {original_ips}")
+    logger.info(f"[IP Rotator] Rotating IPs for {len(order)} records by custom order.")
 
-    # 2. Shuffle the IPs
-    shuffled_ips = list(original_ips)
-    
-    # Keep shuffling until the order is different
-    while shuffled_ips == original_ips and len(set(original_ips)) > 1:
-        random.shuffle(shuffled_ips)
-        logger.debug("Shuffled IPs are the same as original, reshuffling...")
-        
-    logger.info(f"Shuffled IPs: {shuffled_ips}")
+    # Extract the selected records based on user order
+    ordered_records = [records[i] for i in order]
+    original_ips = [r.content for r in ordered_records]
 
-    # 3. Update the records
-    for i, record in enumerate(records):
-        new_ip = shuffled_ips[i]
+    logger.debug(f"Original IPs in order: {original_ips}")
+
+    # Perform rotation (left shift): last IP goes to first record
+    rotated_ips = original_ips[-1:] + original_ips[:-1]
+
+    logger.info(f"Rotated IPs: {rotated_ips}")
+
+    # Update records with new IPs
+    for rec, new_ip in zip(ordered_records, rotated_ips):
+        if rec.content == new_ip:
+            logger.debug(f"[Skip] {rec.name} already has IP {new_ip}.")
+            continue
+
         try:
             cf_api.update_dns_record(
                 zone_id=zone_id,
-                dns_record_id=record.id,
-                name=record.name,
-                type=record.type,
+                dns_record_id=rec.id,
+                name=rec.name,
+                type=rec.type,
                 content=new_ip
             )
-            logger.info(f"Successfully updated {record.name} from {record.content} to {new_ip}")
+            logger.info(f"[Update] {rec.name}: {rec.content} → {new_ip}")
         except APIError as e:
-            logger.error(f"Failed to update {record.name}. Error: {e}")
-            # Optional: decide if you want to stop or continue on error
-    
-    logger.info("IP shuffle process completed.")
+            logger.error(f"[Error] Failed to update {rec.name}: {e}")
 
+    logger.info("[IP Rotator] Custom order IP rotation completed.")
 
 def rotate_ip(ip_list, current_ip, logger):
     if not ip_list:
