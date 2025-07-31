@@ -1,8 +1,50 @@
 import time
+import random
 from .config import load_config, load_rotation_status, save_rotation_status, DEFAULT_ROTATION_INTERVAL_MINUTES
 from .cloudflare_api import CloudflareAPI
 from .logger import logger
 from cloudflare import APIError
+
+def shuffle_ips_between_records(cf_api, zone_id, records):
+    """
+    Shuffles the IP addresses between the selected DNS records.
+    """
+    logger.info(f"Starting IP shuffle for {len(records)} records in zone {zone_id}.")
+    
+    # 1. Extract IPs and record details
+    original_ips = [rec.content for rec in records]
+    record_ids = [rec.id for rec in records]
+    
+    logger.info(f"Original IPs to be shuffled: {original_ips}")
+
+    # 2. Shuffle the IPs
+    shuffled_ips = list(original_ips)
+    
+    # Keep shuffling until the order is different
+    while shuffled_ips == original_ips and len(set(original_ips)) > 1:
+        random.shuffle(shuffled_ips)
+        logger.debug("Shuffled IPs are the same as original, reshuffling...")
+        
+    logger.info(f"Shuffled IPs: {shuffled_ips}")
+
+    # 3. Update the records
+    for i, record in enumerate(records):
+        new_ip = shuffled_ips[i]
+        try:
+            cf_api.update_dns_record(
+                zone_id=zone_id,
+                dns_record_id=record.id,
+                name=record.name,
+                type=record.type,
+                content=new_ip
+            )
+            logger.info(f"Successfully updated {record.name} from {record.content} to {new_ip}")
+        except APIError as e:
+            logger.error(f"Failed to update {record.name}. Error: {e}")
+            # Optional: decide if you want to stop or continue on error
+    
+    logger.info("IP shuffle process completed.")
+
 
 def rotate_ip(ip_list, current_ip, logger):
     if not ip_list:

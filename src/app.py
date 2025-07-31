@@ -3,6 +3,7 @@ import sys
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, CONFIG_PATH
 from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config
+from .ip_rotator import shuffle_ips_between_records
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from .logger import logger, LOGS_DIR
@@ -461,12 +462,94 @@ def rotate_based_on_ip_list_menu():
             print("❌ Invalid choice. Please select a valid option.")
 
 
+def shuffle_ips_menu():
+    """Menu for shuffling IPs between multiple DNS records."""
+    clear_screen()
+    print("\n--- Shuffle IPs Between DNS Records ---")
+    
+    data = load_config()
+    if not data["accounts"]:
+        logger.warning("No accounts available.")
+        print("❌ No accounts available. Please add an account first.")
+        input("\nPress Enter to return...")
+        return
+
+    acc = select_from_list(data["accounts"], "Select an account:")
+    if not acc:
+        return
+
+    try:
+        cf_api = CloudflareAPI(acc["api_token"])
+        zones_from_cf = list(cf_api.list_zones())
+        if not zones_from_cf:
+            print("❌ No zones found for this account in Cloudflare.")
+            input("\nPress Enter to return...")
+            return
+            
+        zones_for_selection = [{"id": zone.id, "name": zone.name} for zone in zones_from_cf]
+        selected_zone_info = select_from_list(zones_for_selection, "Select a zone:")
+        if not selected_zone_info:
+            return
+
+        zone_id = selected_zone_info['id']
+        records_from_cf = [r for r in cf_api.list_dns_records(zone_id) if r.type in ['A', 'AAAA']]
+
+        if not records_from_cf or len(records_from_cf) < 2:
+            print("❌ You need at least two A or AAAA records in this zone to shuffle IPs.")
+            input("\nPress Enter to return...")
+            return
+
+        print("\n--- Select Records to Shuffle (at least 2) ---")
+        for i, record in enumerate(records_from_cf):
+            print(f"{i+1}. {record.name} ({record.type}: {record.content})")
+        
+        while True:
+            try:
+                choices_str = input("👉 Enter the numbers of the records to shuffle, separated by commas (e.g., 1,2,3): ")
+                selected_indices = [int(i.strip()) - 1 for i in choices_str.split(',')]
+                
+                if any(i < 0 or i >= len(records_from_cf) for i in selected_indices):
+                    print("❌ Invalid selection. Please enter numbers from the list.")
+                    continue
+                
+                if len(set(selected_indices)) < 2:
+                    print("❌ Please select at least two different records.")
+                    continue
+
+                selected_records = [records_from_cf[i] for i in selected_indices]
+                break
+            except ValueError:
+                print("❌ Invalid input. Please enter numbers separated by commas.")
+
+        print("\n--- You have selected: ---")
+        for record in selected_records:
+            print(f"- {record.name} ({record.type}: {record.content})")
+
+        if confirm_action("\nAre you sure you want to shuffle the IPs for these records?"):
+            shuffle_ips_between_records(cf_api, zone_id, selected_records)
+            print("\n✅ IP shuffling process completed.")
+        else:
+            print("❌ IP shuffling cancelled.")
+        
+        input("\nPress Enter to return...")
+
+    except APIError as e:
+        logger.error(f"Cloudflare API Error in shuffle_ips_menu: {e}")
+        print(f"❌ Cloudflare API Error: {e}")
+        input("\nPress Enter to return...")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in shuffle_ips_menu: {e}")
+        print(f"❌ An unexpected error occurred: {e}")
+        input("\nPress Enter to return...")
+
+
 def rotator_tools_menu():
     """Displays the Rotator Tools submenu."""
     clear_screen()
     while True:
         print("\n--- IP Rotator Tools ---")
         print("1. 🔄 Rotate Based on a List of IPs")
+        print("2. 🔀 Shuffle IPs Between Records")
         print("0. ⬅️ Return to Main Menu")
         print("---------------------")
 
@@ -474,6 +557,8 @@ def rotator_tools_menu():
 
         if choice == "1":
             rotate_based_on_ip_list_menu()
+        elif choice == "2":
+            shuffle_ips_menu()
         elif choice == "0":
             break
         else:
