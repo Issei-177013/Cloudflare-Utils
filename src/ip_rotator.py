@@ -80,7 +80,7 @@ def run_rotation():
         for zone in account.get("zones", []):
             zone_id = zone["zone_id"]
             try:
-                records_from_cf = cf_api.list_dns_records(zone_id)
+                records_from_cf = list(cf_api.list_dns_records(zone_id))
             except APIError as e:
                 logger.error(f"Zone fetch error: {zone['domain']}: {e}")
                 continue
