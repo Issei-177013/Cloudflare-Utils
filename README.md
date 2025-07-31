@@ -4,9 +4,11 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 
 ## Features
 
-- Automatically rotate DNS records based on a list of IP addresses.
-- Securely manage Cloudflare API tokens and other configuration via environment variables.
-- Set up a cron job to periodically update DNS records.
+- **DNS Record Rotation**: Automatically rotate DNS records based on a predefined list of IP addresses.
+- **IP Shuffling**: Rotate the IPs among multiple existing DNS records within a zone.
+- **Secure Configuration**: Securely manage Cloudflare API tokens.
+- **Automated Updates**: Set up a cron job to periodically update DNS records.
+- **Interactive CLI**: A user-friendly command-line interface for managing all features.
 
 ## Prerequisites
 
@@ -35,6 +37,7 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 ```
 
 **Note for Developers:** If you want to install the latest development version, you can do so by specifying the `dev` branch in the URL:
+
 ```bash
 # Using curl
 sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)" _ dev
@@ -50,14 +53,14 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 During the installation process, or when adding an account via the `cfutils` CLI, you will be prompted to provide the following information:
 
 - **Cloudflare API Token**: Your Cloudflare API token for authentication.
-    - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions (e.g., only to edit DNS records for a particular zone).
-    - You can create an API Token from your Cloudflare Dashboard:
-        1. Go to "My Profile" (usually top right of the dashboard).
-        2. Select "API Tokens".
-        3. Click "Create Token".
-        4. You can use a template like "Edit zone DNS" or create a custom token. Ensure it has `Zone:Read` and `DNS:Edit` permissions for the zones you want to manage.
-    - For more details, see the official Cloudflare documentation: [Creating Cloudflare API tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
-    - While the Global API Key will work, using it increases security risks as it grants broad access to your Cloudflare account.
+  - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions (e.g., only to edit DNS records for a particular zone).
+  - You can create an API Token from your Cloudflare Dashboard:
+    1. Go to "My Profile" (usually top right of the dashboard).
+    2. Select "API Tokens".
+    3. Click "Create Token".
+    4. You can use a template like "Edit zone DNS" or create a custom token. Ensure it has `Zone:Read` and `DNS:Edit` permissions for the zones you want to manage.
+  - For more details, see the official Cloudflare documentation: [Creating Cloudflare API tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
+  - While the Global API Key will work, using it increases security risks as it grants broad access to your Cloudflare account.
 - **Cloudflare Zone ID**: The ID of the Cloudflare zone where your DNS records are located.
 - **Cloudflare Record Name**: The name of the DNS record you want to update (e.g., `example.com`).
 - **Cloudflare IP Addresses**: A comma-separated list of IP addresses to rotate through.
@@ -84,7 +87,9 @@ Alternatively, you can still run the script directly:
 ```bash
 python3 /opt/Cloudflare-Utils/cli.py
 ```
+
 or if you've made `cli.py` executable:
+
 ```bash
 /opt/Cloudflare-Utils/cli.py
 ```
@@ -93,16 +98,19 @@ Using the `cfutils` command is the recommended way to access the CLI after insta
 
 ### CLI Menu
 
-The CLI provides the following options:
+The main menu provides access to different modules of the application:
 
-- **1. Add Account**: Add a new Cloudflare account with its API token.
-- **2. Add Zone to Account**: Add a new DNS zone (domain) to an existing account. You will be able to select the account from a list.
-- **3. Add Record to Zone**: Add a new DNS record to an existing zone. You will be able to select the account and then the zone from a list.
-- **4. List All Records**: Display all configured accounts, zones, and their records.
-- **5. Exit**: Exit the CLI.
+- **1. Manage Cloudflare Accounts**: Add, edit, or delete Cloudflare accounts.
+- **2. IP Rotator Tools**: Access tools for managing DNS-based IP rotation.
+- **3. View Application Logs**: View live logs from the application.
+- **0. Exit**: Exit the CLI.
 
-When adding zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
-When adding a record, you can optionally specify a custom rotation interval in minutes. This interval must be at least 5 minutes. If no interval is provided, it will default to 30 minutes.
+#### IP Rotator Tools
+
+This submenu provides two main functionalities:
+
+- **1. Rotate Based on a List of IPs**: This is the classic rotation feature. You can create, edit, or delete rotation configurations for your DNS records. Each configuration specifies a list of IPs to be rotated on a schedule for a single DNS record.
+- **2. Rotate IPs Between Records**: This tool allows you to select multiple `A` or `AAAA` records from a zone and Rotate their current IP addresses among them. This is useful for rotating existing IPs without needing to provide an external list. The action is immediate and not based on a schedule.
 
 ### Cron Job for DNS Rotation
 
@@ -138,6 +146,7 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudf
 ```bash
 sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
 ```
+
 The script will give you an option to install, which will effectively update your current installation if it detects an existing one by pulling the latest changes for the chosen branch. Your existing `.env` configuration file will be preserved.
 
 ---
@@ -171,20 +180,23 @@ pytest
 ```
 
 ### Test Coverage
+
 The tests are designed to cover various aspects of the Cloudflare Utils project:
 
-* Unit Tests: Tests for individual functions like fetching records, updating records, and IP rotation.
-* Integration Tests: Tests that check the interaction between different components, such as fetching records and updating them with rotated IPs.
-* Error Handling Tests: Tests to ensure proper error handling in case of API errors or invalid inputs.
+- Unit Tests: Tests for individual functions like fetching records, updating records, and IP rotation.
+- Integration Tests: Tests that check the interaction between different components, such as fetching records and updating them with rotated IPs.
+- Error Handling Tests: Tests to ensure proper error handling in case of API errors or invalid inputs.
 
 ### Adding New Tests
+
 If you want to add new tests, follow these steps:
 
-* Create a new test file in the tests/ directory, following the naming convention test_<feature>.py.
-* Write your test cases using unittest or pytest.
-* Run the tests locally to ensure they pass before making a pull request.
+- Create a new test file in the tests/ directory, following the naming convention test\_<feature>.py.
+- Write your test cases using unittest or pytest.
+- Run the tests locally to ensure they pass before making a pull request.
 
 ### Continuous Integration
+
 We use continuous integration (CI) to automatically run tests on each pull request. Make sure all tests pass before merging your changes.
 
 ---
@@ -192,6 +204,7 @@ We use continuous integration (CI) to automatically run tests on each pull reque
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
+
 ```
 # Copyright 2024 [Issei-177013]
 #
@@ -213,7 +226,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Support
 
 If you encounter any issues or have any questions, please open an issue in the GitHub repository.
-
 
 ---
 
