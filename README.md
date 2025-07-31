@@ -4,9 +4,11 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 
 ## Features
 
-- Automatically rotate DNS records based on a list of IP addresses.
-- Securely manage Cloudflare API tokens and other configuration via environment variables.
-- Set up a cron job to periodically update DNS records.
+- **DNS Record Rotation**: Automatically rotate DNS records based on a predefined list of IP addresses.
+- **IP Shuffling**: Shuffle the IPs among multiple existing DNS records within a zone.
+- **Secure Configuration**: Securely manage Cloudflare API tokens.
+- **Automated Updates**: Set up a cron job to periodically update DNS records.
+- **Interactive CLI**: A user-friendly command-line interface for managing all features.
 
 ## Prerequisites
 
@@ -93,16 +95,19 @@ Using the `cfutils` command is the recommended way to access the CLI after insta
 
 ### CLI Menu
 
-The CLI provides the following options:
+The main menu provides access to different modules of the application:
 
-- **1. Add Account**: Add a new Cloudflare account with its API token.
-- **2. Add Zone to Account**: Add a new DNS zone (domain) to an existing account. You will be able to select the account from a list.
-- **3. Add Record to Zone**: Add a new DNS record to an existing zone. You will be able to select the account and then the zone from a list.
-- **4. List All Records**: Display all configured accounts, zones, and their records.
-- **5. Exit**: Exit the CLI.
+- **1. Manage Cloudflare Accounts**: Add, edit, or delete Cloudflare accounts.
+- **2. IP Rotator Tools**: Access tools for managing DNS-based IP rotation.
+- **3. View Application Logs**: View live logs from the application.
+- **0. Exit**: Exit the CLI.
 
-When adding zones or records, instead of manually typing names, you will be presented with a numbered list of available items to choose from.
-When adding a record, you can optionally specify a custom rotation interval in minutes. This interval must be at least 5 minutes. If no interval is provided, it will default to 30 minutes.
+#### IP Rotator Tools
+
+This submenu provides two main functionalities:
+
+- **1. Rotate Based on a List of IPs**: This is the classic rotation feature. You can create, edit, or delete rotation configurations for your DNS records. Each configuration specifies a list of IPs to be rotated on a schedule for a single DNS record.
+- **2. Shuffle IPs Between Records**: This tool allows you to select multiple `A` or `AAAA` records from a zone and shuffle their current IP addresses among them. This is useful for rotating existing IPs without needing to provide an external list. The action is immediate and not based on a schedule.
 
 ### Cron Job for DNS Rotation
 

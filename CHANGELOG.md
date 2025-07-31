@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.5.0-dev.20250731+cf-shuffle] - 2025-07-31
+### Added
+- **Shuffle IPs Between Records**: New tool in the "IP Rotator Tools" menu that allows shuffling the IP addresses among multiple selected DNS records within the same zone. This provides a way to rotate existing IPs without needing a predefined list.
+
 ## [2.4.5] - 7/18/2025
 - fix install.sh
 
