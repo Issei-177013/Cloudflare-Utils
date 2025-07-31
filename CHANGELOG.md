@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.5.0-dev.20250731.7+cf-Rotate] - 2025-07-31
+
+### Added
+- New install.sh script supporting full lifecycle: install, update, remove
+- Automatic setup of Python virtual environment for dependency isolation
+- Cron job configuration for periodic execution and startup persistence
+- Creation of global CLI shortcut command `cfu` for user convenience
+- Config file auto-creation with appropriate ownership management
+- Interactive menu-driven installation/removal interface
+- Handling for system package conflicts that may break Python package installs
+
+### Changed
+- Installation path fixed to /opt/Cloudflare-Utils for consistency and system-wide availability
+
 
 ## [2.5.0-dev.20250731.6+cf-Rotate] - 2025-07-31
 

@@ -7,149 +7,154 @@ BRANCH="${1:-$DEFAULT_BRANCH}"
 PROGRAM_DIR="/opt/$PROGRAM_NAME"
 VERSION_TAG=""
 
-install_packages() {
-    echo -e "\e[1;34mInstalling dependencies...\e[0m"
+install_dependencies() {
+    echo -e "\e[1;34mUpdating system and installing dependencies...\e[0m"
     sudo apt-get update
-    sudo apt-get install -y git python3-pip
+    sudo apt-get install -y git python3-pip python3-venv
 
-    # Check if typing-extensions is installed by apt
-    if dpkg -s python3-typing-extensions &> /dev/null; then
-        echo -e "\e[1;33mDetected 'python3-typing-extensions' package installed by apt, which may conflict with pip.\e[0m"
-        read -rp "Do you want to remove 'python3-typing-extensions' to avoid conflicts? [y/N]: " answer
-        case "$answer" in
-            [Yy]* )
-                echo -e "\e[1;34mRemoving 'python3-typing-extensions'...\e[0m"
-                sudo apt-get remove -y python3-typing-extensions || {
-                    echo -e "\e[1;31mFailed to remove 'python3-typing-extensions'. Aborting installation.\e[0m"
-                    exit 1
-                }
-                ;;
-            * )
-                echo -e "\e[1;31mCannot proceed without removing 'python3-typing-extensions'. Aborting.\e[0m"
-                exit 1
-                ;;
-        esac
+    # Handle conflicting apt package for typing-extensions
+    if dpkg -s python3-typing-extensions &>/dev/null; then
+        echo -e "\e[1;33mDetected conflicting package 'python3-typing-extensions' installed by apt.\e[0m"
+        read -rp "Remove it to prevent pip conflicts? [y/N]: " ans
+        if [[ "$ans" =~ ^[Yy]$ ]]; then
+            sudo apt-get remove -y python3-typing-extensions
+        else
+            echo -e "\e[1;31mCannot continue without removing 'python3-typing-extensions'. Aborting.\e[0m"
+            exit 1
+        fi
     fi
-
-    pip3 install --break-system-packages -r "$PROGRAM_DIR/requirements.txt"
 }
 
-
-clone_repository() {
-    echo -e "\e[1;34mCloning from branch '$BRANCH'...\e[0m"
+clone_or_update_repo() {
     if [ -d "$PROGRAM_DIR/.git" ]; then
+        echo -e "\e[1;34mRepository found. Fetching latest from branch '$BRANCH'...\e[0m"
         cd "$PROGRAM_DIR"
         git fetch origin
         git checkout "$BRANCH"
         git pull origin "$BRANCH"
+        cd - >/dev/null
     else
+        echo -e "\e[1;34mCloning repository branch '$BRANCH'...\e[0m"
         git clone --branch "$BRANCH" https://github.com/Issei-177013/Cloudflare-Utils.git "$PROGRAM_DIR"
     fi
-
     cd "$PROGRAM_DIR"
     VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
-    cd - > /dev/null
+    cd - >/dev/null
 }
 
-create_runner() {
-    cat << EOF > "$PROGRAM_DIR/run.sh"
+setup_python_env() {
+    echo -e "\e[1;34mSetting up Python virtual environment...\e[0m"
+    # Create venv if not exists
+    if [ ! -d "$PROGRAM_DIR/venv" ]; then
+        python3 -m venv "$PROGRAM_DIR/venv"
+    fi
+
+    # Upgrade pip and install requirements in venv
+    source "$PROGRAM_DIR/venv/bin/activate"
+    pip install --upgrade pip setuptools wheel
+    pip install --break-system-packages -r "$PROGRAM_DIR/requirements.txt"
+    deactivate
+}
+
+create_runner_script() {
+    cat > "$PROGRAM_DIR/run.sh" << EOF
 #!/bin/bash
 cd "$PROGRAM_DIR"
+source "$PROGRAM_DIR/venv/bin/activate"
 echo "\$(date) - Running Cloudflare-Utils $VERSION_TAG" >> log_file.log
 python3 -m src.ip_rotator >> log_file.log 2>&1
 EOF
-
     chmod +x "$PROGRAM_DIR/run.sh"
 }
 
-# Function to set up the configuration file
-setup_config_file() {
+setup_config() {
     echo -e "\e[1;34mSetting up config file...\e[0m"
-    CONFIG_FILE_PATH="$PROGRAM_DIR/src/configs.json"
-    if [ ! -f "$CONFIG_FILE_PATH" ]; then
-        echo '{"accounts": []}' > "$CONFIG_FILE_PATH"
-        echo -e "\e[1;32mCreated empty config file: $CONFIG_FILE_PATH\e[0m"
+    local config_path="$PROGRAM_DIR/src/configs.json"
+    if [ ! -f "$config_path" ]; then
+        echo '{"accounts": []}' > "$config_path"
+        echo -e "\e[1;32mCreated empty config file at $config_path\e[0m"
     else
-        echo -e "\e[1;33mConfig file already exists: $CONFIG_FILE_PATH\e[0m"
+        echo -e "\e[1;33mConfig file already exists at $config_path\e[0m"
     fi
 
-    # Change the owner of the config file to the user who invoked sudo.
-    # This allows cli.py to edit the file without requiring sudo itself.
     if [ -n "$SUDO_USER" ]; then
-        chown "$SUDO_USER:$SUDO_USER" "$CONFIG_FILE_PATH"
-        echo -e "\e[1;32mSet owner of $CONFIG_FILE_PATH to $SUDO_USER\e[0m"
+        chown "$SUDO_USER:$SUDO_USER" "$config_path"
+        echo -e "\e[1;32mSet ownership of config file to $SUDO_USER\e[0m"
     else
-        # If SUDO_USER is not set, cli.py might need to be run with sudo,
-        # or file permissions adjusted manually.
-        echo -e "\e[1;33mWarning: SUDO_USER not set. Config file permissions might need manual adjustment for cf-utils.py without sudo.\e[0m"
-        # As a fallback, chmod 666 could be used, but it's not secure.
-        # chmod 666 "$CONFIG_FILE_PATH"
+        echo -e "\e[1;33mWarning: SUDO_USER not set. Manual permission adjustment may be needed.\e[0m"
     fi
 }
 
-# Function to set up cron jobs
-setup_cron() {
-    echo -e "\e[1;34mSetting up cron...\e[0m"
-    CRON_JOB_RUNNER="/bin/bash $PROGRAM_DIR/run.sh"
-    # Remove existing cron jobs for this runner to avoid duplicates
-    (crontab -l 2>/dev/null | grep -v -F "$CRON_JOB_RUNNER" || true) | crontab -
-    
-    # Add new cron jobs
-    (crontab -l 2>/dev/null; echo "*/1 * * * * $CRON_JOB_RUNNER") | crontab -
-    (crontab -l 2>/dev/null; echo "@reboot $CRON_JOB_RUNNER") | crontab -
-    echo -e "\e[1;32mCron job set to run every 1 minute and on reboot.\e[0m"
+setup_cron_jobs() {
+    echo -e "\e[1;34mConfiguring cron jobs...\e[0m"
+    local cron_cmd="/bin/bash $PROGRAM_DIR/run.sh"
+    # Remove old entries for this command to prevent duplicates
+    (crontab -l 2>/dev/null | grep -v -F "$cron_cmd" || true) | crontab -
+
+    # Add cron jobs for every minute and reboot
+    (crontab -l 2>/dev/null; echo "*/1 * * * * $cron_cmd") | crontab -
+    (crontab -l 2>/dev/null; echo "@reboot $cron_cmd") | crontab -
+
+    echo -e "\e[1;32mCron job set to run every minute and on reboot.\e[0m"
 }
 
-# منوی اصلی
+create_global_command() {
+    local cli_script="$PROGRAM_DIR/cf-utils.py"
+    local global_cmd="/usr/local/bin/cfu"
+
+    echo -e "\e[1;34mCreating global command '$global_cmd'...\e[0m"
+    if [ -f "$cli_script" ]; then
+        ln -sf "$cli_script" "$global_cmd"
+        chmod +x "$cli_script" "$global_cmd"
+        echo -e "\e[1;32m✅ Global command 'cfu' created.\e[0m"
+    else
+        echo -e "\e[1;31m❌ Cannot find $cli_script, skipping global command creation.\e[0m"
+    fi
+}
+
+remove_program() {
+    echo -e "\e[1;34mRemoving $PROGRAM_NAME...\e[0m"
+    sudo rm -rf "$PROGRAM_DIR"
+    (crontab -l 2>/dev/null | grep -v "$PROGRAM_DIR/run.sh" || true) | crontab -
+    local global_cmd="/usr/local/bin/cfu"
+    if [ -L "$global_cmd" ]; then
+        sudo rm -f "$global_cmd"
+        echo -e "\e[1;32mRemoved global command 'cfu'.\e[0m"
+    fi
+    echo -e "\e[1;31m$PROGRAM_NAME and cron jobs removed.\e[0m"
+}
+
 main_menu() {
-    PS3="Please choose: "
-    options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Remove $PROGRAM_NAME" "Exit")
+    PS3="Choose an option: "
+    options=(
+        "Install $PROGRAM_NAME (branch '$BRANCH')"
+        "Remove $PROGRAM_NAME"
+        "Exit"
+    )
     select opt in "${options[@]}"; do
-        case $opt in
+        case "$opt" in
             "Install $PROGRAM_NAME (branch '$BRANCH')")
-                install_packages
-                clone_repository
-                create_runner
-                setup_config_file # Call the new function
-                setup_cron
-
-                # Create global command
-                CLI_PATH="$PROGRAM_DIR/cf-utils.py"
-                GLOBAL_CMD_PATH="/usr/local/bin/cfu"
-                echo -e "\e[1;34mCreating global command '$GLOBAL_CMD_PATH'...\e[0m"
-                if [ -f "$CLI_PATH" ]; then
-                    ln -sf "$CLI_PATH" "$GLOBAL_CMD_PATH"
-                    chmod +x "$CLI_PATH" # Ensure the script itself is executable
-                    chmod +x "$GLOBAL_CMD_PATH" # Ensure the symlink is executable
-                    echo -e "\e[1;32m✅ Global command 'cfu' created. You can now use 'cfu' from anywhere.\e[0m"
-                else
-                    echo -e "\e[1;31m❌ Error: $CLI_PATH not found. Cannot create global command.\e[0m"
-                fi
-
+                install_dependencies
+                clone_or_update_repo
+                setup_python_env
+                create_runner_script
+                setup_config
+                setup_cron_jobs
+                create_global_command
                 echo -e "\e[1;32m✅ Installed version: $VERSION_TAG\e[0m"
-                echo -e "\e[1;32m📌 You can also use \`python3 $PROGRAM_DIR/cf-utils.py\` to manage settings.\e[0m"
+                echo -e "\e[1;33mUse 'cfu' to run the CLI or 'bash $PROGRAM_DIR/run.sh' for the runner.\e[0m"
                 break
                 ;;
             "Remove $PROGRAM_NAME")
-                echo -e "\e[1;34mRemoving $PROGRAM_NAME...\e[0m"
-                sudo rm -rf "$PROGRAM_DIR"
-                crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
-                
-                # Remove global command
-                GLOBAL_CMD_PATH="/usr/local/bin/cfu"
-                if [ -L "$GLOBAL_CMD_PATH" ]; then # Check if it's a symlink
-                    echo -e "\e[1;34mRemoving global command '$GLOBAL_CMD_PATH'...\e[0m"
-                    sudo rm -f "$GLOBAL_CMD_PATH"
-                    echo -e "\e[1;32m✅ Global command 'cfu' removed.\e[0m"
-                fi
-
-                echo -e "\e[1;31mRemoved $PROGRAM_NAME and cron jobs.\e[0m"
+                remove_program
                 break
                 ;;
             "Exit")
                 break
                 ;;
-            *) echo "Invalid option $REPLY";;
+            *)
+                echo "Invalid option. Try again."
+                ;;
         esac
     done
 }
