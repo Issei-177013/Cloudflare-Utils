@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0-dev.20250731.2+cf-Rotate] - 2025-07-31
+
+### Fixed
+- **Rotate IPs Between Records**: Fixed a bug that caused a `TypeError` when confirming the IP rotation. The menu was calling itself recursively instead of calling the actual rotation function.
+
+---
+
 ## [2.5.0-dev.20250731.1+cf-Rotate] - 2025-07-31
 
 ### Changed

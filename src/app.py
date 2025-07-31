@@ -526,7 +526,7 @@ def rotate_ips_between_records_menu():
             print(f"- {record.name} ({record.type}: {record.content})")
 
         if confirm_action("\nAre you sure you want to Rotate the IPs for these records?"):
-            rotate_ips_between_records_menu(cf_api, zone_id, selected_records)
+            rotate_ips_between_records(cf_api, zone_id, records_from_cf, selected_indices)
             print("\n✅ IP shuffling process completed.")
         else:
             print("❌ IP shuffling cancelled.")
