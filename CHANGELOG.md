@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0-dev.20250731.5+cf-Rotate] - 2025-07-31
+
+### Changed
+- **Enhanced Logging System**:
+  - Replaced `TimedRotatingFileHandler` with `RotatingFileHandler` for size-based log rotation.
+  - Added support for JSON-formatted logs, configurable via the `LOG_FORMAT` environment variable.
+  - Switched from `coloredlogs` to `colorlog` for more flexible colored console output.
+  - Added a `disable_for_tests()` function to easily disable logging during unit tests.
+  - Refactored the logger setup to be more modular and testable.
+  - Added a comprehensive test suite for the new logging system.
+
+---
+
 ## [2.5.0-dev.20250731.4+cf-Rotate] - 2025-07-31
 
 ### Fixed
