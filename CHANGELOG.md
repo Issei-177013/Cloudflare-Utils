@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0] - 2025-07-31
+
+### Added
+- **🔁 Rotate IPs Between Records Tool**: A major new feature in the "IP Rotator Tools" menu.
+  - Allows rotating the current IPs among multiple A/AAAA DNS records within the same zone — no need for a predefined list.
+  - Perfect for scenarios where you're cycling live IPs (e.g. load balancing, traffic obfuscation).
+- **🗓 Scheduled Rotation Groups**:
+  - Create groups of records and schedule automatic IP rotations.
+  - Includes a full CLI management UI for creating, editing, deleting groups, and viewing logs.
+- **📐 Custom Rotation Order**:
+  - Manual rotations now allow specifying the exact order of rotation for better control.
+
+### Changed
+- Improved menu structure and function names for better clarity and extensibility.
+- Rotation command now supports user-defined order of how IPs are shifted between records.
+
+### Fixed
+- ✅ Fixed a `TypeError` caused by recursive confirmation menu calls instead of executing the rotation logic.
+- ✅ Fixed another `TypeError` when fetching records from the Cloudflare API due to paginated responses not being properly converted to lists.
+
 ## [2.5.0-dev.20250731.4+cf-Rotate] - 2025-07-31
 
 ### Fixed
