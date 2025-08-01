@@ -6,6 +6,7 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 
 - **DNS Record Rotation**: Automatically rotate DNS records based on a predefined list of IP addresses.
 - **IP Shuffling**: Rotate the IPs among multiple existing DNS records within a zone.
+- **Rotate Based on a List of IPs (Multi-Records)**: Rotate a shared list of IPs across multiple DNS records in a synchronized, round-robin manner, with a full management menu for adding, editing, deleting, and viewing logs for configurations.
 - **Secure Configuration**: Securely manage Cloudflare API tokens.
 - **Automated Updates**: Set up a cron job to periodically update DNS records.
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
@@ -50,7 +51,7 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 
 ## Configuration
 
-During the installation process, or when adding an account via the `cfutils` CLI, you will be prompted to provide the following information:
+During the installation process, or when adding an account via the `cfu` CLI, you will be prompted to provide the following information:
 
 - **Cloudflare API Token**: Your Cloudflare API token for authentication.
   - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions (e.g., only to edit DNS records for a particular zone).
@@ -74,12 +75,12 @@ The primary way to interact with Cloudflare Utils is through the command-line in
 
 ### Running the CLI
 
-The installation script (`install.sh`) creates a global command `cfutils` that allows you to easily run the Cloudflare Utils CLI from anywhere in your terminal.
+The installation script (`install.sh`) creates a global command `cfu` that allows you to easily run the Cloudflare Utils CLI from anywhere in your terminal.
 
 To start the CLI, simply type:
 
 ```bash
-cfutils
+cfu
 ```
 
 Alternatively, you can still run the script directly:
@@ -94,7 +95,7 @@ or if you've made `cli.py` executable:
 /opt/Cloudflare-Utils/cli.py
 ```
 
-Using the `cfutils` command is the recommended way to access the CLI after installation.
+Using the `cfu` command is the recommended way to access the CLI after installation.
 
 ### CLI Menu
 
@@ -107,15 +108,17 @@ The main menu provides access to different modules of the application:
 
 #### IP Rotator Tools
 
-This submenu provides two main functionalities:
+This submenu provides three main functionalities:
 
-- **1. Rotate Based on a List of IPs**: This is the classic rotation feature. You can create, edit, or delete rotation configurations for your DNS records. Each configuration specifies a list of IPs to be rotated on a schedule for a single DNS record.
+- **1. Rotate Based on a List of IPs (Single-Record)**: This is the classic rotation feature. You can create, edit, or delete rotation configurations for your DNS records. Each configuration specifies a list of IPs to be rotated on a schedule for a single DNS record.
 - **2. Rotate IPs Between Records**: This tool allows you to select multiple `A` or `AAAA` records from a zone and Rotate their current IP addresses among them. This is useful for rotating existing IPs without needing to provide an external list. The action is immediate and not based on a schedule.
+- **3. Rotate Based on a List of IPs (Multi-Records)**: This tool allows you to rotate a shared list of IPs across multiple DNS records in a synchronized, round-robin manner.
 
 ### Cron Job for DNS Rotation
 
-After the installation, a cron job is set up to run `config_manager.py` every 5 minutes. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (which must be 5 minutes or more, or the default 30 minutes if not specified).
-The script maintains a `rotation_status.json` file to track the last rotation time for each record, ensuring records are not rotated more frequently than their configured interval.
+After installation, a cron job is set up to run the rotation script every minute. The script checks for records due for rotation based on their individually configured intervals.
+
+The script reads your configurations and uses a `rotation_status.json` file to track the last rotation time for each record or group. This ensures that records are only rotated when their configured interval (e.g., 30 minutes) has passed. The minimum configurable rotation interval is 5 minutes.
 
 ### Manual DNS Rotation
 
@@ -127,7 +130,7 @@ python3 /opt/Cloudflare-Utils/config_manager.py
 
 ### Logs
 
-The output of the cron job and script executions (like `config_manager.py`) will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
+The output of the cron job and script executions are stored in rotating log files in the `/opt/Cloudflare-Utils/logs/` directory. The main log file is `app.log`. Log files are rotated daily, and up to 7 days of logs are kept. You can check these log files to ensure that the updates are happening as expected.
 
 ---
 

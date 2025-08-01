@@ -55,8 +55,8 @@ create_runner() {
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash
 cd "$PROGRAM_DIR"
-echo "\$(date) - Running Cloudflare-Utils $VERSION_TAG" >> log_file.log
-python3 -m src.ip_rotator >> log_file.log 2>&1
+export LOG_TO_FILE=true
+python3 -m src.ip_rotator
 EOF
 
     chmod +x "$PROGRAM_DIR/run.sh"
@@ -100,7 +100,7 @@ setup_cron() {
     echo -e "\e[1;32mCron job set to run every 1 minute and on reboot.\e[0m"
 }
 
-# منوی اصلی
+# Main menu
 main_menu() {
     PS3="Please choose: "
     options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Remove $PROGRAM_NAME" "Exit")
@@ -109,6 +109,10 @@ main_menu() {
             "Install $PROGRAM_NAME (branch '$BRANCH')")
                 install_packages
                 clone_repository
+
+                echo -e "\e[1;34mRemoving old log file...\e[0m"
+                rm -f "$PROGRAM_DIR/log_file.log"
+
                 create_runner
                 setup_config_file # Call the new function
                 setup_cron
