@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.3-dev] - 2025-08-01
+
+### Fixed
+
+- The table view for "Rotate Based on a List of IPs (Multi-Records)" and other lists would break when the "Records" or "IP Pool" columns contained a large number of items. This has been fixed by summarizing long lists to show the first and last items.
+
 ## [2.6.2-dev] - 2025-08-01
 
 ### Changed

@@ -8,7 +8,7 @@ from .state_manager import load_state, save_state
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from .logger import logger, LOGS_DIR
-from .display import display_as_table
+from .display import display_as_table, summarize_list
 from cloudflare import APIError
 
 def clear_screen():
@@ -246,7 +246,7 @@ def list_records_from_config():
                     "Zone": zone["domain"],
                     "Record": record["name"],
                     "Type": record["type"],
-                    "IPs": ", ".join(record.get("ips", [])),
+                    "IPs": summarize_list(record.get("ips", [])),
                     "Interval (min)": record.get('rotation_interval_minutes', 'Default (30)')
                 })
 
@@ -473,7 +473,7 @@ def list_rotation_groups():
                     "Account": acc["name"],
                     "Zone": zone["domain"],
                     "Group Name": group["name"],
-                    "Records": ", ".join(group["records"]),
+                    "Records": summarize_list(group["records"]),
                     "Interval (min)": group.get("rotation_interval_minutes", "Default")
                 })
     
@@ -860,8 +860,8 @@ def list_global_rotations():
             "Name": name,
             "Account": config["account_name"],
             "Zone": config["zone_name"],
-            "Records": ", ".join(config["records"]),
-            "IP Pool": ", ".join(config["ip_pool"]),
+            "Records": summarize_list(config["records"]),
+            "IP Pool": summarize_list(config["ip_pool"]),
             "Interval (min)": config["rotation_interval_minutes"]
         })
     
