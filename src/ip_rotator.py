@@ -1,6 +1,7 @@
 import time
 import random
 from .config import load_config, load_rotation_status, save_rotation_status, DEFAULT_ROTATION_INTERVAL_MINUTES
+from .state_manager import load_state, save_state
 from .cloudflare_api import CloudflareAPI
 from .logger import logger
 from cloudflare import APIError
@@ -73,7 +74,63 @@ def rotate_ip(ip_list, current_ip, logger):
 def run_rotation():
     config = load_config()
     rotation_status = load_rotation_status()
+    state = load_state()
     current_time_seconds = time.time()
+
+    # --- Handle Global Rotations ---
+    if "global_rotations" in state:
+        for name, global_config in state["global_rotations"].items():
+            rotation_interval_minutes = global_config.get("rotation_interval_minutes", DEFAULT_ROTATION_INTERVAL_MINUTES)
+            rotation_interval_seconds = rotation_interval_minutes * 60
+            last_rotated_at_seconds = global_config.get("last_rotated_at", 0)
+
+            if current_time_seconds - last_rotated_at_seconds < rotation_interval_seconds:
+                logger.debug(f"Global rotation not due yet for '{name}'. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
+                continue
+            
+            account = next((acc for acc in config["accounts"] if acc["name"] == global_config["account_name"]), None)
+            if not account:
+                logger.warning(f"Account '{global_config['account_name']}' not found for global rotation '{name}'. Skipping.")
+                continue
+                
+            cf_api = CloudflareAPI(account["api_token"])
+            zone_id = global_config["zone_id"]
+            
+            try:
+                records_from_cf = list(cf_api.list_dns_records(zone_id))
+            except APIError as e:
+                logger.error(f"Zone fetch error for global rotation '{name}': {global_config['zone_name']}: {e}")
+                continue
+                
+            records_to_rotate = [r for r in records_from_cf if r.name in global_config["records"]]
+            
+            if len(records_to_rotate) != len(global_config["records"]):
+                logger.warning(f"Could not find all records for global rotation '{name}' in zone '{global_config['zone_name']}'. Skipping rotation.")
+                continue
+
+            updated_records, new_rotation_index = rotate_ips_globally(
+                records_to_rotate,
+                global_config["ip_pool"],
+                global_config["rotation_index"]
+            )
+
+            for update in updated_records:
+                try:
+                    cf_api.update_dns_record(
+                        zone_id=zone_id,
+                        dns_record_id=update["record_id"],
+                        name=update["name"],
+                        type=update["record_type"],
+                        content=update["new_ip"]
+                    )
+                    logger.info(f"Updated {update['name']} to {update['new_ip']} as part of global rotation '{name}'")
+                except APIError as e:
+                    logger.error(f"Update error for {update['name']} in global rotation '{name}': {e}")
+            
+            global_config["rotation_index"] = new_rotation_index
+            global_config["last_rotated_at"] = current_time_seconds
+            
+    save_state(state)
 
     for account in config["accounts"]:
         cf_api = CloudflareAPI(account["api_token"])

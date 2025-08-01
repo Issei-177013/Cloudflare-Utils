@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.6.0-dev2] - 2025-08-01
+
+### Added
+- **🌍 Multi-Record Global Rotation Management**: A full management menu for the multi-record global rotation feature, including the ability to add, edit, delete, and view logs for global rotation configurations.
+  - The feature is now integrated with the automated rotation system, allowing for scheduled rotations.
 
 ## [2.6.0-dev] - 2025-08-01
 

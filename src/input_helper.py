@@ -53,16 +53,18 @@ def get_record_type():
             logger.warning(f"Invalid record type entered: {rec_type}")
             print(f"❌ {error_message}")
 
-def get_rotation_interval():
+def get_rotation_interval(optional=False):
     """
     Prompts the user for a rotation interval and validates it.
     """
     prompt = "Rotation interval in minutes (min 5, default 30): "
-    
+    if optional:
+        prompt = "Enter new interval (minutes, min 5) or press Enter to keep current: "
+        
     while True:
         interval_str = input(prompt).strip()
         if not interval_str:
-            return 30  # Default value
+            return 30 if not optional else None
             
         try:
             interval = int(interval_str)

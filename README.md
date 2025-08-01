@@ -6,7 +6,7 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 
 - **DNS Record Rotation**: Automatically rotate DNS records based on a predefined list of IP addresses.
 - **IP Shuffling**: Rotate the IPs among multiple existing DNS records within a zone.
-- **Multi-Record Global Rotation**: Rotate a shared list of IPs across multiple DNS records in a synchronized, round-robin manner.
+- **Multi-Record Global Rotation**: Rotate a shared list of IPs across multiple DNS records in a synchronized, round-robin manner, with a full management menu for adding, editing, deleting, and viewing logs for configurations.
 - **Secure Configuration**: Securely manage Cloudflare API tokens.
 - **Automated Updates**: Set up a cron job to periodically update DNS records.
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
