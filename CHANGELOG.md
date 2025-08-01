@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.4] - 2025-08-02
+
+### 🚀 Added
+- **New Rotation Engine**: Global IP pool rotation for multiple DNS records.
+- **`rotate_ips_with_pool` Function**: Replaces old `rotate_ips_between_records`; supports coordinated multi-record rotation.
+- **Shared IP Pool Support**: Each rotation group can now share an IP pool.
+- **Persistent Global Index**: Rotation index is now stored and restored from `.cfutils-state.json`.
+
+### 🛠 Changed
+- Refactored `run_rotation()` to use the new global rotation logic.
+- Updated configuration manager to store `rotation_index` as a global value.
+- Extended CLI interface:
+  - `add_rotation_group_menu` and `edit_rotation_group_menu` now allow IP pool configuration.
+- Updated display: `list_rotation_groups()` shows shared IP pool in CLI table.
+
+### 🐛 Fixed
+- Fixed rotation index bug where order was not consistent across runs.
+- Fixed CLI crashes when record or IP list exceeded display width.
+- Fixed UI bugs caused by legacy rotation logic in config updates.
+
+### 📚 Docs
+- Updated `README.md` with new usage instructions and updated example.
+- Clarified cron setup recommendation for 1-minute rotation interval.
+
+---
+
+This release improves flexibility and reliability of the rotation system by enabling coordinated rotation across multiple DNS records using a single IP pool. It sets the foundation for intelligent bandwidth-aware rotation in upcoming versions.
+
 ## [2.6.4-dev] - 2025-08-01
 
 ### Fixed
