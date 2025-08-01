@@ -55,6 +55,7 @@ create_runner() {
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash
 cd "$PROGRAM_DIR"
+export LOG_TO_FILE=true
 python3 -m src.ip_rotator
 EOF
 
@@ -109,7 +110,7 @@ main_menu() {
                 install_packages
                 clone_repository
 
-                echo -e "\e[1;34mRemoving old version log file...\e[0m"
+                echo -e "\e[1;34mRemoving old log file...\e[0m"
                 rm -f "$PROGRAM_DIR/log_file.log"
 
                 create_runner

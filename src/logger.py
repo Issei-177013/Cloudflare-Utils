@@ -52,12 +52,13 @@ def setup_logger(log_file="app.log", level=logging.INFO, propagate=False):
     console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
-    # Redirect stdout and stderr to the logger.
-    # This is crucial for capturing all output from cron jobs.
-    sys.stdout = StreamToLogger(logger, logging.INFO)
-    sys.stderr = StreamToLogger(logger, logging.ERROR)
-    
-    logger.info("Logger initialized. stdout and stderr are now redirected to the log file.")
+    # Redirect stdout and stderr to the logger if running in non-interactive mode.
+    if os.environ.get('LOG_TO_FILE') == 'true':
+        sys.stdout = StreamToLogger(logger, logging.INFO)
+        sys.stderr = StreamToLogger(logger, logging.ERROR)
+        logger.info("Logger initialized for file output. stdout and stderr are now redirected.")
+    else:
+        logger.info("Logger initialized for interactive output.")
 
     return logger
 

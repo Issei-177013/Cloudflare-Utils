@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.6.1-dev2] - 2025-08-01
+### Fixed
+- Modified `src/logger.py` to only redirect `sys.stdout` and `sys.stderr` when the `LOG_TO_FILE` environment variable is set to `'true'`.
+- Updated `install.sh` to set `LOG_TO_FILE=true` in the `run.sh` script that is executed by cron.
+
+This ensures that the non-interactive cron job continues to have its output captured in the log files, while the interactive `cfu` command functions correctly by writing to the console.
+
 ## [2.6.1-dev1] - 2025-08-01
 
 ### Changed
