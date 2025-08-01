@@ -100,7 +100,7 @@ setup_cron() {
     echo -e "\e[1;32mCron job set to run every 1 minute and on reboot.\e[0m"
 }
 
-# منوی اصلی
+# Main menu
 main_menu() {
     PS3="Please choose: "
     options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Remove $PROGRAM_NAME" "Exit")

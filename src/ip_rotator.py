@@ -255,8 +255,8 @@ def rotate_ips_for_multi_record(records, ip_pool, rotation_index):
         else:
             logger.info(f"No change needed for {record.name}, IP is already {new_ip}.")
 
-    # Update the global rotation index
-    new_rotation_index = (rotation_index - 1 + pool_size) % pool_size
+    # Update the global rotation index to slide the window of IPs forward.
+    new_rotation_index = (rotation_index + 1) % pool_size
     
     logger.info(f"Global rotation index updated from {rotation_index} to {new_rotation_index}")
 

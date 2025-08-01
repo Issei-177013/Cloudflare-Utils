@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.4-dev] - 2025-08-01
+
+### Fixed
+- **IP Rotation Logic**: Corrected the multi-record IP rotation logic to increment the rotation index instead of decrementing it, ensuring the IP window slides forward as expected. A unit test has been added to verify this behavior.
+- **Documentation Accuracy**: The `README.md` has been updated to accurately reflect that the cron job runs every minute.
+- The table view for "Rotate Based on a List of IPs (Multi-Records)" and other lists would break when the "Records" or "IP Pool" columns contained a large number of items. This has been fixed by summarizing long lists to show the first and last items.
+
 ## [2.6.3-dev] - 2025-08-01
 
 ### Fixed

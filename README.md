@@ -51,7 +51,7 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 
 ## Configuration
 
-During the installation process, or when adding an account via the `cfutils` CLI, you will be prompted to provide the following information:
+During the installation process, or when adding an account via the `cfu` CLI, you will be prompted to provide the following information:
 
 - **Cloudflare API Token**: Your Cloudflare API token for authentication.
   - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions (e.g., only to edit DNS records for a particular zone).
@@ -75,12 +75,12 @@ The primary way to interact with Cloudflare Utils is through the command-line in
 
 ### Running the CLI
 
-The installation script (`install.sh`) creates a global command `cfutils` that allows you to easily run the Cloudflare Utils CLI from anywhere in your terminal.
+The installation script (`install.sh`) creates a global command `cfu` that allows you to easily run the Cloudflare Utils CLI from anywhere in your terminal.
 
 To start the CLI, simply type:
 
 ```bash
-cfutils
+cfu
 ```
 
 Alternatively, you can still run the script directly:
@@ -95,7 +95,7 @@ or if you've made `cli.py` executable:
 /opt/Cloudflare-Utils/cli.py
 ```
 
-Using the `cfutils` command is the recommended way to access the CLI after installation.
+Using the `cfu` command is the recommended way to access the CLI after installation.
 
 ### CLI Menu
 
@@ -116,8 +116,9 @@ This submenu provides three main functionalities:
 
 ### Cron Job for DNS Rotation
 
-After the installation, a cron job is set up to run `config_manager.py` every 5 minutes. This script reads the `configs.json` file and rotates the IP addresses for the configured DNS records based on their individual rotation intervals (which must be 5 minutes or more, or the default 30 minutes if not specified).
-The script maintains a `rotation_status.json` file to track the last rotation time for each record, ensuring records are not rotated more frequently than their configured interval.
+After installation, a cron job is set up to run the rotation script every minute. The script checks for records due for rotation based on their individually configured intervals.
+
+The script reads your configurations and uses a `rotation_status.json` file to track the last rotation time for each record or group. This ensures that records are only rotated when their configured interval (e.g., 30 minutes) has passed. The minimum configurable rotation interval is 5 minutes.
 
 ### Manual DNS Rotation
 

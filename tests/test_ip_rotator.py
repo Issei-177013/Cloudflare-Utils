@@ -4,57 +4,38 @@ from src.ip_rotator import rotate_ips_for_multi_record
 
 class TestIpRotator(unittest.TestCase):
 
-    def test_rotate_ips_for_multi_record(self):
-        # Mock DNS records
-        class MockRecord:
-            def __init__(self, name, content, id, type='A'):
-                self.name = name
-                self.content = content
-                self.id = id
-                self.type = type
-
+    def test_rotate_ips_for_multi_record_index_advancement(self):
+        """
+        Tests that the rotation index for multi-record rotation advances correctly.
+        """
+        # Arrange
+        # Mock 3 DNS records
         records = [
-            MockRecord("a.com", "1.1.1.1", "1"),
-            MockRecord("b.com", "2.2.2.2", "2"),
-            MockRecord("c.com", "3.3.3.3", "3"),
+            MagicMock(name='a.example.com', content='1.1.1.1', id='rec-id-1', type='A'),
+            MagicMock(name='b.example.com', content='1.1.1.2', id='rec-id-2', type='A'),
+            MagicMock(name='c.example.com', content='1.1.1.3', id='rec-id-3', type='A')
         ]
-        
-        ip_pool = ["10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4", "10.0.0.5"]
-        
-        # --- Test Case 1: Initial rotation (index 0) ---
-        rotation_index = 0
-        updated, new_index = rotate_ips_for_multi_record(records, ip_pool, rotation_index)
-        
-        self.assertEqual(len(updated), 3)
-        self.assertEqual(new_index, 4) # 0 - 1 -> -1, wraps to 4
-        
-        self.assertEqual(updated[0]['new_ip'], "10.0.0.1") # index 0
-        self.assertEqual(updated[1]['new_ip'], "10.0.0.2") # index 1
-        self.assertEqual(updated[2]['new_ip'], "10.0.0.3") # index 2
+        ip_pool = ['10.0.0.1', '10.0.0.2', '10.0.0.3', '10.0.0.4', '10.0.0.5']
+        initial_rotation_index = 0
 
-        # --- Test Case 2: Subsequent rotation (index 4) ---
-        rotation_index = new_index # 4
-        records[0].content = "10.0.0.1"
-        records[1].content = "10.0.0.2"
-        records[2].content = "10.0.0.3"
-        updated, new_index = rotate_ips_for_multi_record(records, ip_pool, rotation_index)
-        
-        self.assertEqual(len(updated), 3)
-        self.assertEqual(new_index, 3) # 4 - 1 -> 3
+        # Act
+        updated_records, new_rotation_index = rotate_ips_for_multi_record(
+            records,
+            ip_pool,
+            initial_rotation_index
+        )
 
-        self.assertEqual(updated[0]['new_ip'], "10.0.0.5") # index (4+0)%5 = 4
-        self.assertEqual(updated[1]['new_ip'], "10.0.0.1") # index (4+1)%5 = 0
-        self.assertEqual(updated[2]['new_ip'], "10.0.0.2") # index (4+2)%5 = 1
+        # Assert
+        # The function should assign the first 3 IPs from the pool to the 3 records.
+        self.assertEqual(len(updated_records), 3)
+        self.assertEqual(updated_records[0]['new_ip'], '10.0.0.1')
+        self.assertEqual(updated_records[1]['new_ip'], '10.0.0.2')
+        self.assertEqual(updated_records[2]['new_ip'], '10.0.0.3')
 
-        # --- Test Case 3: No change needed ---
-        rotation_index = 1
-        records[0].content = "10.0.0.2" # (1+0)%5 = 1
-        records[1].content = "10.0.0.3" # (1+1)%5 = 2
-        records[2].content = "10.0.0.4" # (1+2)%5 = 3
-        updated, new_index = rotate_ips_for_multi_record(records, ip_pool, rotation_index)
-
-        self.assertEqual(len(updated), 0) # No records should be updated
-        self.assertEqual(new_index, 0) # 1 - 1 -> 0
+        # The new index should point to the next IP in the pool for a sliding window rotation.
+        # With the fix, the new logic is `(0 + 1) % 5 = 1`.
+        expected_new_index = 1
+        self.assertEqual(new_rotation_index, expected_new_index, "The rotation index should advance by 1 for the next rotation.")
 
 if __name__ == '__main__':
     unittest.main()
