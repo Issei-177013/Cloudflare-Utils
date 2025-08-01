@@ -55,7 +55,6 @@ create_runner() {
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash
 cd "$PROGRAM_DIR"
-echo "\$(date) - Running Cloudflare-Utils $VERSION_TAG" >> log_file.log
 python3 -m src.ip_rotator >> log_file.log 2>&1
 EOF
 

@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.6.0-dev3] - 2025-08-01
+
+### Removed
+- remove timestamp logging from run script
+
 ## [2.6.0-dev2] - 2025-08-01
 
 ### Added
