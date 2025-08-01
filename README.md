@@ -6,7 +6,7 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 
 - **DNS Record Rotation**: Automatically rotate DNS records based on a predefined list of IP addresses.
 - **IP Shuffling**: Rotate the IPs among multiple existing DNS records within a zone.
-- **Multi-Record Global Rotation**: Rotate a shared list of IPs across multiple DNS records in a synchronized, round-robin manner, with a full management menu for adding, editing, deleting, and viewing logs for configurations.
+- **Rotate Based on a List of IPs (Multi-Records)**: Rotate a shared list of IPs across multiple DNS records in a synchronized, round-robin manner, with a full management menu for adding, editing, deleting, and viewing logs for configurations.
 - **Secure Configuration**: Securely manage Cloudflare API tokens.
 - **Automated Updates**: Set up a cron job to periodically update DNS records.
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
@@ -108,10 +108,11 @@ The main menu provides access to different modules of the application:
 
 #### IP Rotator Tools
 
-This submenu provides two main functionalities:
+This submenu provides three main functionalities:
 
-- **1. Rotate Based on a List of IPs**: This is the classic rotation feature. You can create, edit, or delete rotation configurations for your DNS records. Each configuration specifies a list of IPs to be rotated on a schedule for a single DNS record.
+- **1. Rotate Based on a List of IPs (Single-Record)**: This is the classic rotation feature. You can create, edit, or delete rotation configurations for your DNS records. Each configuration specifies a list of IPs to be rotated on a schedule for a single DNS record.
 - **2. Rotate IPs Between Records**: This tool allows you to select multiple `A` or `AAAA` records from a zone and Rotate their current IP addresses among them. This is useful for rotating existing IPs without needing to provide an external list. The action is immediate and not based on a schedule.
+- **3. Rotate Based on a List of IPs (Multi-Records)**: This tool allows you to rotate a shared list of IPs across multiple DNS records in a synchronized, round-robin manner.
 
 ### Cron Job for DNS Rotation
 

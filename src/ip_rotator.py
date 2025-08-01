@@ -108,7 +108,7 @@ def run_rotation():
                 logger.warning(f"Could not find all records for global rotation '{name}' in zone '{global_config['zone_name']}'. Skipping rotation.")
                 continue
 
-            updated_records, new_rotation_index = rotate_ips_globally(
+            updated_records, new_rotation_index = rotate_ips_for_multi_record(
                 records_to_rotate,
                 global_config["ip_pool"],
                 global_config["rotation_index"]
@@ -217,7 +217,7 @@ def run_rotation():
     
     save_rotation_status(rotation_status)
 
-def rotate_ips_globally(records, ip_pool, rotation_index):
+def rotate_ips_for_multi_record(records, ip_pool, rotation_index):
     """
     Rotates a shared list of IPs across multiple DNS records in a synchronized, round-robin manner.
 

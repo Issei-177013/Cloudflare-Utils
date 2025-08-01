@@ -3,7 +3,7 @@ import sys
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, CONFIG_PATH, find_rotation_group
 from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config, add_rotation_group, edit_rotation_group, delete_rotation_group
-from .ip_rotator import rotate_ips_between_records, rotate_ips_globally
+from .ip_rotator import rotate_ips_between_records, rotate_ips_for_multi_record
 from .state_manager import load_state, save_state
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
@@ -414,11 +414,11 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
             print("❌ Invalid input. Please enter 'yes' or 'no'.")
 
 
-def rotate_based_on_ip_list_menu():
+def rotate_based_on_list_of_ips_single_record_menu():
     """Displays the submenu for rotation based on a list of IPs."""
     while True:
         clear_screen()
-        print("\n--- DNS Record Rotation Management ---")
+        print("\n--- Rotate Based on a List of IPs (Single-Record) ---")
         list_records_from_config() # Always display the list
         print("\n1. 📝 Create DNS Rotation")
         print("2. ✏️ Edit an Existing DNS Rotation")
@@ -720,11 +720,11 @@ def rotate_ips_between_records_management_menu():
         if choice in ["1", "2", "3"]:
             input("\nPress Enter to return...")
 
-def rotate_multi_record_global_management_menu():
-    """Displays the management menu for multi-record global rotations."""
+def rotate_based_on_list_of_ips_multi_record_menu():
+    """Displays the management menu for Multi-Records global rotations."""
     while True:
         clear_screen()
-        print("\n--- Manage Multi-Record Global Rotations ---")
+        print("\n--- Rotate Based on a List of IPs (Multi-Records) ---")
         list_global_rotations()
         print("\n1. ➕ Add New Global Rotation")
         print("2. ✏️ Edit a Global Rotation")
@@ -996,20 +996,20 @@ def rotator_tools_menu():
     clear_screen()
     while True:
         print("\n--- IP Rotator Tools ---")
-        print("1. 🔄 Rotate Based on a List of IPs")
-        print("2. 🔀 Rotate IPs Between Records")
-        print("3. 🌍 Manage Multi-Record Global Rotations")
+        print("1. 🔄 Rotate Based on a List of IPs (Single-Record)")
+        print("2. 🌍 Rotate Based on a List of IPs (Multi-Records)")
+        print("3. 🔀 Rotate IPs Between Records")
         print("0. ⬅️ Return to Main Menu")
         print("---------------------")
 
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == "1":
-            rotate_based_on_ip_list_menu()
+            rotate_based_on_list_of_ips_single_record_menu()
         elif choice == "2":
-            rotate_ips_between_records_management_menu()
+            rotate_based_on_list_of_ips_multi_record_menu()
         elif choice == "3":
-            rotate_multi_record_global_management_menu()
+            rotate_ips_between_records_management_menu()
         elif choice == "0":
             break
         else:

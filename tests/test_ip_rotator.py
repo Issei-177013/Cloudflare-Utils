@@ -1,10 +1,10 @@
 import unittest
 from unittest.mock import MagicMock
-from src.ip_rotator import rotate_ips_globally
+from src.ip_rotator import rotate_ips_for_multi_record
 
 class TestIpRotator(unittest.TestCase):
 
-    def test_rotate_ips_globally(self):
+    def test_rotate_ips_for_multi_record(self):
         # Mock DNS records
         class MockRecord:
             def __init__(self, name, content, id, type='A'):
@@ -23,7 +23,7 @@ class TestIpRotator(unittest.TestCase):
         
         # --- Test Case 1: Initial rotation (index 0) ---
         rotation_index = 0
-        updated, new_index = rotate_ips_globally(records, ip_pool, rotation_index)
+        updated, new_index = rotate_ips_for_multi_record(records, ip_pool, rotation_index)
         
         self.assertEqual(len(updated), 3)
         self.assertEqual(new_index, 4) # 0 - 1 -> -1, wraps to 4
@@ -37,7 +37,7 @@ class TestIpRotator(unittest.TestCase):
         records[0].content = "10.0.0.1"
         records[1].content = "10.0.0.2"
         records[2].content = "10.0.0.3"
-        updated, new_index = rotate_ips_globally(records, ip_pool, rotation_index)
+        updated, new_index = rotate_ips_for_multi_record(records, ip_pool, rotation_index)
         
         self.assertEqual(len(updated), 3)
         self.assertEqual(new_index, 3) # 4 - 1 -> 3
@@ -51,7 +51,7 @@ class TestIpRotator(unittest.TestCase):
         records[0].content = "10.0.0.2" # (1+0)%5 = 1
         records[1].content = "10.0.0.3" # (1+1)%5 = 2
         records[2].content = "10.0.0.4" # (1+2)%5 = 3
-        updated, new_index = rotate_ips_globally(records, ip_pool, rotation_index)
+        updated, new_index = rotate_ips_for_multi_record(records, ip_pool, rotation_index)
 
         self.assertEqual(len(updated), 0) # No records should be updated
         self.assertEqual(new_index, 0) # 1 - 1 -> 0
