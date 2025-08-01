@@ -128,7 +128,7 @@ python3 /opt/Cloudflare-Utils/config_manager.py
 
 ### Logs
 
-The output of the cron job and script executions (like `config_manager.py`) will be logged in `/opt/Cloudflare-Utils/log_file.log`. You can check this log file to ensure that the updates are happening as expected.
+The output of the cron job and script executions are stored in rotating log files in the `/opt/Cloudflare-Utils/logs/` directory. The main log file is `app.log`. Log files are rotated daily, and up to 7 days of logs are kept. You can check these log files to ensure that the updates are happening as expected.
 
 ---
 

@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.6.1-dev1] - 2025-08-01
+
+### Changed
+- Replaced the simple file redirection for logging with a robust, application-level logging system using Python's `logging` module.
+- Configured a `TimedRotatingFileHandler` to create a new log file daily, store it in a `logs/` directory, and automatically delete logs older than 7 days.
+- Redirected `sys.stdout` and `sys.stderr` to the logger to ensure all script output, including uncaught exceptions, is captured.
+- Updated the `install.sh` script to remove the old `log_file.log` and to call the application without shell-level output redirection.
+- Updated `README.md` to reflect the new logging mechanism and location.
+
 ## [2.6.0-dev3] - 2025-08-01
 
 ### Removed

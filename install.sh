@@ -55,7 +55,7 @@ create_runner() {
     cat << EOF > "$PROGRAM_DIR/run.sh"
 #!/bin/bash
 cd "$PROGRAM_DIR"
-python3 -m src.ip_rotator >> log_file.log 2>&1
+python3 -m src.ip_rotator
 EOF
 
     chmod +x "$PROGRAM_DIR/run.sh"
@@ -108,6 +108,10 @@ main_menu() {
             "Install $PROGRAM_NAME (branch '$BRANCH')")
                 install_packages
                 clone_repository
+
+                echo -e "\e[1;34mRemoving old version log file...\e[0m"
+                rm -f "$PROGRAM_DIR/log_file.log"
+
                 create_runner
                 setup_config_file # Call the new function
                 setup_cron
