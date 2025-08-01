@@ -3,7 +3,8 @@ import sys
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, CONFIG_PATH, find_rotation_group
 from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config, add_rotation_group, edit_rotation_group, delete_rotation_group
-from .ip_rotator import rotate_ips_between_records
+from .ip_rotator import rotate_ips_between_records, rotate_ips_globally
+from .state_manager import load_state, save_state
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from .logger import logger, LOGS_DIR
@@ -719,6 +720,108 @@ def rotate_ips_between_records_management_menu():
         if choice in ["1", "2", "3"]:
             input("\nPress Enter to return...")
 
+def rotate_multi_record_global_menu():
+    """Menu for rotating multiple records with a shared IP list and global index."""
+    clear_screen()
+    print("\n--- Rotate Multiple Records with Shared IPs (Global Index) ---")
+
+    data = load_config()
+    if not data["accounts"]:
+        print("❌ No accounts available. Please add an account first.")
+        input("\nPress Enter to return...")
+        return
+
+    acc = select_from_list(data["accounts"], "Select an account:")
+    if not acc:
+        return
+
+    try:
+        cf_api = CloudflareAPI(acc["api_token"])
+        zones_from_cf = list(cf_api.list_zones())
+        if not zones_from_cf:
+            print("❌ No zones found for this account in Cloudflare.")
+            input("\nPress Enter to return...")
+            return
+
+        zones_for_selection = [{"id": zone.id, "name": zone.name} for zone in zones_from_cf]
+        selected_zone_info = select_from_list(zones_for_selection, "Select a zone:")
+        if not selected_zone_info:
+            return
+
+        zone_id = selected_zone_info['id']
+        records_from_cf = [r for r in cf_api.list_dns_records(zone_id) if r.type in ['A', 'AAAA']]
+
+        if len(records_from_cf) < 1:
+            print("❌ You need at least one A or AAAA record in this zone.")
+            input("\nPress Enter to return...")
+            return
+
+        print("\n--- Select Records for Global Rotation ---")
+        for i, record in enumerate(records_from_cf):
+            print(f"{i+1}. {record.name} ({record.type}: {record.content})")
+
+        selected_records = []
+        while True:
+            try:
+                choices_str = input("👉 Enter the numbers of the records, separated by commas (e.g., 1,2,3): ")
+                selected_indices = [int(i.strip()) - 1 for i in choices_str.split(',')]
+
+                if any(i < 0 or i >= len(records_from_cf) for i in selected_indices):
+                    print("❌ Invalid selection. Please enter numbers from the list.")
+                    continue
+
+                selected_records = [records_from_cf[i] for i in selected_indices]
+                break
+            except ValueError:
+                print("❌ Invalid input. Please enter numbers separated by commas.")
+
+        print("\n--- Enter Shared IP Pool ---")
+        ip_pool = get_ip_list('A')  # Assuming 'A' type for simplicity, as we filter for A/AAAA
+
+        if not ip_pool:
+            print("❌ IP pool cannot be empty.")
+            input("\nPress Enter to return...")
+            return
+
+        # Load current state
+        state = load_state()
+        rotation_index = state.get("rotation_index", 0)
+
+        # Perform rotation
+        updated_records, new_rotation_index = rotate_ips_globally(selected_records, ip_pool, rotation_index)
+
+        if not updated_records:
+            print("\n✅ No records needed updating.")
+        else:
+            print("\n--- Applying Updates ---")
+            for update in updated_records:
+                try:
+                    cf_api.update_dns_record(
+                        zone_id=zone_id,
+                        dns_record_id=update["record_id"],
+                        name=update["name"],
+                        type=update["record_type"],
+                        content=update["new_ip"]
+                    )
+                    print(f"✅ Rotated {update['name']}: {update['old_ip']} → {update['new_ip']}")
+                except APIError as e:
+                    print(f"❌ Failed to update {update['name']}: {e}")
+        
+        # Save new state
+        state["rotation_index"] = new_rotation_index
+        save_state(state)
+        print("\n✅ Rotation complete and new index saved.")
+
+    except APIError as e:
+        logger.error(f"Cloudflare API Error: {e}")
+        print(f"❌ Cloudflare API Error: {e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+        print(f"❌ An unexpected error occurred: {e}")
+    
+    input("\nPress Enter to return...")
+
+
 def rotator_tools_menu():
     """Displays the Rotator Tools submenu."""
     clear_screen()
@@ -726,6 +829,7 @@ def rotator_tools_menu():
         print("\n--- IP Rotator Tools ---")
         print("1. 🔄 Rotate Based on a List of IPs")
         print("2. 🔀 Rotate IPs Between Records")
+        print("3. 🌍 Rotate Based on a List of IPs Tool — Multi-Record Global Rotation")
         print("0. ⬅️ Return to Main Menu")
         print("---------------------")
 
@@ -735,6 +839,8 @@ def rotator_tools_menu():
             rotate_based_on_ip_list_menu()
         elif choice == "2":
             rotate_ips_between_records_management_menu()
+        elif choice == "3":
+            rotate_multi_record_global_menu()
         elif choice == "0":
             break
         else:

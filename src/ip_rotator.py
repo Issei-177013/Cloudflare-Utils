@@ -160,5 +160,51 @@ def run_rotation():
     
     save_rotation_status(rotation_status)
 
+def rotate_ips_globally(records, ip_pool, rotation_index):
+    """
+    Rotates a shared list of IPs across multiple DNS records in a synchronized, round-robin manner.
+
+    Args:
+        records (list): A list of DNS record objects to be updated. Each object must have 'name' and 'content' attributes.
+        ip_pool (list): A shared list of available IPs.
+        rotation_index (int): The starting index for the IP rotation.
+
+    Returns:
+        tuple: A tuple containing:
+            - list: A list of dictionaries, where each dictionary represents an updated record
+                    and contains 'name', 'old_ip', and 'new_ip'.
+            - int: The updated rotation_index for the next run.
+    """
+    updated_records = []
+    pool_size = len(ip_pool)
+
+    if pool_size == 0:
+        logger.warning("[IP Rotator] IP pool is empty. No rotation can be performed.")
+        return [], rotation_index
+
+    for i, record in enumerate(records):
+        new_ip_index = (rotation_index + i) % pool_size
+        new_ip = ip_pool[new_ip_index]
+        
+        if record.content != new_ip:
+            updated_records.append({
+                "name": record.name,
+                "old_ip": record.content,
+                "new_ip": new_ip,
+                "record_id": record.id,
+                "record_type": record.type
+            })
+            logger.info(f"Scheduled update for {record.name}: {record.content} → {new_ip}")
+        else:
+            logger.info(f"No change needed for {record.name}, IP is already {new_ip}.")
+
+    # Update the global rotation index
+    new_rotation_index = (rotation_index - 1 + pool_size) % pool_size
+    
+    logger.info(f"Global rotation index updated from {rotation_index} to {new_rotation_index}")
+
+    return updated_records, new_rotation_index
+
+
 if __name__ == "__main__":
     run_rotation()

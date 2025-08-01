@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.0-dev] - 2025-08-01
+
+### Added
+- **🌍 Multi-Record Global Rotation**: A new tool in the "IP Rotator Tools" menu that allows rotating a shared list of IPs across multiple DNS records in a synchronized, round-robin manner.
+  - The rotation state (index) is persisted in a new `.cfutils-state.json` file, ensuring that the rotation continues from where it left off on each run.
+
 ## [2.5.0] - 2025-07-31
 
 ### Added
