@@ -21,25 +21,6 @@ def clear_screen():
     else:
         _ = os.system('clear')
 
-def ensure_root():
-    """Ensures the script is running as root, elevating with sudo if necessary."""
-    if os.geteuid() != 0:
-        logger.warning("Not running as root. Attempting to elevate privileges with sudo.")
-        print("This script must be run as root. Attempting to elevate privileges...")
-        try:
-            # Relaunch the script with sudo
-            subprocess.check_call(['sudo', sys.executable] + sys.argv)
-            # Exit the original non-elevated process
-            sys.exit(0)
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to elevate privileges using sudo: {e}")
-            print(f"\nFailed to gain root access. Please run the command with 'sudo'.")
-            sys.exit(1)
-        except FileNotFoundError:
-            logger.error("`sudo` command not found.")
-            print("\n`sudo` is required to elevate privileges but was not found.")
-            print("Please run this script as root.")
-            sys.exit(1)
 
 def select_from_list(items, prompt):
     """Displays a numbered list of items and returns the selected item."""
@@ -1177,7 +1158,6 @@ def main_menu():
             print("❌ Invalid choice. Please select a valid option.")
 
 def main():
-    ensure_root()
     try:
         main_menu()
     except KeyboardInterrupt:

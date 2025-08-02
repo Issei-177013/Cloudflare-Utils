@@ -6,8 +6,9 @@ from logging.handlers import TimedRotatingFileHandler
 
 LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
 
-# The logs directory is created in setup_logger to avoid permission errors
-# when the script is run by a non-root user before privilege escalation.
+# Ensure the logs directory exists
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
 
 class StreamToLogger:
     """
@@ -30,9 +31,6 @@ def setup_logger(log_file="app.log", level=logging.INFO, propagate=False):
     Sets up a unified logger for the application.
     Redirects stdout and stderr to the logger to capture all output.
     """
-    # Create the logs directory here to ensure it happens after potential privilege escalation
-    os.makedirs(LOGS_DIR, exist_ok=True)
-    
     logger = logging.getLogger("CloudflareUtils")
     
     # Prevent adding handlers multiple times

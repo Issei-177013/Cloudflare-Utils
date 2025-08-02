@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.5-dev4] - 2025-08-02
+
+### Fixed
+- enforce root privileges at the script entry point
+
 ## [2.6.5-dev3] - 2025-08-02
 
 ### Fixed
