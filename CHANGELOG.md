@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.6.5] - 2025-08-02
+
+This release focuses on enhancing the stability and permission logic of the installation scripts. Key improvements ensure that scripts are executed with proper privileges and prevent common permission-related issues.
+
+### Added
+- Add permission checks to ensure `configs.json` is accessible by the intended user.
+
+### Changed
+- Simplified and enforced root execution logic for install scripts.
+
+### Fixed
+- Fixed an issue where the logger directory was created prematurely, causing permission errors.
+- Enforce root privileges at the script's entry point to avoid partial or broken setups.
+
+> These changes improve security and robustness when installing via `install.sh` with or without `sudo`.
 
 ## [2.6.5-dev4] - 2025-08-02
 
