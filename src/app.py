@@ -21,40 +21,25 @@ def clear_screen():
     else:
         _ = os.system('clear')
 
-def check_config_permissions():
-    """Checks if the config file is writable and elevates privileges if necessary."""
-    if not os.path.exists(CONFIG_PATH):
-        logger.error(f"Config file not found at {CONFIG_PATH}.")
-        print("Please ensure the program is installed correctly using install.sh.")
-        sys.exit(1)
-
-    if not os.access(CONFIG_PATH, os.W_OK):
-        # If not writable, check if we are root.
-        if os.geteuid() == 0:
-            # If we are root and can't write, it's a fatal permission error.
-            logger.error(f"Running as root, but config file at {CONFIG_PATH} is not writable.")
-            print(f"Error: Running as root but the configuration file is not writable.")
-            print("Please check the file permissions of the installation directory.")
+def ensure_root():
+    """Ensures the script is running as root, elevating with sudo if necessary."""
+    if os.geteuid() != 0:
+        logger.warning("Not running as root. Attempting to elevate privileges with sudo.")
+        print("This script must be run as root. Attempting to elevate privileges...")
+        try:
+            # Relaunch the script with sudo
+            subprocess.check_call(['sudo', sys.executable] + sys.argv)
+            # Exit the original non-elevated process
+            sys.exit(0)
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to elevate privileges using sudo: {e}")
+            print(f"\nFailed to gain root access. Please run the command with 'sudo'.")
             sys.exit(1)
-        else:
-            # If not root, try to elevate privileges using sudo.
-            logger.warning(f"Config file not writable. Attempting to re-run with sudo.")
-            print("Configuration requires root privileges. Attempting to elevate...")
-            try:
-                # Relaunch the script with sudo
-                subprocess.check_call(['sudo', sys.executable] + sys.argv)
-                # If sudo is successful, the new process will take over.
-                # The current script should exit cleanly.
-                sys.exit(0)
-            except subprocess.CalledProcessError as e:
-                logger.error(f"Failed to elevate privileges using sudo: {e}")
-                print(f"\nFailed to gain root access. Please run the command with 'sudo'.")
-                sys.exit(1)
-            except FileNotFoundError:
-                logger.error("`sudo` command not found.")
-                print("\n`sudo` is required to elevate privileges but was not found.")
-                print("Please run this script as root.")
-                sys.exit(1)
+        except FileNotFoundError:
+            logger.error("`sudo` command not found.")
+            print("\n`sudo` is required to elevate privileges but was not found.")
+            print("Please run this script as root.")
+            sys.exit(1)
 
 def select_from_list(items, prompt):
     """Displays a numbered list of items and returns the selected item."""
@@ -1132,8 +1117,6 @@ def view_live_logs(record_name=None):
         input("\nPress Enter to return...")
 
 def main_menu():
-    check_config_permissions() # Check permissions at the start of the menu
-
     # Define ANSI escape codes for colors
     YELLOW = '\033[93m'
     CYAN = '\033[96m'
@@ -1194,6 +1177,7 @@ def main_menu():
             print("❌ Invalid choice. Please select a valid option.")
 
 def main():
+    ensure_root()
     try:
         main_menu()
     except KeyboardInterrupt:

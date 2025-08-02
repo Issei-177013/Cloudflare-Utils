@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.5-dev2] - 2025-08-02
+
+### Changed
+- enforce root execution and simplify permissions.
+
 ## [2.6.5-dev] - 2025-08-02
 
 ### Added
