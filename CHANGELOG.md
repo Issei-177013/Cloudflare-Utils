@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.5-dev3] - 2025-08-02
+
+### Fixed
+- delay logger directory creation to prevent permission errors
+
 ## [2.6.5-dev2] - 2025-08-02
 
 ### Changed
