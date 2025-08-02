@@ -1,5 +1,6 @@
 import os
 import sys
+import subprocess
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, CONFIG_PATH, find_rotation_group
 from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config, add_rotation_group, edit_rotation_group, delete_rotation_group
@@ -20,18 +21,6 @@ def clear_screen():
     else:
         _ = os.system('clear')
 
-def check_config_permissions():
-    """Checks if the config file exists and is writable."""
-    if not os.path.exists(CONFIG_PATH):
-        logger.error(f"Config file not found at {CONFIG_PATH}.")
-        print("Please ensure the program is installed correctly using install.sh.")
-        sys.exit(1)
-    
-    if not os.access(CONFIG_PATH, os.W_OK):
-        logger.error(f"Config file at {CONFIG_PATH} is not writable.")
-        print(f"Please check the file permissions or try running the script with sudo if appropriate:")
-        print(f"  sudo python3 {os.path.abspath(__file__)}")
-        sys.exit(1)
 
 def select_from_list(items, prompt):
     """Displays a numbered list of items and returns the selected item."""
@@ -1109,8 +1098,6 @@ def view_live_logs(record_name=None):
         input("\nPress Enter to return...")
 
 def main_menu():
-    check_config_permissions() # Check permissions at the start of the menu
-
     # Define ANSI escape codes for colors
     YELLOW = '\033[93m'
     CYAN = '\033[96m'

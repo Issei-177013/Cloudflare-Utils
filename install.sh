@@ -64,27 +64,21 @@ EOF
 
 # Function to set up the configuration file
 setup_config_file() {
-    echo -e "\e[1;34mSetting up config file...\e[0m"
+    echo -e "\e[1;34mSetting up config file and logs directory...\e[0m"
     CONFIG_FILE_PATH="$PROGRAM_DIR/src/configs.json"
+    LOGS_DIR_PATH="$PROGRAM_DIR/logs"
+
+    # Create config file if it doesn't exist
     if [ ! -f "$CONFIG_FILE_PATH" ]; then
         echo '{"accounts": []}' > "$CONFIG_FILE_PATH"
         echo -e "\e[1;32mCreated empty config file: $CONFIG_FILE_PATH\e[0m"
     else
-        echo -e "\e[1;33mConfig file already exists: $CONFIG_FILE_PATH\e[0m"
+        echo -e "\e[1;33mConfig file already exists, no changes made.\e[0m"
     fi
 
-    # Change the owner of the config file to the user who invoked sudo.
-    # This allows cli.py to edit the file without requiring sudo itself.
-    if [ -n "$SUDO_USER" ]; then
-        chown "$SUDO_USER:$SUDO_USER" "$CONFIG_FILE_PATH"
-        echo -e "\e[1;32mSet owner of $CONFIG_FILE_PATH to $SUDO_USER\e[0m"
-    else
-        # If SUDO_USER is not set, cli.py might need to be run with sudo,
-        # or file permissions adjusted manually.
-        echo -e "\e[1;33mWarning: SUDO_USER not set. Config file permissions might need manual adjustment for cf-utils.py without sudo.\e[0m"
-        # As a fallback, chmod 666 could be used, but it's not secure.
-        # chmod 666 "$CONFIG_FILE_PATH"
-    fi
+    # Create logs directory if it doesn't exist
+    mkdir -p "$LOGS_DIR_PATH"
+    echo -e "\e[1;32mEnsured logs directory exists: $LOGS_DIR_PATH\e[0m"
 }
 
 # Function to set up cron jobs

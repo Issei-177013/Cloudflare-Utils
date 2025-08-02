@@ -4,7 +4,9 @@ import sys
 import coloredlogs
 from logging.handlers import TimedRotatingFileHandler
 
-LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+
+# Ensure the logs directory exists
 if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 
