@@ -10,6 +10,7 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 - **Secure Configuration**: Securely manage Cloudflare API tokens.
 - **Automated Updates**: Set up a cron job to periodically update DNS records.
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
+- **Zone Management**: A full suite of tools to manage your Cloudflare zones directly from the CLI, including adding, listing, viewing details, and deleting zones.
 
 ## Prerequisites
 
@@ -102,8 +103,9 @@ Using the `cfu` command is the recommended way to access the CLI after installat
 The main menu provides access to different modules of the application:
 
 - **1. Manage Cloudflare Accounts**: Add, edit, or delete Cloudflare accounts.
-- **2. IP Rotator Tools**: Access tools for managing DNS-based IP rotation.
-- **3. View Application Logs**: View live logs from the application.
+- **2. Manage Zones**: A dedicated menu to manage your Cloudflare zones. You can list all zones, add a new one, view details of a specific zone, or delete a zone.
+- **3. IP Rotator Tools**: Access tools for managing DNS-based IP rotation.
+- **4. View Application Logs**: View live logs from the application.
 - **0. Exit**: Exit the CLI.
 
 #### IP Rotator Tools

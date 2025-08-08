@@ -14,13 +14,62 @@ class CloudflareAPI:
             raise e
 
     def list_zones(self):
-        """
-        Returns a list of all zones available in the account.
-        """
         try:
             return self.cf.zones.list()
         except APIError as e:
-            raise e
+            raise RuntimeError(f"Error listing zones: {e}")
+
+    def get_account_id(self):
+        try:
+            accounts_iterator = self.cf.accounts.list()
+            first_account = next(iter(accounts_iterator), None)
+            if first_account:
+                return first_account.id
+            else:
+                raise RuntimeError("❌ No Cloudflare accounts found.")
+        except APIError as e:
+            raise RuntimeError(f"Cloudflare API error when fetching account ID: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error fetching account ID: {e}")
+
+    def add_zone(self, domain_name, zone_type="full"):
+        try:
+            # Build raw request because cloudflare-python can't handle token-only account_id
+            url = "https://api.cloudflare.com/client/v4/zones"
+            headers = {
+                "Authorization": f"Bearer {self.cf.api_token}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "name": domain_name,
+                "type": zone_type
+            }
+
+            import requests
+            response = requests.post(url, headers=headers, json=payload)
+            data = response.json()
+
+            if not response.ok or not data.get("success", False):
+                errors = data.get("errors", [])
+                raise RuntimeError(f"Failed to add zone: {errors}")
+
+            # Return parsed zone info as a simple object
+            return data["result"]
+
+        except Exception as e:
+            raise RuntimeError(f"❌ Failed to add zone '{domain_name}': {e}")
+
+    def get_zone_details(self, zone_id):
+        try:
+            return self.cf.zones.get(zone_id=zone_id)
+        except APIError as e:
+            raise RuntimeError(f"Error getting zone details: {e}")
+
+    def delete_zone(self, zone_id):
+        try:
+            return self.cf.zones.delete(zone_id=zone_id)
+        except APIError as e:
+            raise RuntimeError(f"Error deleting zone: {e}")
 
     def verify_token(self):
         """
