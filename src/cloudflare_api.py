@@ -1,8 +1,55 @@
+import requests
+from typing import List
 from cloudflare import Cloudflare, APIError
+from .permissions_registry import FEATURE_PERMISSIONS
+from .logger import logger
 
 class CloudflareAPI:
     def __init__(self, api_token):
         self.cf = Cloudflare(api_token=api_token)
+        self.token_permissions: List[str] = []
+        try:
+            self.token_permissions = self.get_token_permissions()
+        except APIError as e:
+            # This can happen if the token doesn't have "API Tokens Read"
+            # We'll handle this gracefully. The token_permissions list will be empty.
+            logger.warning(f"Could not fetch token permissions: {e}. This may be expected if the token lacks 'API Tokens Read' permission.")
+
+
+    def get_token_permissions(self) -> List[str]:
+        """
+        Fetches the names of all permission groups granted to this token.
+        Requires the 'API Tokens Read' permission.
+        """
+        try:
+            # This endpoint is not directly available in the cloudflare-python library,
+            # so we make a direct request.
+            response = self.cf.get("user/tokens/permission_groups")
+            
+            # The response is a list of objects, each with a 'name' field.
+            # e.g., [{'id': '...', 'name': 'Zone.DNS'}, ...]
+            return [perm['name'] for perm in response]
+        except APIError as e:
+            # Re-raise with a more specific message
+            raise APIError(f"Failed to get token permissions. Ensure the token has 'API Tokens Read' permission. Details: {e}")
+
+
+    def has_permission(self, feature: str) -> bool:
+        """Checks if the token has all required permissions for a given feature."""
+        required = FEATURE_PERMISSIONS.get(feature, [])
+        if not required:
+            return True # No specific permissions required for this feature.
+        
+        # Check if all required permissions are present in the token's permissions.
+        return all(r in self.token_permissions for r in required)
+
+    def get_usable_features(self) -> List[str]:
+        """Returns a list of features that are usable with the current token's permissions."""
+        usable = []
+        for feature, required_perms in FEATURE_PERMISSIONS.items():
+            if all(r in self.token_permissions for r in required_perms):
+                usable.append(feature)
+        return usable
 
     def list_dns_records(self, zone_id):
         """
@@ -71,23 +118,33 @@ class CloudflareAPI:
         except APIError as e:
             raise RuntimeError(f"Error deleting zone: {e}")
 
-    def verify_token(self):
+    def verify_token(self) -> bool:
         """
-        Verifies the API token by attempting to list zones.
-        If the token is invalid, an APIError is raised.
+        Verifies the API token by checking its status and ensuring it has at least one
+        permission required by this application.
         """
         try:
-            zones = self.cf.zones.list()  # This returns an iterable of Zone objects
-            # Just check if we got something iterable with expected attributes
-            if not hasattr(zones, '__iter__'):
-                raise APIError("Unexpected API response format", request=None, body=None)
-            # Optionally check if first item has id and name (basic sanity check)
-            first_zone = next(iter(zones), None)
-            if first_zone is None or not hasattr(first_zone, 'id') or not hasattr(first_zone, 'name'):
-                raise APIError("Unexpected API response format", request=None, body=None)
-        except Exception as e:
-            # Wrap all exceptions into APIError with message
-            raise APIError(f"Cloudflare API Error on token verification: {e}", request=None, body=None)
+            # The get_token_permissions call in __init__ already attempted to verify the token.
+            # If that call failed (e.g., due to 'API Tokens Read' being absent),
+            # self.token_permissions will be empty.
+            
+            # A token is considered valid for this app if it could be read AND has permissions for at least one feature.
+            if not self.token_permissions:
+                # If we couldn't get permissions, we try a fallback: listing zones.
+                # This helps with tokens that don't have 'API Tokens Read' but might have 'Zone.Zone' etc.
+                logger.warning("Token permissions could not be read. Falling back to listing zones for verification.")
+                self.cf.zones.list()
+                return True # If list_zones() succeeds, token is valid but has limited (unknown) scope.
+
+            # If we *could* get permissions, check if any of them are useful.
+            if not self.get_usable_features():
+                 raise APIError("Token is valid but has no permissions for any of the tool's features.", request=None, body=None)
+
+            return True
+
+        except APIError as e:
+            # Re-raise to be caught by the UI
+            raise e
 
     def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied=False):
         """

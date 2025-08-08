@@ -53,21 +53,48 @@ def add_account():
         print("❌ Account already exists")
         return
 
-    print("ℹ️ INFO: While a Global API Key will work, it's STRONGLY recommended to use a specific API Token.")
-    print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
-    print("This provides better security and scoped permissions.")
+    print("\n🔐 API Token Setup Guide")
+    print("To use this tool, you need a Cloudflare API Token with the correct permissions.")
+    print("We recommend creating a custom token from the Cloudflare Dashboard.")
+    print("\n✅ Required Permissions:")
+    print("Feature\t\t\tPermissions Needed")
+    print("--------------------------------------------------")
+    print("Zone Management\t\tZone.Zone, Zone.DNS")
+    print("IP Rotation Tool\t\tZone.DNS")
+    print("Token Validation\tAPI Tokens Read")
+    print("\n📘 Steps to Create a Token:")
+    print("1. Go to: https://dash.cloudflare.com/profile/api-tokens")
+    print("2. Click 'Create Token' and use the 'Custom Token' template.")
+    print("3. Add the required permission groups (e.g., 'Zone.Zone', 'Zone.DNS').")
+    print("4. Set the zone resources to 'All zones' for simplicity, or specify zones.")
+    print("5. Create the token and copy it securely.")
 
     while True:
-        token = get_validated_input("Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
+        token = get_validated_input("\nCloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
         try:
             print("🔐 Verifying token...")
             cf_api = CloudflareAPI(token)
-            cf_api.verify_token()  # This will attempt to list zones
-            print("✅ Token is valid.")
+            cf_api.verify_token()
+            
+            # Check for usable features
+            usable_features = cf_api.get_usable_features()
+            if not usable_features and not cf_api.has_permission('zone_management'): # Fallback check
+                 print("❌ Your token is valid, but does not have permissions for any supported features.")
+                 if not confirm_action("Do you want to add it anyway?"):
+                    return
+            
+            print("✅ Token is valid and has usable permissions.")
             break  # Exit loop if token is valid
         except APIError as e:
             logger.error(f"Cloudflare API Error on token verification: {e}")
-            print(f"❌ Invalid Token. Cloudflare API Error: {e}")
+            print(f"❌ Invalid or unauthorized token: {e}")
+            print("\n🔐 How to create a valid Cloudflare API Token:")
+            print("1. Go to: https://dash.cloudflare.com/profile/api-tokens")
+            print("2. Click \"Create Token\"")
+            print("3. Select \"Custom Token\"")
+            print("4. Add permissions: Zone.Zone (Edit), Zone.DNS (Edit), API Tokens Read")
+            print("5. Apply to all zones")
+            print("6. Create and copy the token")
             if not confirm_action("Try again?"):
                 logger.warning("User aborted account creation.")
                 return
@@ -980,30 +1007,17 @@ def view_global_rotation_logs_menu():
     view_live_logs(record_name=config_name)
 
 
-def zone_management_menu():
+def zone_management_menu(cf_api, acc_name):
     """Displays the Zone Management submenu."""
-    data = load_config()
-    if not data["accounts"]:
-        logger.warning("No accounts available.")
-        print("❌ No accounts available. Please add an account first.")
+    if not cf_api.has_permission("zone_management"):
+        print("❌ Your token does not have permission to manage zones.")
+        print("   Required permissions: Zone.DNS, Zone.Zone")
         input("\nPress Enter to return...")
         return
 
-    acc = None
-    if len(data["accounts"]) == 1:
-        acc = data["accounts"][0]
-        logger.info(f"Auto-selecting the only account: {acc['name']}")
-    else:
-        acc = select_from_list(data["accounts"], "Select an account:")
-    
-    if not acc:
-        return # User cancelled selection
-
-    cf_api = CloudflareAPI(acc["api_token"])
-
     while True:
         clear_screen()
-        print(f"--- (Zone Management) for Account: {acc['name']} ---")
+        print(f"--- (Zone Management) for Account: {acc_name} ---")
 
         try:
             print("Fetching zones...")
@@ -1032,7 +1046,7 @@ def zone_management_menu():
                 display_as_table(zones_for_display, headers=headers)
 
         except APIError as e:
-            logger.error(f"Cloudflare API Error fetching zones for account '{acc['name']}': {e}")
+            logger.error(f"Cloudflare API Error fetching zones for account '{acc_name}': {e}")
             print(f"❌ Error fetching zones: {e}")
             input("\nPress Enter to return...")
             return # Exit if we can't get zones
@@ -1160,18 +1174,33 @@ def zone_management_menu():
             print("❌ Invalid choice. Please select a valid option.")
             input("\nPress Enter to continue...")
 
-def rotator_tools_menu():
+def rotator_tools_menu(cf_api, acc_name):
     """Displays the Rotator Tools submenu."""
     clear_screen()
+    
+    can_access_ip_rotation = cf_api.has_permission("ip_rotation")
+
     while True:
         print("\n--- IP Rotator Tools ---")
-        print("1. 🔄 Rotate Based on a List of IPs (Single-Record)")
-        print("2. 🌍 Rotate Based on a List of IPs (Multi-Records)")
-        print("3. 🔀 Rotate IPs Between Records")
+        
+        if can_access_ip_rotation:
+            print("1. 🔄 Rotate Based on a List of IPs (Single-Record)")
+            print("2. 🌍 Rotate Based on a List of IPs (Multi-Records)")
+            print("3. 🔀 Rotate IPs Between Records")
+        else:
+            print("1. 🔄 Rotate Based on a List of IPs (Single-Record) (Unavailable - Token lacks Zone.DNS permission)")
+            print("2. 🌍 Rotate Based on a List of IPs (Multi-Records) (Unavailable - Token lacks Zone.DNS permission)")
+            print("3. 🔀 Rotate IPs Between Records (Unavailable - Token lacks Zone.DNS permission)")
+
         print("0. ⬅️ Return to Main Menu")
         print("---------------------")
 
         choice = input("👉 Enter your choice: ").strip()
+
+        if choice in ["1", "2", "3"] and not can_access_ip_rotation:
+            print("❌ This feature is unavailable due to missing token permissions.")
+            input("\nPress Enter to continue...")
+            continue
 
         if choice == "1":
             rotate_based_on_list_of_ips_single_record_menu()
@@ -1305,19 +1334,48 @@ def main_menu():
                                                               
 """
     
+    data = load_config()
+    if not data["accounts"]:
+        print("No Cloudflare accounts configured.")
+        if confirm_action("Would you like to add one now?"):
+            add_account()
+            data = load_config() # Reload config after adding
+            if not data["accounts"]:
+                print("No accounts added. Exiting.")
+                return
+        else:
+            print("Exiting.")
+            return
+
+    acc = select_from_list(data["accounts"], "Select an account to use:")
+    if not acc:
+        print("No account selected. Exiting.")
+        return
+
+    cf_api = CloudflareAPI(acc["api_token"])
+    
+    # Check if the token is fundamentally broken
+    if not cf_api.token_permissions and not cf_api.has_permission('zone_management'):
+        print(f"❌ The token for account '{acc['name']}' is invalid or doesn't have minimum permissions (Zone.Read).")
+        input("Press Enter to return to account selection...")
+        main_menu() # Restart to allow re-selection
+        return
+
     while True:
         clear_screen() # Clear screen on each loop iteration
         print(f"{YELLOW}{art}{RESET}")
-        # Print author and version after the art
         print(f"{CYAN}{author_str}{RESET}")
         print(f"{CYAN}{version_str}{RESET}")
-        
         print("===================================")
+        print(f"Active Account: {acc['name']}")
+
+        can_manage_zones = cf_api.has_permission("zone_management")
+        can_use_rotator = cf_api.has_permission("ip_rotation")
 
         print("\n--- Main Menu ---")
         print("1. 👤 Manage Cloudflare Accounts")
-        print("2. 🌐 Manage Zones")
-        print("3. 🔄 IP Rotator Tools")
+        print(f"2. 🌐 Manage Zones{' (Unavailable)' if not can_manage_zones else ''}")
+        print(f"3. 🔄 IP Rotator Tools{' (Unavailable)' if not can_use_rotator else ''}")
         print("4. 📄 View Application Logs")
         print("0. 🚪 Exit")
         print("-----------------")
@@ -1326,10 +1384,24 @@ def main_menu():
         
         if choice == "1":
             account_management_menu()
+            # After managing accounts, restart main_menu to re-select account
+            main_menu()
+            return
+
         elif choice == "2":
-            zone_management_menu()
+            if can_manage_zones:
+                zone_management_menu(cf_api, acc["name"])
+            else:
+                print("❌ This feature is unavailable due to missing token permissions (Zone.DNS, Zone.Zone).")
+                input("\nPress Enter to continue...")
+        
         elif choice == "3":
-            rotator_tools_menu()
+            if can_use_rotator:
+                rotator_tools_menu(cf_api, acc["name"])
+            else:
+                print("❌ This feature is unavailable due to missing token permissions (Zone.DNS).")
+                input("\nPress Enter to continue...")
+
         elif choice == "4":
             view_live_logs()
         elif choice == "0":
