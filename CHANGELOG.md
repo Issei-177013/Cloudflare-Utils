@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.7.1-rc.1] - 2025-08-12
+
+### Added
+- **Edit Zone Settings**: New option in the Zone Management menu to view and update core Cloudflare zone settings.
+- **Supported Settings**: SSL/TLS Mode, Always Use HTTPS, Automatic HTTPS Rewrites, Minimum TLS Version.
+- **API Wrappers**: Added `get_zone_setting`, `update_zone_setting`, and `get_zone_core_settings` methods in `cloudflare_api.py`.
+- **Error Handling**: Detailed error messages for API failures, invalid input, and missing permissions.
+
 ## [2.7.0-rc.1] - 2025-08-12
 
 ### Added
