@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.6.6] - 2025-08-12
+
+### Fixed
+- **Account Editing**: Resolved `TypeError` when passing `allow_empty` to `get_validated_input` by adding the parameter to the function signature and updating its logic.
+- **Validation Calls**: Added missing `error_message` argument in `src/app.py` calls to `get_validated_input`.
+
 ## [2.6.5] - 2025-08-02
 
 This release focuses on enhancing the stability and permission logic of the installation scripts. Key improvements ensure that scripts are executed with proper privileges and prevent common permission-related issues.
