@@ -10,7 +10,7 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 - **Secure Configuration**: Securely manage Cloudflare API tokens.
 - **Automated Updates**: Set up a cron job to periodically update DNS records.
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
-- **Zone Management**: A full suite of tools to manage your Cloudflare zones directly from the CLI, including adding, listing, viewing details, and deleting zones.
+- **Zone Management**: A full suite of tools to manage your Cloudflare zones directly from the CLI, including adding, listing, viewing details, deleting zones, and editing zone settings (SSL, Always Use HTTPS, etc.).
 
 ## Prerequisites
 
