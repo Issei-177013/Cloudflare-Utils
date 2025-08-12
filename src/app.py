@@ -9,7 +9,8 @@ from .state_manager import load_state, save_state
 from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval, get_zone_type
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from .logger import logger, LOGS_DIR
-from .display import display_as_table, summarize_list
+from .display import display_as_table, summarize_list, display_token_guidance
+from .error_handler import MissingPermissionError
 from cloudflare import APIError
 
 def clear_screen():
@@ -53,21 +54,27 @@ def add_account():
         print("❌ Account already exists")
         return
 
-    print("ℹ️ INFO: While a Global API Key will work, it's STRONGLY recommended to use a specific API Token.")
-    print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
-    print("This provides better security and scoped permissions.")
+    display_token_guidance()
 
     while True:
-        token = get_validated_input("Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
+        token = get_validated_input("\nEnter your Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
         try:
             print("🔐 Verifying token...")
             cf_api = CloudflareAPI(token)
-            cf_api.verify_token()  # This will attempt to list zones
-            print("✅ Token is valid.")
-            break  # Exit loop if token is valid
+            cf_api.verify_token()
+            print("✅ Token is valid and has the necessary permissions.")
+            break
+        except MissingPermissionError as e:
+            logger.error(f"Token validation failed due to missing permissions: {e}")
+            print(f"❌ {e}")
+            print("Please create a new token with the required permissions listed above.")
+            if not confirm_action("Try again with a new token?"):
+                logger.warning("User aborted account creation.")
+                return
         except APIError as e:
             logger.error(f"Cloudflare API Error on token verification: {e}")
             print(f"❌ Invalid Token. Cloudflare API Error: {e}")
+            print("This could be due to an incorrect token, or you might be using a Global API Key which is not recommended.")
             if not confirm_action("Try again?"):
                 logger.warning("User aborted account creation.")
                 return
@@ -1076,15 +1083,9 @@ def zone_management_menu():
                         print("⏳ Your domain is not yet active on Cloudflare.")
                         print("❗ If nameservers are not updated within the grace period, this zone may be deleted.")
 
-                except APIError as e:
+                except (MissingPermissionError, RuntimeError) as e:
                     logger.error(f"Failed to add zone '{domain_name}': {e}")
-                    error_message = str(e)
-
-                    if "invalid nameservers" in error_message.lower():
-                        print(f"\n❌ Error: Invalid nameservers detected.")
-                        print("💡 Please ensure your domain is pointing to Cloudflare nameservers.")
-                    else:
-                        print(f"\n❌ Error adding zone: {e}")
+                    print(f"\n❌ Error adding zone: {e}")
                     
                 input("\nPress Enter to continue...")
 

@@ -1,4 +1,6 @@
 from cloudflare import Cloudflare, APIError
+from .config import REQUIRED_PERMISSIONS
+from .error_handler import MissingPermissionError
 
 class CloudflareAPI:
     def __init__(self, api_token):
@@ -51,11 +53,20 @@ class CloudflareAPI:
 
             if not response.ok or not data.get("success", False):
                 errors = data.get("errors", [])
+                # Check for specific permission errors
+                for error in errors:
+                    if "Requires permission" in error.get("message", ""):
+                        # Extract the permission string
+                        permission_needed = error["message"].split('"')[1]
+                        raise MissingPermissionError(f"'{permission_needed}'")
                 raise RuntimeError(f"Failed to add zone: {errors}")
 
             # Return parsed zone info as a simple object
             return data["result"]
 
+        except MissingPermissionError:
+            # Re-raise to be caught by the calling function
+            raise
         except Exception as e:
             raise RuntimeError(f"❌ Failed to add zone '{domain_name}': {e}")
 
@@ -74,20 +85,33 @@ class CloudflareAPI:
     def verify_token(self):
         """
         Verifies the API token by attempting to list zones.
-        If the token is invalid, an APIError is raised.
+        If the token is invalid or misses permissions, an APIError or MissingPermissionError is raised.
         """
         try:
-            zones = self.cf.zones.list()  # This returns an iterable of Zone objects
-            # Just check if we got something iterable with expected attributes
-            if not hasattr(zones, '__iter__'):
-                raise APIError("Unexpected API response format", request=None, body=None)
-            # Optionally check if first item has id and name (basic sanity check)
-            first_zone = next(iter(zones), None)
-            if first_zone is None or not hasattr(first_zone, 'id') or not hasattr(first_zone, 'name'):
-                raise APIError("Unexpected API response format", request=None, body=None)
+            # Check Zone Read permission
+            self.cf.zones.list()
+            # Check DNS Read permission (as a proxy for DNS Edit)
+            # We assume if they can read, they might have edit. A full check is complex.
+            # A sample zone_id is needed. We can't get one without Zone:Read.
+            # This is a limitation. We'll rely on the user providing a token with the right perms.
+        except APIError as e:
+            if e.code == 9109:
+                # Likely insufficient permissions
+                # We map the attempted action to a user-friendly permission name
+                permission_name = "Unknown"
+                if "zones" in e.request.url:
+                    permission_name = REQUIRED_PERMISSIONS['validation_map'].get('Zone:Read', 'Zone.Zone')
+                
+                raise MissingPermissionError(
+                    f"Token is missing required permission: '{permission_name}'. "
+                    "Please ensure your token has Zone:Read and DNS:Read/Edit permissions."
+                )
+            else:
+                # Re-raise other API errors
+                raise e
         except Exception as e:
-            # Wrap all exceptions into APIError with message
-            raise APIError(f"Cloudflare API Error on token verification: {e}", request=None, body=None)
+            # Wrap other exceptions
+            raise APIError(f"An unexpected error occurred during token verification: {e}")
 
     def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied=False):
         """
