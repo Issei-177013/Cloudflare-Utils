@@ -128,3 +128,33 @@ class CloudflareAPI:
             )
         except APIError as e:
             raise e
+
+    def get_zone_setting(self, zone_id, setting_name):
+        """Fetches a specific setting for a zone."""
+        try:
+            setting = self.cf.zones.settings.get(setting_id=setting_name, zone_id=zone_id)
+            return setting.value
+        except APIError as e:
+            if "setting not found" in str(e).lower():
+                return None # Setting might not be available for the zone plan
+            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Read'") if "permission" in str(e).lower() else e
+
+    def update_zone_setting(self, zone_id, setting_name, new_value):
+        """Updates a specific setting for a zone."""
+        try:
+            self.cf.zones.settings.edit(setting_id=setting_name, zone_id=zone_id, value=new_value)
+        except APIError as e:
+            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Edit'") if "permission" in str(e).lower() else e
+
+    def get_zone_core_settings(self, zone_id):
+        """Fetches a dictionary of core settings for a zone."""
+        settings_to_fetch = [
+            "ssl",
+            "always_use_https",
+            "automatic_https_rewrites",
+            "min_tls_version"
+        ]
+        core_settings = {}
+        for setting_name in settings_to_fetch:
+            core_settings[setting_name] = self.get_zone_setting(zone_id, setting_name)
+        return core_settings

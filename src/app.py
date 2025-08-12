@@ -987,6 +987,81 @@ def view_global_rotation_logs_menu():
     view_live_logs(record_name=config_name)
 
 
+def edit_zone_settings(cf_api, zone_id, zone_name):
+    """Manages editing of core settings for a specific zone."""
+    while True:
+        try:
+            print(f"\n--- Current settings for {zone_name} ---")
+            settings = cf_api.get_zone_core_settings(zone_id)
+
+            # Manually format for display
+            settings_data = [
+                {"Setting": "SSL/TLS Mode", "Value": settings.get('ssl', 'N/A')},
+                {"Setting": "Always Use HTTPS", "Value": settings.get('always_use_https', 'N/A')},
+                {"Setting": "Automatic HTTPS Rewrites", "Value": settings.get('automatic_https_rewrites', 'N/A')},
+                {"Setting": "Minimum TLS Version", "Value": settings.get('min_tls_version', 'N/A')}
+            ]
+            display_as_table(settings_data, headers="keys")
+
+            print("\nWhich setting do you want to update?")
+            print("1) SSL/TLS Mode")
+            print("2) Always Use HTTPS")
+            print("3) Automatic HTTPS Rewrites")
+            print("4) Minimum TLS Version")
+            print("0) Cancel")
+            
+            choice = input("👉 Enter choice: ").strip()
+
+            if choice == '0':
+                break
+            elif choice not in ['1', '2', '3', '4']:
+                print("❌ Invalid choice.")
+                continue
+
+            setting_map = {
+                '1': {'name': 'ssl', 'prompt': "Enter new value (off, flexible, full, full_strict): ", 'valid_values': ['off', 'flexible', 'full', 'full_strict']},
+                '2': {'name': 'always_use_https', 'prompt': "Enter new value (on/off): ", 'valid_values': ['on', 'off']},
+                '3': {'name': 'automatic_https_rewrites', 'prompt': "Enter new value (on/off): ", 'valid_values': ['on', 'off']},
+                '4': {'name': 'min_tls_version', 'prompt': "Enter new value (1.0, 1.1, 1.2, 1.3): ", 'valid_values': ['1.0', '1.1', '1.2', '1.3']}
+            }
+            
+            setting_to_update = setting_map[choice]
+            setting_name = setting_to_update['name']
+            prompt_text = setting_to_update['prompt']
+            valid_values = setting_to_update['valid_values']
+
+            new_value = get_validated_input(
+                prompt_text,
+                lambda v: v.lower() in valid_values,
+                f"Invalid value. Please choose from: {', '.join(valid_values)}"
+            ).lower()
+
+            try:
+                print(f"Updating '{setting_name}' to '{new_value}'...")
+                cf_api.update_zone_setting(zone_id, setting_name, new_value)
+                print(f"✅ Setting '{setting_name}' updated successfully to '{new_value}'.")
+                # The loop will now re-fetch and display the updated settings.
+            except (APIError, MissingPermissionError) as e:
+                logger.error(f"Failed to update setting '{setting_name}' for zone {zone_name}: {e}")
+                if "Missing permission: 'Zone Settings:Edit'" in str(e):
+                    print("❌ Missing permission: 'Zone Settings:Edit'")
+                else:
+                    print(f"❌ API Error: {e}")
+                break # Exit on error
+
+        except (APIError, MissingPermissionError) as e:
+            logger.error(f"Error managing zone settings for {zone_name}: {e}")
+            if "Missing permission: 'Zone Settings:Edit'" in str(e):
+                 print("❌ Missing permission: 'Zone Settings:Edit'")
+            else:
+                print(f"❌ An API error occurred: {e}")
+            break
+        except Exception as e:
+            logger.error(f"An unexpected error occurred in edit_zone_settings: {e}", exc_info=True)
+            print(f"❌ An unexpected error occurred: {e}")
+            break
+
+
 def zone_management_menu():
     """Displays the Zone Management submenu."""
     data = load_config()
@@ -1048,6 +1123,7 @@ def zone_management_menu():
         print("1) Add a new zone")
         print("2) View zone info")
         print("3) Delete a zone")
+        print("4) Edit Zone Settings")
         print("0) Back to main menu")
         print("--------------------")
 
@@ -1148,6 +1224,21 @@ def zone_management_menu():
                                 print(f"❌ Error deleting zone: {e}")
                         else:
                             print("❌ Deletion cancelled. The entered name did not match.")
+                    else:
+                        print("❌ Invalid selection.")
+                except ValueError:
+                    print("❌ Invalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
+
+        elif choice == "4":
+            if not zones_from_cf:
+                print("No zones to edit.")
+            else:
+                try:
+                    selection = int(input("Enter the # of the zone to edit settings for: "))
+                    if 1 <= selection <= len(zones_from_cf):
+                        selected_zone = zones_from_cf[selection - 1]
+                        edit_zone_settings(cf_api, selected_zone.id, selected_zone.name)
                     else:
                         print("❌ Invalid selection.")
                 except ValueError:

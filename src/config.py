@@ -89,14 +89,16 @@ def save_rotation_status(status_data):
 REQUIRED_PERMISSIONS = {
     "features": {
         "IP Rotation Tool": ["Zone.DNS"],
-        "Zone Management": ["Zone.DNS", "Zone.Zone"],
+        "Zone Management": ["Zone.DNS", "Zone.Zone", "Zone.Zone Settings"],
     },
     "permissions": {
         "Zone.Zone": "Edit",
         "Zone.DNS": "Edit",
+        "Zone.Zone Settings": "Edit"
     },
     "validation_map": {
-        "Zone:Read": "Zone.Zone",
-        "DNS:Read": "Zone.DNS"
+        "Zone:Edit": "Zone.Zone",
+        "DNS:Edit": "Zone.DNS",
+        "Zone_Settings:Edit": "Zone.Zone Settings"
     }
 }
