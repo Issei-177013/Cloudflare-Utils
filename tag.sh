@@ -9,6 +9,7 @@
 # ================================
 
 VERSION_FILE="version.py"
+CHANGELOG_FILE="CHANGELOG.md"
 
 # Colors
 RED='\033[0;31m'
@@ -21,6 +22,11 @@ NC='\033[0m'
 if [ ! -f "$VERSION_FILE" ]; then
   echo -e "${RED}❌ File not found: $VERSION_FILE${NC}"
   exit 1
+fi
+
+# Check CHANGELOG.md exists
+if [ ! -f "$CHANGELOG_FILE" ]; then
+  echo -e "${YELLOW}⚠️ File not found: $CHANGELOG_FILE (will be skipped)${NC}"
 fi
 
 # Get current branch
@@ -106,12 +112,15 @@ done
 sed -i "s/__version__ = \".*\"/__version__ = \"$NEW_VERSION\"/" "$VERSION_FILE"
 echo -e "${GREEN}✅ Updated $VERSION_FILE to version: $NEW_VERSION${NC}"
 
-# Commit version change?
-read -rp "Commit version change? (y/n): " commit_confirm
+# Commit version + changelog?
+read -rp "Commit version change and changelog? (y/n): " commit_confirm
 if [[ "$commit_confirm" =~ ^[Yy]$ ]]; then
     git add "$VERSION_FILE"
-    git commit -m "Bump version to $NEW_VERSION"
-    echo -e "${GREEN}📄 Version change committed.${NC}"
+    if [ -f "$CHANGELOG_FILE" ]; then
+        git add "$CHANGELOG_FILE"
+    fi
+    git commit -m "Bump version to $NEW_VERSION and update changelog"
+    echo -e "${GREEN}📄 Version change and changelog committed.${NC}"
 fi
 
 # Create and push tag?
