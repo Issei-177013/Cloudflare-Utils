@@ -89,8 +89,8 @@ def edit_account():
         return
 
     print(f"\n--- Editing Account: {acc['name']} ---")
-    new_name = get_validated_input(f"Enter new name (or press Enter to keep '{acc['name']}'): ", lambda s: s.strip(), allow_empty=True)
-    new_token = get_validated_input("Enter new API token (or press Enter to keep current): ", lambda s: s.strip(), allow_empty=True)
+    new_name = get_validated_input(f"Enter new name (or press Enter to keep '{acc['name']}'): ", lambda s: s.strip(), "Invalid input.", allow_empty=True)
+    new_token = get_validated_input("Enter new API token (or press Enter to keep current): ", lambda s: s.strip(), "Invalid input.", allow_empty=True)
 
     if new_name or new_token:
         edit_account_in_config(acc['name'], new_name, new_token)

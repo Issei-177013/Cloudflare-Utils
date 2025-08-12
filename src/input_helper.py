@@ -1,13 +1,16 @@
 from .validator import is_valid_ipv4, is_valid_ipv6
 from .logger import logger
 
-def get_validated_input(prompt, validation_func, error_message):
+def get_validated_input(prompt, validation_func, error_message, allow_empty=False):
     """
     Prompts the user for input and validates it using the provided validation function.
     If validation fails, it prints the error message and retries.
     """
     while True:
         user_input = input(prompt).strip()
+        if allow_empty and user_input == "":
+            return user_input
+            
         if validation_func(user_input):
             return user_input
         else:
