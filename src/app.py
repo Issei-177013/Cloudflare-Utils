@@ -62,7 +62,7 @@ def add_account():
             print("🔐 Verifying token...")
             cf_api = CloudflareAPI(token)
             cf_api.verify_token()
-            print("✅ Token is valid and has the necessary permissions.")
+            print("✅ Token is valid")
             break
         except MissingPermissionError as e:
             logger.error(f"Token validation failed due to missing permissions: {e}")
