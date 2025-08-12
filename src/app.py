@@ -6,10 +6,11 @@ from .cloudflare_api import CloudflareAPI
 from .dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config, edit_account_in_config, delete_account_from_config, add_rotation_group, edit_rotation_group, delete_rotation_group
 from .ip_rotator import rotate_ips_between_records, rotate_ips_for_multi_record
 from .state_manager import load_state, save_state
-from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
+from .input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval, get_zone_type
 from .validator import is_valid_domain, is_valid_zone_id, is_valid_record_name
 from .logger import logger, LOGS_DIR
-from .display import display_as_table, summarize_list
+from .display import display_as_table, summarize_list, display_token_guidance
+from .error_handler import MissingPermissionError
 from cloudflare import APIError
 
 def clear_screen():
@@ -53,21 +54,27 @@ def add_account():
         print("❌ Account already exists")
         return
 
-    print("ℹ️ INFO: While a Global API Key will work, it's STRONGLY recommended to use a specific API Token.")
-    print("Create one at: https://dash.cloudflare.com/profile/api-tokens (My Profile > API Tokens > Create Token).")
-    print("This provides better security and scoped permissions.")
+    display_token_guidance()
 
     while True:
-        token = get_validated_input("Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
+        token = get_validated_input("\nEnter your Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
         try:
             print("🔐 Verifying token...")
             cf_api = CloudflareAPI(token)
-            cf_api.verify_token()  # This will attempt to list zones
-            print("✅ Token is valid.")
-            break  # Exit loop if token is valid
+            cf_api.verify_token()
+            print("✅ Token is valid")
+            break
+        except MissingPermissionError as e:
+            logger.error(f"Token validation failed due to missing permissions: {e}")
+            print(f"❌ {e}")
+            print("Please create a new token with the required permissions listed above.")
+            if not confirm_action("Try again with a new token?"):
+                logger.warning("User aborted account creation.")
+                return
         except APIError as e:
             logger.error(f"Cloudflare API Error on token verification: {e}")
             print(f"❌ Invalid Token. Cloudflare API Error: {e}")
+            print("This could be due to an incorrect token, or you might be using a Global API Key which is not recommended.")
             if not confirm_action("Try again?"):
                 logger.warning("User aborted account creation.")
                 return
@@ -980,6 +987,180 @@ def view_global_rotation_logs_menu():
     view_live_logs(record_name=config_name)
 
 
+def zone_management_menu():
+    """Displays the Zone Management submenu."""
+    data = load_config()
+    if not data["accounts"]:
+        logger.warning("No accounts available.")
+        print("❌ No accounts available. Please add an account first.")
+        input("\nPress Enter to return...")
+        return
+
+    acc = None
+    if len(data["accounts"]) == 1:
+        acc = data["accounts"][0]
+        logger.info(f"Auto-selecting the only account: {acc['name']}")
+    else:
+        acc = select_from_list(data["accounts"], "Select an account:")
+    
+    if not acc:
+        return # User cancelled selection
+
+    cf_api = CloudflareAPI(acc["api_token"])
+
+    while True:
+        clear_screen()
+        print(f"--- (Zone Management) for Account: {acc['name']} ---")
+
+        try:
+            print("Fetching zones...")
+            zones_from_cf = list(cf_api.list_zones())
+            
+            if not zones_from_cf:
+                print("\nNo zones found for this account in Cloudflare.")
+            else:
+                # Prepare data for tabulate, adding a short ID for selection
+                zones_for_display = []
+                for i, zone in enumerate(zones_from_cf):
+                    zones_for_display.append({
+                        "id_short": i + 1,
+                        "domain": zone.name,
+                        "status": zone.status,
+                        "id_full": zone.id
+                    })
+                
+                print("\n--- Available Zones ---")
+                headers = {
+                    "id_short": "#",
+                    "domain": "Domain Name",
+                    "status": "Status",
+                    "id_full": "Zone ID"
+                }
+                display_as_table(zones_for_display, headers=headers)
+
+        except APIError as e:
+            logger.error(f"Cloudflare API Error fetching zones for account '{acc['name']}': {e}")
+            print(f"❌ Error fetching zones: {e}")
+            input("\nPress Enter to return...")
+            return # Exit if we can't get zones
+
+        print("\nChoose an option:")
+        print("1) Add a new zone")
+        print("2) View zone info")
+        print("3) Delete a zone")
+        print("0) Back to main menu")
+        print("--------------------")
+
+        choice = input("👉 Enter your choice: ").strip()
+
+        if choice == "1":
+            # Add a new zone
+            domain_name = get_validated_input("Enter the domain name to add: ", is_valid_domain, "Invalid domain name.")
+            if domain_name:
+                zone_type = get_zone_type()
+                try:
+                    print(f"Adding zone {domain_name}...")
+
+                    new_zone = cf_api.add_zone(domain_name, zone_type=zone_type)
+
+                    # فقط ID و Status رو از دیکشنری نگه داریم و چاپ نکنیم
+
+                    zone_details = cf_api.get_zone_details(new_zone["id"])
+
+                    print(f"\n✅ Zone '{domain_name}' added successfully!")
+                    print(f"   - Status: {zone_details.status}")
+                    print(f"   - ID: {zone_details.id}")
+
+                    if zone_details.name_servers:
+                        print("\n📢 Please update your domain's nameservers at your registrar to:")
+                        for ns in zone_details.name_servers:
+                            print(f"     - {ns}")
+                    else:
+                        print("⚠️ No nameservers returned by Cloudflare. Please check manually.")
+
+                    if zone_details.status.lower() == "pending":
+                        print("\n⚠️ Status: Pending")
+                        print("⏳ Your domain is not yet active on Cloudflare.")
+                        print("❗ If nameservers are not updated within the grace period, this zone may be deleted.")
+
+                except (MissingPermissionError, RuntimeError) as e:
+                    logger.error(f"Failed to add zone '{domain_name}': {e}")
+                    print(f"\n❌ Error adding zone: {e}")
+                    
+                input("\nPress Enter to continue...")
+
+        elif choice == "2":
+            # View zone info
+            if not zones_from_cf:
+                print("No zones to view.")
+            else:
+                try:
+                    selection = int(input("Enter the # of the zone to view: "))
+                    if 1 <= selection <= len(zones_from_cf):
+                        selected_zone_id = zones_from_cf[selection - 1].id
+                        print(f"Fetching details for zone {selected_zone_id}...")
+                        zone_details = cf_api.get_zone_details(selected_zone_id)
+                        
+                        print("\n--- Zone Details ---")
+                        details = {
+                            "Domain": zone_details.name,
+                            "ID": zone_details.id,
+                            "Status": zone_details.status,
+                            "Plan": zone_details.plan.name,
+                            "Created On": zone_details.created_on.strftime('%Y-%m-%d'),
+                            "Nameservers": ", ".join(zone_details.name_servers)
+                        }
+                        # Using display_as_table for a single item requires a list
+                        display_as_table([details], headers="keys")
+
+                    else:
+                        print("❌ Invalid selection.")
+                except ValueError:
+                    print("❌ Invalid input. Please enter a number.")
+                except APIError as e:
+                    logger.error(f"Failed to fetch zone details: {e}")
+                    print(f"❌ Error fetching zone details: {e}")
+            input("\nPress Enter to continue...")
+
+        elif choice == "3":
+            # Delete a zone
+            if not zones_from_cf:
+                print("No zones to delete.")
+            else:
+                try:
+                    selection = int(input("Enter the # of the zone to delete: "))
+                    if 1 <= selection <= len(zones_from_cf):
+                        zone_to_delete = zones_from_cf[selection - 1]
+                        
+                        print(f"\n⚠️ You are about to delete the zone '{zone_to_delete.name}'.")
+                        print("This action is irreversible.")
+                        
+                        confirmation = input(f"To confirm, please type the domain name '{zone_to_delete.name}': ")
+                        
+                        if confirmation.strip().lower() == zone_to_delete.name.lower():
+                            try:
+                                print(f"Deleting zone {zone_to_delete.name}...")
+                                cf_api.delete_zone(zone_to_delete.id)
+                                logger.info(f"Zone '{zone_to_delete.name}' deleted successfully.")
+                                print(f"✅ Zone '{zone_to_delete.name}' has been deleted.")
+                            except APIError as e:
+                                logger.error(f"Failed to delete zone '{zone_to_delete.name}': {e}")
+                                print(f"❌ Error deleting zone: {e}")
+                        else:
+                            print("❌ Deletion cancelled. The entered name did not match.")
+                    else:
+                        print("❌ Invalid selection.")
+                except ValueError:
+                    print("❌ Invalid input. Please enter a number.")
+            input("\nPress Enter to continue...")
+            
+        elif choice == "0":
+            break
+        else:
+            logger.warning(f"Invalid choice in zone menu: {choice}")
+            print("❌ Invalid choice. Please select a valid option.")
+            input("\nPress Enter to continue...")
+
 def rotator_tools_menu():
     """Displays the Rotator Tools submenu."""
     clear_screen()
@@ -1136,8 +1317,9 @@ def main_menu():
 
         print("\n--- Main Menu ---")
         print("1. 👤 Manage Cloudflare Accounts")
-        print("2. 🔄 IP Rotator Tools")
-        print("3. 📄 View Application Logs")
+        print("2. 🌐 Manage Zones")
+        print("3. 🔄 IP Rotator Tools")
+        print("4. 📄 View Application Logs")
         print("0. 🚪 Exit")
         print("-----------------")
 
@@ -1146,8 +1328,10 @@ def main_menu():
         if choice == "1":
             account_management_menu()
         elif choice == "2":
-            rotator_tools_menu()
+            zone_management_menu()
         elif choice == "3":
+            rotator_tools_menu()
+        elif choice == "4":
             view_live_logs()
         elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
@@ -1158,6 +1342,25 @@ def main_menu():
             print("❌ Invalid choice. Please select a valid option.")
 
 def main():
+    """The main function to run the application."""
+    # Load configuration at the start
+    config = load_config()
+
+    # Check if any accounts are configured
+    if not config.get("accounts"):
+        clear_screen()
+        print("👋 Welcome to Cloudflare Utils!")
+        print("It looks like this is your first time, or you don't have any accounts configured yet.")
+        print("Let's add your first Cloudflare account.")
+        input("\nPress Enter to continue...")
+        add_account()
+
+        # After adding an account, check again. If still no account, exit.
+        config = load_config()
+        if not config.get("accounts"):
+            print("\nNo account was added. Exiting.")
+            sys.exit(0)
+
     try:
         main_menu()
     except KeyboardInterrupt:

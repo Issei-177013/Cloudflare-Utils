@@ -83,3 +83,20 @@ def load_rotation_status():
 def save_rotation_status(status_data):
     with open(ROTATION_STATUS_PATH, "w") as f:
         json.dump(status_data, f, indent=2)
+
+# Permissions required for different features. This structure is used to
+# dynamically display guidance to the user and for validation.
+REQUIRED_PERMISSIONS = {
+    "features": {
+        "IP Rotation Tool": ["Zone.DNS"],
+        "Zone Management": ["Zone.DNS", "Zone.Zone"],
+    },
+    "permissions": {
+        "Zone.Zone": "Edit",
+        "Zone.DNS": "Edit",
+    },
+    "validation_map": {
+        "Zone:Read": "Zone.Zone",
+        "DNS:Read": "Zone.DNS"
+    }
+}

@@ -10,6 +10,7 @@ This project contains utilities to interact with Cloudflare DNS records, allowin
 - **Secure Configuration**: Securely manage Cloudflare API tokens.
 - **Automated Updates**: Set up a cron job to periodically update DNS records.
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
+- **Zone Management**: A full suite of tools to manage your Cloudflare zones directly from the CLI, including adding, listing, viewing details, and deleting zones.
 
 ## Prerequisites
 
@@ -54,14 +55,13 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 During the installation process, or when adding an account via the `cfu` CLI, you will be prompted to provide the following information:
 
 - **Cloudflare API Token**: Your Cloudflare API token for authentication.
-  - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions (e.g., only to edit DNS records for a particular zone).
-  - You can create an API Token from your Cloudflare Dashboard:
-    1. Go to "My Profile" (usually top right of the dashboard).
-    2. Select "API Tokens".
-    3. Click "Create Token".
-    4. You can use a template like "Edit zone DNS" or create a custom token. Ensure it has `Zone:Read` and `DNS:Edit` permissions for the zones you want to manage.
+  - **Important Security Note**: It is **strongly recommended** to use a scoped **API Token** instead of your Global API Key. API Tokens are more secure because you can grant them specific permissions.
+  - When creating a custom token, you will need to grant the following permissions for all features to work correctly:
+    - **Zone.Zone**: `Edit`
+    - **Zone.DNS**: `Edit`
+  - You can create a token from your [Cloudflare Dashboard](https://dash.cloudflare.com/profile/api-tokens). For a detailed guide, please refer to the on-screen instructions when adding an account through the CLI.
   - For more details, see the official Cloudflare documentation: [Creating Cloudflare API tokens](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/).
-  - While the Global API Key will work, using it increases security risks as it grants broad access to your Cloudflare account.
+  - While a Global API Key might work, using it poses a security risk as it grants broad access to your Cloudflare account.
 - **Cloudflare Zone ID**: The ID of the Cloudflare zone where your DNS records are located.
 - **Cloudflare Record Name**: The name of the DNS record you want to update (e.g., `example.com`).
 - **Cloudflare IP Addresses**: A comma-separated list of IP addresses to rotate through.
@@ -102,8 +102,9 @@ Using the `cfu` command is the recommended way to access the CLI after installat
 The main menu provides access to different modules of the application:
 
 - **1. Manage Cloudflare Accounts**: Add, edit, or delete Cloudflare accounts.
-- **2. IP Rotator Tools**: Access tools for managing DNS-based IP rotation.
-- **3. View Application Logs**: View live logs from the application.
+- **2. Manage Zones**: A dedicated menu to manage your Cloudflare zones. You can list all zones, add a new one, view details of a specific zone, or delete a zone.
+- **3. IP Rotator Tools**: Access tools for managing DNS-based IP rotation.
+- **4. View Application Logs**: View live logs from the application.
 - **0. Exit**: Exit the CLI.
 
 #### IP Rotator Tools
