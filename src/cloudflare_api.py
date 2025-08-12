@@ -128,71 +128,33 @@ class CloudflareAPI:
             )
         except APIError as e:
             raise e
-        
+
     def get_zone_setting(self, zone_id, setting_name):
-        """
-        Fetches a specific setting for a given zone.
-        
-        :param zone_id: Cloudflare Zone ID
-        :param setting_name: The setting key (e.g., 'ssl', 'always_use_https')
-        :return: dict containing current setting details
-        """
+        """Fetches a specific setting for a zone."""
         try:
-            url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/settings/{setting_name}"
-            headers = {
-                "Authorization": f"Bearer {self.cf.api_token}",
-                "Content-Type": "application/json"
-            }
-            import requests
-            response = requests.get(url, headers=headers)
-            data = response.json()
-            if not response.ok or not data.get("success", False):
-                raise RuntimeError(f"Failed to fetch setting '{setting_name}': {data.get('errors', [])}")
-            return data["result"]
-        except Exception as e:
-            raise RuntimeError(f"❌ Error fetching setting '{setting_name}': {e}")
+            setting = self.cf.zones.settings.get(setting_id=setting_name, zone_id=zone_id)
+            return setting.value
+        except APIError as e:
+            if "setting not found" in str(e).lower():
+                return None # Setting might not be available for the zone plan
+            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Read'") if "permission" in str(e).lower() else e
 
-    def update_zone_setting(self, zone_id, setting_name, value):
-        """
-        Updates a specific setting for a given zone.
-        
-        :param zone_id: Cloudflare Zone ID
-        :param setting_name: The setting key (e.g., 'ssl', 'always_use_https')
-        :param value: The new value to apply (string)
-        :return: dict containing updated setting details
-        """
+    def update_zone_setting(self, zone_id, setting_name, new_value):
+        """Updates a specific setting for a zone."""
         try:
-            url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/settings/{setting_name}"
-            headers = {
-                "Authorization": f"Bearer {self.cf.api_token}",
-                "Content-Type": "application/json"
-            }
-            payload = {"value": value}
-
-            import requests
-            response = requests.patch(url, headers=headers, json=payload)
-            data = response.json()
-            if not response.ok or not data.get("success", False):
-                raise RuntimeError(f"Failed to update setting '{setting_name}': {data.get('errors', [])}")
-            return data["result"]
-        except Exception as e:
-            raise RuntimeError(f"❌ Error updating setting '{setting_name}': {e}")
+            self.cf.zones.settings.edit(setting_id=setting_name, zone_id=zone_id, value=new_value)
+        except APIError as e:
+            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Edit'") if "permission" in str(e).lower() else e
 
     def get_zone_core_settings(self, zone_id):
-        """
-        Fetches all core editable settings for a zone:
-        - ssl
-        - always_use_https
-        - automatic_https_rewrites
-        - min_tls_version
-        """
+        """Fetches a dictionary of core settings for a zone."""
         settings_to_fetch = [
             "ssl",
             "always_use_https",
             "automatic_https_rewrites",
             "min_tls_version"
         ]
-        results = {}
-        for setting in settings_to_fetch:
-            results[setting] = self.get_zone_setting(zone_id, setting)
-        return results
+        core_settings = {}
+        for setting_name in settings_to_fetch:
+            core_settings[setting_name] = self.get_zone_setting(zone_id, setting_name)
+        return core_settings
