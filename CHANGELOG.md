@@ -42,6 +42,26 @@ This release focuses on enhancing the stability and permission logic of the inst
 ### Added
 - Add config permission checks
 
+## [2.6.5-dev4] - 2025-08-02
+
+### Fixed
+- enforce root privileges at the script entry point
+
+## [2.6.5-dev3] - 2025-08-02
+
+### Fixed
+- delay logger directory creation to prevent permission errors
+
+## [2.6.5-dev2] - 2025-08-02
+
+### Changed
+- enforce root execution and simplify permissions.
+
+## [2.6.5-dev] - 2025-08-02
+
+### Added
+- Add config permission checks
+
 ## [2.6.4] - 2025-08-02
 
 ### 🚀 Added
