@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.7.0-rc.1] - 2025-08-12
+
+### Added
+- **Clear Error Messages**: Display clear, descriptive error messages when attempting to use features without the required API token permissions.
+- **API Token Setup Guide**: Added a comprehensive guide in CLI to help users create API tokens with the correct scopes.
+- **Zone Management**: Introduced a new top-level menu for managing Cloudflare zones:
+  - List all zones for a selected account in a table view.
+  - Add a new zone (domain) to an account.
+  - View detailed information for a specific zone.
+  - Delete a zone with a confirmation prompt that requires typing the domain name to avoid accidental deletion.
+
+### Changed
+- Updated the main menu to include the new **Manage Zones** option.
+
 ## [2.6.5] - 2025-08-02
 
 This release focuses on enhancing the stability and permission logic of the installation scripts. Key improvements ensure that scripts are executed with proper privileges and prevent common permission-related issues.
