@@ -15,6 +15,7 @@ from .accounts import account_management_menu
 from .zones import zone_management_menu
 from .dns import dns_management_menu
 from .rotator_main import rotator_tools_menu
+from .settings import settings_menu
 
 def main_menu():
     # Define ANSI escape codes for colors
@@ -51,6 +52,7 @@ def main_menu():
         print("3. 📜 Manage DNS Records")
         print("4. 🔄 IP Rotator Tools")
         print("5. 📄 View Application Logs")
+        print("6. ⚙️ Settings")
         print("0. 🚪 Exit")
         print("-----------------")
 
@@ -66,6 +68,8 @@ def main_menu():
             rotator_tools_menu()
         elif choice == "5":
             view_live_logs()
+        elif choice == "6":
+            settings_menu()
         elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
                 logger.info("Exiting Cloudflare Utils Manager.")

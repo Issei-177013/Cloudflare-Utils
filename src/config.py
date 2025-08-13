@@ -16,15 +16,22 @@ def load_config():
     """Loads the configuration from the JSON file."""
     if not os.path.exists(CONFIG_PATH):
         logger.info(f"Config file not found at {CONFIG_PATH}. Creating a new one.")
-        save_config({"accounts": []}) # Save default structure
-        return {"accounts": []}
+        default_config = {"accounts": [], "settings": {"console_logging": True}}
+        save_config(default_config) # Save default structure
+        return default_config
     try:
         with open(CONFIG_PATH, "r") as f:
-            return json.load(f)
+            config = json.load(f)
+            # Ensure settings exist
+            if "settings" not in config:
+                config["settings"] = {"console_logging": True}
+            elif "console_logging" not in config["settings"]:
+                config["settings"]["console_logging"] = True
+            return config
     except json.JSONDecodeError:
         logger.error(f"Could not decode JSON from {CONFIG_PATH}. Returning default config.")
         # Optionally, handle this more gracefully, e.g., by backing up the broken file.
-        return {"accounts": []} # Default structure on error
+        return {"accounts": [], "settings": {"console_logging": True}} # Default structure on error
 
 def validate_and_save_config(data):
     """Validates the configuration and saves it if valid."""
