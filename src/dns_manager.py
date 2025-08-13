@@ -1,9 +1,9 @@
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, find_rotation_group
-from .validator import is_valid_record_type
+from .validator import is_valid_rotator_record_type
 from .logger import logger
 
 def add_record(account_name, zone_domain, record_name, record_type, ips, rotation_interval_minutes):
-    if not is_valid_record_type(record_type):
+    if not is_valid_rotator_record_type(record_type):
         logger.error(f"Invalid record type: {record_type}")
         print(f"❌ Invalid record type '{record_type}'. Must be 'A' or 'AAAA'.")
         return
@@ -81,7 +81,7 @@ def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_i
     if new_ips:
         record_to_edit['ips'] = new_ips
     if new_type:
-        if is_valid_record_type(new_type):
+        if is_valid_rotator_record_type(new_type):
             record_to_edit['type'] = new_type
         else:
             logger.error(f"Invalid record type provided for edit: {new_type}")

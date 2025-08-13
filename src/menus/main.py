@@ -13,6 +13,7 @@ from ..logger import logger
 from .utils import clear_screen, confirm_action, view_live_logs
 from .accounts import account_management_menu
 from .zones import zone_management_menu
+from .dns import dns_management_menu
 from .rotator_main import rotator_tools_menu
 
 def main_menu():
@@ -47,8 +48,9 @@ def main_menu():
         print("\n--- Main Menu ---")
         print("1. 👤 Manage Cloudflare Accounts")
         print("2. 🌐 Manage Zones")
-        print("3. 🔄 IP Rotator Tools")
-        print("4. 📄 View Application Logs")
+        print("3. 📜 Manage DNS Records")
+        print("4. 🔄 IP Rotator Tools")
+        print("5. 📄 View Application Logs")
         print("0. 🚪 Exit")
         print("-----------------")
 
@@ -59,8 +61,10 @@ def main_menu():
         elif choice == "2":
             zone_management_menu()
         elif choice == "3":
-            rotator_tools_menu()
+            dns_management_menu()
         elif choice == "4":
+            rotator_tools_menu()
+        elif choice == "5":
             view_live_logs()
         elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
