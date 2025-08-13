@@ -34,9 +34,18 @@ def is_valid_record_name(name):
     # This is a basic check, can be improved for more complex FQDN rules
     return isinstance(name, str) and len(name) > 0
 
-def is_valid_record_type(record_type):
-    """Validate a DNS record type."""
-    return record_type in ['A', 'AAAA']
+def is_valid_rotator_record_type(record_type):
+    """Validate a DNS record type for the IP rotator."""
+    return record_type.upper() in ['A', 'AAAA']
+
+def is_valid_dns_record_type(record_type):
+    """Validate a general DNS record type."""
+    # A comprehensive list of common record types. This can be expanded.
+    common_types = [
+        'A', 'AAAA', 'CNAME', 'TXT', 'MX', 'SRV', 'SPF', 'DKIM', 'DMARC',
+        'NS', 'SOA', 'PTR', 'CAA', 'DS', 'DNSKEY', 'NAPTR', 'LOC'
+    ]
+    return record_type.upper() in common_types
 
 def validate_record(record):
     """Validate a single DNS record."""
