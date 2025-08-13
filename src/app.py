@@ -1,6 +1,7 @@
 import os
 import sys
 from .config import load_config
+from .logger import configure_console_logging
 from .menus.main import main_menu
 from .menus.accounts import add_account
 from .menus.utils import clear_screen
@@ -9,6 +10,9 @@ def main():
     """The main function to run the application."""
     # Load configuration at the start
     config = load_config()
+
+    # Configure console logging based on the loaded config
+    configure_console_logging(config)
 
     # Check if any accounts are configured
     if not config.get("accounts"):

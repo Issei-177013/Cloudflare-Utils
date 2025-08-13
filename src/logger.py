@@ -26,11 +26,9 @@ class StreamToLogger:
     def flush(self):
         pass
 
-from .config import load_config
-
 def setup_logger(log_file="app.log", level=logging.INFO, propagate=False):
     """
-    Sets up or reconfigures the logger for the application.
+    Sets up the file logger for the application.
     """
     logger = logging.getLogger("CloudflareUtils")
 
@@ -53,14 +51,21 @@ def setup_logger(log_file="app.log", level=logging.INFO, propagate=False):
         else:
             logger.info("Logger initialized for interactive output.")
 
-    # Console handler reconfiguration (can be done multiple times)
-    # Remove any existing console handler (which is a StreamHandler but not a FileHandler)
+    return logger
+
+def configure_console_logging(config):
+    """
+    Sets up or reconfigures the console logger based on the provided configuration.
+    """
+    logger = logging.getLogger("CloudflareUtils")
+
+    # Console handler reconfiguration
+    # Remove any existing console handler (a StreamHandler that is not a FileHandler)
     for handler in logger.handlers[:]:
-        if type(handler) is logging.StreamHandler:
+        if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
             logger.removeHandler(handler)
 
     # Add console handler based on config
-    config = load_config()
     if config.get("settings", {}).get("console_logging", True):
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.WARNING)
@@ -68,7 +73,5 @@ def setup_logger(log_file="app.log", level=logging.INFO, propagate=False):
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
 
-    return logger
-
-# A single logger for the entire application
+# A single logger for the entire application, initialized with file logging
 logger = setup_logger()
