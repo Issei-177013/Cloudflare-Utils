@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.8.0-rc.2] - 2025-08-13
+
+### Changed
+- Improved `README.md`
+
 ## [2.8.0-rc.1] - 2025-08-13
 
 ### Added
