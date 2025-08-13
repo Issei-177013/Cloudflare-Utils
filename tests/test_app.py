@@ -1,15 +1,15 @@
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
-from src.app import add_account, view_live_logs
+from unittest.mock import patch, MagicMock
+from src.menus.accounts import add_account
 from cloudflare import APIError
 
 class TestApp(unittest.TestCase):
 
-    @patch('src.app.get_validated_input')
-    @patch('src.app.CloudflareAPI')
-    @patch('src.app.confirm_action')
-    @patch('src.app.validate_and_save_config')
-    @patch('src.app.load_config')
+    @patch('src.menus.accounts.get_validated_input')
+    @patch('src.menus.accounts.CloudflareAPI')
+    @patch('src.menus.accounts.confirm_action')
+    @patch('src.menus.accounts.validate_and_save_config')
+    @patch('src.menus.accounts.load_config')
     def test_add_account_valid_token(self, mock_load_config, mock_validate_and_save_config, mock_confirm_action, mock_cloudflare_api, mock_get_validated_input):
         # Arrange
         mock_get_validated_input.side_effect = ['test_account', 'valid_token']
@@ -25,11 +25,11 @@ class TestApp(unittest.TestCase):
         mock_cloudflare_api.return_value.verify_token.assert_called_once()
         mock_validate_and_save_config.assert_called_once()
 
-    @patch('src.app.get_validated_input')
-    @patch('src.app.CloudflareAPI')
-    @patch('src.app.confirm_action')
-    @patch('src.app.validate_and_save_config')
-    @patch('src.app.load_config')
+    @patch('src.menus.accounts.get_validated_input')
+    @patch('src.menus.accounts.CloudflareAPI')
+    @patch('src.menus.accounts.confirm_action')
+    @patch('src.menus.accounts.validate_and_save_config')
+    @patch('src.menus.accounts.load_config')
     def test_add_account_invalid_token_then_valid_token(self, mock_load_config, mock_validate_and_save_config, mock_confirm_action, mock_cloudflare_api, mock_get_validated_input):
         # Arrange
         mock_get_validated_input.side_effect = ['test_account', 'invalid_token', 'valid_token']
@@ -46,11 +46,11 @@ class TestApp(unittest.TestCase):
         mock_confirm_action.assert_called_once_with("Try again?")
         mock_validate_and_save_config.assert_called_once()
 
-    @patch('src.app.get_validated_input')
-    @patch('src.app.CloudflareAPI')
-    @patch('src.app.confirm_action')
-    @patch('src.app.validate_and_save_config')
-    @patch('src.app.load_config')
+    @patch('src.menus.accounts.get_validated_input')
+    @patch('src.menus.accounts.CloudflareAPI')
+    @patch('src.menus.accounts.confirm_action')
+    @patch('src.menus.accounts.validate_and_save_config')
+    @patch('src.menus.accounts.load_config')
     def test_add_account_invalid_token_then_cancel(self, mock_load_config, mock_validate_and_save_config, mock_confirm_action, mock_cloudflare_api, mock_get_validated_input):
         # Arrange
         mock_get_validated_input.side_effect = ['test_account', 'invalid_token']
