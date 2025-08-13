@@ -1,3 +1,13 @@
+"""
+Multi-Record IP Rotation Menu.
+
+This module provides the user interface for managing "global" rotation
+configurations. This rotation strategy involves multiple DNS records sharing
+a single pool of IP addresses, which are rotated across the records in a
+synchronized, round-robin fashion.
+
+These configurations are stored in the `state.json` file.
+"""
 from ..config import load_config, find_account
 from ..cloudflare_api import CloudflareAPI
 from ..state_manager import load_state, save_state
@@ -8,7 +18,9 @@ from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
 
 def add_global_rotation_menu():
-    """Menu for adding a new global rotation configuration."""
+    """
+    Guides the user through creating a new multi-record rotation configuration.
+    """
     clear_screen()
     print("\n--- Add New Global Rotation Configuration ---")
 
@@ -103,7 +115,9 @@ def add_global_rotation_menu():
         print(f"❌ An unexpected error occurred: {e}")
 
 def list_global_rotations():
-    """Lists all configured global rotations."""
+    """
+    Lists all configured multi-record ("global") rotations in a table.
+    """
     state = load_state()
     if "global_rotations" not in state or not state["global_rotations"]:
         print("No global rotations configured.")
@@ -131,7 +145,9 @@ def list_global_rotations():
     display_as_table(rotations_data, headers)
 
 def edit_global_rotation_menu():
-    """Menu for editing a global rotation configuration."""
+    """
+    Guides the user through editing an existing multi-record rotation config.
+    """
     clear_screen()
     print("\n--- Edit Global Rotation Configuration ---")
 
@@ -181,7 +197,9 @@ def edit_global_rotation_menu():
     print(f"\n✅ Global rotation configuration '{config_name}' updated.")
 
 def delete_global_rotation_menu():
-    """Menu for deleting a global rotation configuration."""
+    """
+    Guides the user through deleting a multi-record rotation configuration.
+    """
     clear_screen()
     print("\n--- Delete Global Rotation Configuration ---")
 
@@ -216,7 +234,9 @@ def delete_global_rotation_menu():
         print("Deletion cancelled.")
 
 def view_global_rotation_logs_menu():
-    """Menu for viewing logs for a global rotation configuration."""
+    """
+    Guides the user through selecting a multi-record rotation config to view its logs.
+    """
     clear_screen()
     print("\n--- View Global Rotation Logs ---")
 
@@ -246,7 +266,9 @@ def view_global_rotation_logs_menu():
     view_live_logs(record_name=config_name)
 
 def rotate_based_on_list_of_ips_multi_record_menu():
-    """Displays the management menu for Multi-Records global rotations."""
+    """
+    Displays the management menu for multi-record IP rotations.
+    """
     while True:
         clear_screen()
         print("\n--- Rotate Based on a List of IPs (Multi-Records) ---")

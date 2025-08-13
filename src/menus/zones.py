@@ -1,3 +1,10 @@
+"""
+Zone Management Menu.
+
+This module provides the user interface for managing Cloudflare zones.
+It allows users to list, add, view details of, delete, and modify the
+settings of their zones.
+"""
 from ..config import load_config, find_zone
 from ..cloudflare_api import CloudflareAPI
 from ..input_helper import get_validated_input, get_zone_type
@@ -9,13 +16,22 @@ from cloudflare import APIError
 from .utils import clear_screen, select_from_list
 
 def edit_zone_settings(cf_api, zone_id, zone_name):
-    """Manages editing of core settings for a specific zone."""
+    """
+    Manages the editing of core settings for a specific zone.
+
+    This function displays the current values of key settings (SSL, HTTPS, etc.)
+    and allows the user to update them one by one.
+
+    Args:
+        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
+        zone_id (str): The ID of the zone to edit.
+        zone_name (str): The name of the zone.
+    """
     while True:
         try:
             print(f"\n--- Current settings for {zone_name} ---")
             settings = cf_api.get_zone_core_settings(zone_id)
 
-            # Manually format for display
             settings_data = [
                 {"Setting": "SSL/TLS Mode", "Value": settings.get('ssl', 'N/A')},
                 {"Setting": "Always Use HTTPS", "Value": settings.get('always_use_https', 'N/A')},
@@ -61,14 +77,13 @@ def edit_zone_settings(cf_api, zone_id, zone_name):
                 print(f"Updating '{setting_name}' to '{new_value}'...")
                 cf_api.update_zone_setting(zone_id, setting_name, new_value)
                 print(f"✅ Setting '{setting_name}' updated successfully to '{new_value}'.")
-                # The loop will now re-fetch and display the updated settings.
             except (APIError, MissingPermissionError) as e:
                 logger.error(f"Failed to update setting '{setting_name}' for zone {zone_name}: {e}")
                 if "Missing permission: 'Zone Settings:Edit'" in str(e):
                     print("❌ Missing permission: 'Zone Settings:Edit'")
                 else:
                     print(f"❌ API Error: {e}")
-                break # Exit on error
+                break
 
         except (APIError, MissingPermissionError) as e:
             logger.error(f"Error managing zone settings for {zone_name}: {e}")
@@ -84,7 +99,13 @@ def edit_zone_settings(cf_api, zone_id, zone_name):
 
 
 def zone_management_menu():
-    """Displays the Zone Management submenu."""
+    """
+    Displays the main menu for Zone Management.
+
+    This function handles the user flow for selecting an account, listing its zones,
+    and navigating to various zone operations like adding, viewing, deleting, or
+    editing settings for a zone.
+    """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
@@ -100,7 +121,7 @@ def zone_management_menu():
         acc = select_from_list(data["accounts"], "Select an account:")
     
     if not acc:
-        return # User cancelled selection
+        return
 
     cf_api = CloudflareAPI(acc["api_token"])
 
@@ -115,7 +136,6 @@ def zone_management_menu():
             if not zones_from_cf:
                 print("\nNo zones found for this account in Cloudflare.")
             else:
-                # Prepare data for tabulate, adding a short ID for selection
                 zones_for_display = []
                 for i, zone in enumerate(zones_from_cf):
                     zones_for_display.append({
@@ -138,7 +158,7 @@ def zone_management_menu():
             logger.error(f"Cloudflare API Error fetching zones for account '{acc['name']}': {e}")
             print(f"❌ Error fetching zones: {e}")
             input("\nPress Enter to return...")
-            return # Exit if we can't get zones
+            return
 
         print("\nChoose an option:")
         print("1) Add a new zone")
@@ -151,17 +171,12 @@ def zone_management_menu():
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == "1":
-            # Add a new zone
             domain_name = get_validated_input("Enter the domain name to add: ", is_valid_domain, "Invalid domain name.")
             if domain_name:
                 zone_type = get_zone_type()
                 try:
                     print(f"Adding zone {domain_name}...")
-
                     new_zone = cf_api.add_zone(domain_name, zone_type=zone_type)
-
-                    # فقط ID و Status رو از دیکشنری نگه داریم و چاپ نکنیم
-
                     zone_details = cf_api.get_zone_details(new_zone["id"])
 
                     print(f"\n✅ Zone '{domain_name}' added successfully!")
@@ -187,7 +202,6 @@ def zone_management_menu():
                 input("\nPress Enter to continue...")
 
         elif choice == "2":
-            # View zone info
             if not zones_from_cf:
                 print("No zones to view.")
             else:
@@ -207,7 +221,6 @@ def zone_management_menu():
                             "Created On": zone_details.created_on.strftime('%Y-%m-%d'),
                             "Nameservers": ", ".join(zone_details.name_servers)
                         }
-                        # Using display_as_table for a single item requires a list
                         display_as_table([details], headers="keys")
 
                     else:
@@ -220,7 +233,6 @@ def zone_management_menu():
             input("\nPress Enter to continue...")
 
         elif choice == "3":
-            # Delete a zone
             if not zones_from_cf:
                 print("No zones to delete.")
             else:

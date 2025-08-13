@@ -1,3 +1,11 @@
+"""
+Single-Record IP Rotation Menu.
+
+This module provides the user interface for managing IP rotation for individual
+DNS records. Users can create, edit, delete, and view rotation configurations.
+A single-record rotation involves one DNS record and a dedicated list of IPs
+that are cycled through on a schedule.
+"""
 from ..config import load_config, validate_and_save_config, find_account, find_zone, find_record
 from ..cloudflare_api import CloudflareAPI
 from ..dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config
@@ -10,6 +18,12 @@ from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
 
 def add_record():
+    """
+    Guides the user through adding a new single-record rotation configuration.
+
+    This process involves selecting an account and zone, choosing or creating
+    a DNS record, and providing a list of IPs and a rotation interval.
+    """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
@@ -24,7 +38,6 @@ def add_record():
         cf_api = CloudflareAPI(acc["api_token"])
         zones_from_cf = cf_api.list_zones()
         
-        # Convert the generator to a list of dictionaries for selection
         zones_for_selection = [{"id": zone.id, "name": zone.name} for zone in zones_from_cf]
 
         if not zones_for_selection:
@@ -36,7 +49,6 @@ def add_record():
         if not selected_zone_info:
             return
 
-        # Check if the zone is already in the local config, if not, add it.
         zone_domain = selected_zone_info['name']
         zone_id = selected_zone_info['id']
         zone = find_zone(acc, zone_domain)
@@ -113,6 +125,9 @@ def add_record():
     logger.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
 
 def list_records_from_config():
+    """
+    Lists all single-record rotation configurations in a table.
+    """
     data = load_config()
     if not any(acc.get("zones") for acc in data["accounts"]):
         logger.info("No records to display.")
@@ -149,6 +164,9 @@ def list_records_from_config():
 
 
 def delete_record():
+    """
+    Guides the user through deleting a single-record rotation configuration.
+    """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
@@ -184,6 +202,9 @@ def delete_record():
         logger.info("Deletion cancelled.")
 
 def edit_record():
+    """
+    Guides the user through editing a single-record rotation configuration.
+    """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
@@ -229,11 +250,17 @@ def edit_record():
 
 
 def rotate_based_on_list_of_ips_single_record_menu():
-    """Displays the submenu for rotation based on a list of IPs."""
+    """
+    Displays the submenu for managing single-record IP rotations.
+
+    This menu provides options to create, edit, delete, and view logs for
+    rotation configurations that are based on a dedicated list of IPs for
+    a single DNS record.
+    """
     while True:
         clear_screen()
         print("\n--- Rotate Based on a List of IPs (Single-Record) ---")
-        list_records_from_config() # Always display the list
+        list_records_from_config()
         print("\n1. 📝 Create DNS Rotation")
         print("2. ✏️ Edit an Existing DNS Rotation")
         print("3. 🗑️ Delete a DNS Rotation")

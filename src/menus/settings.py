@@ -1,10 +1,19 @@
+"""
+Application Settings Menu.
+
+This module provides the user interface for managing global application settings,
+such as toggling console logging.
+"""
 from .utils import clear_screen
 from ..config import load_config, save_config
 from ..logger import logger, setup_logger
 
 def settings_menu():
     """
-    Menu for managing application settings.
+    Displays and handles the application settings menu.
+
+    This function allows the user to view and modify application-wide
+    settings. Currently, it supports toggling console logging on or off.
     """
     while True:
         clear_screen()
@@ -19,12 +28,11 @@ def settings_menu():
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == "1":
-            # Toggle console logging
             current_status = config.get("settings", {}).get("console_logging", True)
             config["settings"]["console_logging"] = not current_status
             save_config(config)
             
-            # Reconfigure logger to apply changes immediately
+            # Reconfigure the logger to apply the change immediately.
             setup_logger()
 
             new_status = "Enabled" if not current_status else "Disabled"

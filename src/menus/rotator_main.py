@@ -1,3 +1,11 @@
+"""
+IP Rotator Tools Main Menu.
+
+This module serves as the entry point for all IP rotation-related tools.
+It provides a navigation menu to access different rotation strategies,
+such as single-record rotation, multi-record rotation, and swapping IPs
+between existing records.
+"""
 from ..logger import logger
 from .utils import clear_screen
 from .rotator_single_record import rotate_based_on_list_of_ips_single_record_menu
@@ -5,7 +13,12 @@ from .rotator_multi_record import rotate_based_on_list_of_ips_multi_record_menu
 from .rotator_record_group import rotate_ips_between_records_management_menu
 
 def rotator_tools_menu():
-    """Displays the Rotator Tools submenu."""
+    """
+    Displays and handles the main menu for IP Rotator Tools.
+
+    This function presents the user with the different IP rotation options
+    available and calls the corresponding function based on the user's choice.
+    """
     clear_screen()
     while True:
         print("\n--- IP Rotator Tools ---")

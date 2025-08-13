@@ -1,7 +1,22 @@
+"""
+Input and Configuration Validators.
+
+This module provides a collection of functions for validating various types of
+data used throughout the application, including IP addresses, domain names, and
+the structure of the main configuration file.
+"""
 import re
 
 def is_valid_ipv4(ip):
-    """Validate IPv4 addresses."""
+    """
+    Validates an IPv4 address.
+
+    Args:
+        ip (str): The string to validate as an IPv4 address.
+
+    Returns:
+        bool: True if the string is a valid IPv4 address, False otherwise.
+    """
     pattern = re.compile(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$")
     if pattern.match(ip):
         parts = ip.split('.')
@@ -9,38 +24,82 @@ def is_valid_ipv4(ip):
     return False
 
 def is_valid_ipv6(ip):
-    """Validate IPv6 addresses."""
+    """
+    Validates an IPv6 address.
+
+    Args:
+        ip (str): The string to validate as an IPv6 address.
+
+    Returns:
+        bool: True if the string is a valid IPv6 address, False otherwise.
+    """
     pattern = re.compile(r"^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$", re.IGNORECASE)
     return pattern.match(ip) is not None
 
 def is_valid_domain(domain):
-    """Validate a domain name."""
-    # Basic domain validation regex
+    """
+    Validates a domain name using a basic regex.
+
+    Args:
+        domain (str): The domain name string to validate.
+
+    Returns:
+        bool: True if the string is a valid domain name, False otherwise.
+    """
     pattern = re.compile(
-        r'^(?:[a-zA-Z0-9]'  # First character of the domain
-        r'(?:[a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)'  # Subdomain
-        r'+[a-zA-Z]{2,6}$'  # Top-level domain
+        r'^(?:[a-zA-Z0-9]'
+        r'(?:[a-zA-Z0-9-_]{0,61}[a-zA-Z0-9])?\.)'
+        r'+[a-zA-Z]{2,6}$'
     )
     return pattern.match(domain) is not None
 
 def is_valid_zone_id(zone_id):
-    """Validate a Cloudflare Zone ID."""
-    # 32-character hexadecimal string
+    """
+    Validates a Cloudflare Zone ID.
+
+    Args:
+        zone_id (str): The Zone ID string to validate.
+
+    Returns:
+        bool: True if the string is a valid 32-character hex Zone ID, False otherwise.
+    """
     pattern = re.compile(r'^[a-f0-9]{32}$')
     return pattern.match(zone_id) is not None
 
 def is_valid_record_name(name):
-    """Validate a DNS record name."""
-    # This is a basic check, can be improved for more complex FQDN rules
+    """
+    Validates a DNS record name.
+
+    Args:
+        name (str): The DNS record name to validate.
+
+    Returns:
+        bool: True if the name is a non-empty string, False otherwise.
+    """
     return isinstance(name, str) and len(name) > 0
 
 def is_valid_rotator_record_type(record_type):
-    """Validate a DNS record type for the IP rotator."""
+    """
+    Validates that a DNS record type is valid for the IP rotator ('A' or 'AAAA').
+
+    Args:
+        record_type (str): The record type to validate.
+
+    Returns:
+        bool: True if the type is 'A' or 'AAAA', False otherwise.
+    """
     return record_type.upper() in ['A', 'AAAA']
 
 def is_valid_dns_record_type(record_type):
-    """Validate a general DNS record type."""
-    # A comprehensive list of common record types. This can be expanded.
+    """
+    Validates a general DNS record type against a list of common types.
+
+    Args:
+        record_type (str): The record type to validate.
+
+    Returns:
+        bool: True if the type is a known common type, False otherwise.
+    """
     common_types = [
         'A', 'AAAA', 'CNAME', 'TXT', 'MX', 'SRV', 'SPF', 'DKIM', 'DMARC',
         'NS', 'SOA', 'PTR', 'CAA', 'DS', 'DNSKEY', 'NAPTR', 'LOC'
@@ -48,7 +107,18 @@ def is_valid_dns_record_type(record_type):
     return record_type.upper() in common_types
 
 def validate_record(record):
-    """Validate a single DNS record."""
+    """
+    Validates the structure and content of a single DNS record configuration.
+
+    Args:
+        record (dict): The record dictionary from the configuration.
+
+    Returns:
+        bool: True if the record is valid.
+
+    Raises:
+        ValueError: If any part of the record configuration is invalid.
+    """
     if 'name' not in record or not isinstance(record['name'], str) or not record['name']:
         raise ValueError("Record 'name' is required and must be a non-empty string.")
     
@@ -70,7 +140,18 @@ def validate_record(record):
     return True
 
 def validate_zone(zone):
-    """Validate a single zone."""
+    """
+    Validates the structure and content of a single zone configuration.
+
+    Args:
+        zone (dict): The zone dictionary from the configuration.
+
+    Returns:
+        bool: True if the zone is valid.
+
+    Raises:
+        ValueError: If any part of the zone configuration is invalid.
+    """
     if 'domain' not in zone or not isinstance(zone['domain'], str) or not zone['domain']:
         raise ValueError("Zone 'domain' is required and must be a non-empty string.")
     
@@ -86,10 +167,20 @@ def validate_zone(zone):
     return True
 
 def validate_account(account):
-    """Validate a single account."""
+    """
+    Validates the structure and content of a single account configuration.
+
+    Args:
+        account (dict): The account dictionary from the configuration.
+
+    Returns:
+        bool: True if the account is valid.
+
+    Raises:
+        ValueError: If any part of the account configuration is invalid.
+    """
     if 'name' not in account or not isinstance(account['name'], str) or not account['name']:
         raise ValueError("Account 'name' is required and must be a non-empty string.")
-    # TODO: Validate with Connectivity Check 
     if 'api_token' not in account or not isinstance(account['api_token'], str) or not account['api_token']:
         raise ValueError("Account 'api_token' is required and must be a non-empty string.")
         
@@ -102,7 +193,18 @@ def validate_account(account):
     return True
 
 def validate_config(data):
-    """Validate the entire configuration data."""
+    """
+    Validates the entire configuration data structure.
+
+    Args:
+        data (dict): The full configuration dictionary to validate.
+
+    Returns:
+        bool: True if the entire configuration is valid.
+
+    Raises:
+        ValueError: If any part of the configuration is invalid.
+    """
     if 'accounts' not in data or not isinstance(data['accounts'], list):
         raise ValueError("Top-level 'accounts' key must be a list.")
         

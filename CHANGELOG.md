@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
+## [2.8.0-rc.1] - 2025-08-13
+
+### Added
+- **Comprehensive Docstrings**: Added Google-style docstrings to all major Python files in the `src` directory and its subdirectories, including:
+  - `cf-utils.py`
+  - `src/app.py`
+  - `src/cloudflare_api.py`
+  - `src/config.py`
+  - `src/dns_manager.py`
+  - `src/ip_rotator.py`
+  - `src/logger.py`
+  - `src/validator.py`
+  - All files in `src/menus/`
+- **Project Structure Section in README**: Added a tree-like view of the project structure to help new developers understand the layout.
+- **Troubleshooting Section in README**: Added guidance for resolving common issues such as `MissingPermissionError` and API errors.
+- **Quick Start Section in README**: Added a quick setup guide for fast onboarding.
+- **DNS Records Management Menu**: Manage DNS records (view, add, edit, delete) directly from the CLI.
+- **Logging Configuration**: New `console_logging` setting in `configs.json` and a Settings menu toggle to enable/disable console logging instantly.
+
+### Changed
+- **Improved `README.md`**:
+  - **Prerequisites**: Clarified Python version and listed key dependencies.
+  - **Configuration**: Expanded API Token Permissions section to explain the purpose of each required permission. Added details about all configuration files (`configs.json`, `rotation_status.json`, `state.json`).
+  - **Usage**: Added a real-world example of CLI usage with sample output.
+- **Standardized Docstring Format**: Ensured all docstrings follow the Google format for consistency.
+- **Corrected License Information**: Updated `README.md` to correctly state the Apache License 2.0, matching the `LICENSE` file.
+- **Menu Refactor**: Moved all menu-related logic into `src/menus` directory for better modularity.
+- **Input Validation**: Expanded to support more DNS record types.
+- **Logger Setup**: Made `setup_logger` reconfigurable to apply new settings immediately.
+
+### Fixed
+- Prevented duplicate console log messages when console logging is disabled.
+
+### Removed
+- **Redundant Comments**: Removed unnecessary code comments in favor of descriptive docstrings.
+- **Incorrect License Text**: Removed incorrect MIT License text from the `README.md`.
+
 ## [2.7.1-rc.1] - 2025-08-12
 
 ### Added

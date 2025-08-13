@@ -1,3 +1,11 @@
+"""
+DNS Record Management Menu.
+
+This module provides the user interface for managing DNS records directly
+through the Cloudflare API. It allows users to select an account and a zone,
+and then perform operations such as listing, adding, editing, and deleting
+DNS records.
+"""
 from ..config import load_config
 from ..cloudflare_api import CloudflareAPI
 from ..input_helper import get_validated_input
@@ -9,7 +17,12 @@ from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, parse_selection
 
 def dns_management_menu():
-    """Displays the DNS Record Management submenu."""
+    """
+    Displays the main menu for DNS management.
+
+    This function guides the user through selecting an account and then a zone.
+    Once a zone is selected, it transitions to the record management menu for that zone.
+    """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
@@ -25,7 +38,7 @@ def dns_management_menu():
         acc = select_from_list(data["accounts"], "Select an account:")
     
     if not acc:
-        return # User cancelled selection
+        return
 
     cf_api = CloudflareAPI(acc["api_token"])
 
@@ -68,7 +81,17 @@ def dns_management_menu():
             input("\nPress Enter to continue...")
 
 def manage_zone_records(cf_api, zone_id, zone_name):
-    """Manages DNS records for a specific zone."""
+    """
+    Displays and handles the DNS record management options for a specific zone.
+
+    This function lists all DNS records for the given zone and provides options
+    to add, edit, or delete records.
+
+    Args:
+        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
+        zone_id (str): The ID of the zone to manage.
+        zone_name (str): The name of the zone.
+    """
     while True:
         clear_screen()
         print(f"--- DNS Records for {zone_name} ---")
@@ -130,7 +153,14 @@ def manage_zone_records(cf_api, zone_id, zone_name):
             return
 
 def add_dns_record(cf_api, zone_id, zone_name):
-    """Handles adding a new DNS record."""
+    """
+    Handles the user input and API call for adding a new DNS record.
+
+    Args:
+        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
+        zone_id (str): The ID of the zone where the record will be added.
+        zone_name (str): The name of the zone (for logging purposes).
+    """
     print("\n--- Add New DNS Record ---")
     
     record_type = get_validated_input(
@@ -141,13 +171,13 @@ def add_dns_record(cf_api, zone_id, zone_name):
 
     name = get_validated_input(
         "Enter record name (e.g., www, @, mail): ",
-        lambda n: n is not None, # any non-empty string is fine for now
+        lambda n: n is not None,
         "Name cannot be empty."
     )
 
     content = get_validated_input(
         "Enter record content (IP address, domain, etc.): ",
-        lambda c: c is not None, # any non-empty string is fine for now
+        lambda c: c is not None,
         "Content cannot be empty."
     )
 
@@ -172,7 +202,15 @@ def add_dns_record(cf_api, zone_id, zone_name):
     input("\nPress Enter to continue...")
 
 def edit_dns_record(cf_api, zone_id, zone_name, records):
-    """Handles editing an existing DNS record."""
+    """
+    Handles the user input and API call for editing an existing DNS record.
+
+    Args:
+        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
+        zone_id (str): The ID of the zone containing the record.
+        zone_name (str): The name of the zone (for logging purposes).
+        records (list): The list of current DNS records in the zone.
+    """
     print("\n--- Edit DNS Record ---")
     try:
         selection = int(input("Enter the # of the record to edit: "))
@@ -226,7 +264,15 @@ def edit_dns_record(cf_api, zone_id, zone_name, records):
     input("\nPress Enter to continue...")
 
 def delete_dns_record(cf_api, zone_id, zone_name, records):
-    """Handles deleting one or more existing DNS records."""
+    """
+    Handles the user input and API call for deleting one or more DNS records.
+
+    Args:
+        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
+        zone_id (str): The ID of the zone containing the records.
+        zone_name (str): The name of the zone (for logging purposes).
+        records (list): The list of current DNS records in the zone.
+    """
     print("\n--- Delete DNS Records ---")
     selection_str = input("Enter the # of the record(s) to delete (e.g., 1, 2-4, 5): ")
 
@@ -239,7 +285,6 @@ def delete_dns_record(cf_api, zone_id, zone_name, records):
 
         records_to_delete = [records[i] for i in indices_to_delete]
         
-        # Confirmation logic
         if len(records_to_delete) == 1:
             record_to_delete = records_to_delete[0]
             print(f"\n⚠️  You are about to delete the record: {record_to_delete.name} ({record_to_delete.type})")
@@ -259,10 +304,9 @@ def delete_dns_record(cf_api, zone_id, zone_name, records):
                 input("\nPress Enter to continue...")
                 return
 
-        # Deletion logic
         deleted_count = 0
         failed_count = 0
-        print("") # for spacing
+        print("")
         for record in records_to_delete:
             try:
                 print(f"Deleting record {record.name}...")

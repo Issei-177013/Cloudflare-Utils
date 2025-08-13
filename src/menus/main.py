@@ -1,8 +1,10 @@
-import sys
-import os
+"""
+Main Menu for the Cloudflare Utils CLI.
 
-# Adjust path to import from root
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+This module displays the main navigation menu for the command-line interface.
+It allows the user to access different functionalities of the application,
+such as account management, zone management, DNS tools, and settings.
+"""
 try:
     from version import __version__
     version_str = f"Version: {__version__}"
@@ -18,6 +20,14 @@ from .rotator_main import rotator_tools_menu
 from .settings import settings_menu
 
 def main_menu():
+    """
+    Displays and handles the main menu of the application.
+
+    This function runs in a loop, presenting the user with a list of
+    options to navigate to different parts of the application. It handles
+    user input and calls the appropriate menu function based on the user's
+    choice. The loop continues until the user chooses to exit.
+    """
     # Define ANSI escape codes for colors
     YELLOW = '\033[93m'
     CYAN = '\033[96m'
@@ -38,9 +48,8 @@ def main_menu():
 """
     
     while True:
-        clear_screen() # Clear screen on each loop iteration
+        clear_screen()
         print(f"{YELLOW}{art}{RESET}")
-        # Print author and version after the art
         print(f"{CYAN}{author_str}{RESET}")
         print(f"{CYAN}{version_str}{RESET}")
         

@@ -1,3 +1,10 @@
+"""
+Account Management Menu.
+
+This module provides the user interface and logic for managing Cloudflare
+accounts within the application. It allows users to add, edit, list, and
+delete accounts from the configuration.
+"""
 from ..config import load_config, validate_and_save_config, find_account
 from ..cloudflare_api import CloudflareAPI
 from ..dns_manager import edit_account_in_config, delete_account_from_config
@@ -9,6 +16,13 @@ from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action
 
 def add_account():
+    """
+    Guides the user through adding a new Cloudflare account.
+
+    This function prompts the user for an account name and an API token.
+    It validates the token by making a test API call and ensures the
+    account name is unique before saving it to the configuration.
+    """
     data = load_config()
     name = get_validated_input("Account name: ", lambda s: s.strip(), "Account name cannot be empty.")
 
@@ -48,6 +62,12 @@ def add_account():
         print("✅ Account added")
 
 def edit_account():
+    """
+    Allows the user to edit the name or API token of an existing account.
+
+    The user selects an account from a list, then is prompted to enter a
+    new name and/or a new token.
+    """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
@@ -68,6 +88,12 @@ def edit_account():
         print("No changes made.")
 
 def delete_account():
+    """
+    Allows the user to delete an existing account from the configuration.
+
+    The user selects an account from a list and must confirm the deletion
+    before the account is removed.
+    """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
@@ -85,7 +111,13 @@ def delete_account():
         logger.info("Deletion cancelled.")
 
 def list_accounts():
-    """Lists all configured accounts, including the number of zones for each."""
+    """
+    Lists all configured accounts in a table format.
+
+    For each account, it displays the name and the number of zones accessible
+    with its API token. It handles API errors gracefully if zones cannot be
+    fetched for a particular account.
+    """
     data = load_config()
     if not data["accounts"]:
         print("No accounts configured.")
@@ -108,11 +140,18 @@ def list_accounts():
 
 
 def account_management_menu():
-    """Displays the Account Management submenu."""
+    """
+    Displays and handles the Account Management submenu.
+
+    This function presents the user with options to add, edit, or delete
+    Cloudflare accounts. It loops until the user chooses to return to the
+
+    main menu.
+    """
     clear_screen()
     while True:
         print("\n--- 👤 Cloudflare Account Management ---")
-        list_accounts()  # Display accounts at the top of the menu
+        list_accounts()
         print("\n1. 👤 Add a New Cloudflare Account")
         print("2. ✏️ Edit an Existing Cloudflare Account")
         print("3. 🗑️ Delete a Cloudflare Account")

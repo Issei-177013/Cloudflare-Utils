@@ -1,3 +1,12 @@
+"""
+Rotation Group Management Menu.
+
+This module provides the user interface for managing "rotation groups".
+A rotation group is a set of DNS records within a zone whose IP addresses
+are rotated among each other on a schedule. This is different from other
+rotation methods as it uses the records' existing IPs rather than a
+separate, predefined list.
+"""
 from ..config import load_config, validate_and_save_config, find_account, find_zone
 from ..cloudflare_api import CloudflareAPI
 from ..dns_manager import add_rotation_group, edit_rotation_group, delete_rotation_group
@@ -8,6 +17,9 @@ from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
 
 def list_rotation_groups():
+    """
+    Lists all configured rotation groups in a table.
+    """
     data = load_config()
     groups_data = []
     for acc in data.get("accounts", []):
@@ -35,6 +47,9 @@ def list_rotation_groups():
     display_as_table(groups_data, headers)
 
 def add_rotation_group_menu():
+    """
+    Guides the user through creating a new rotation group.
+    """
     data = load_config()
     if not data["accounts"]:
         print("❌ No accounts available. Please add an account first.")
@@ -59,7 +74,6 @@ def add_rotation_group_menu():
         zone_id = selected_zone_info['id']
         zone_domain = selected_zone_info['name']
         
-        # Ensure the zone exists in local config, add if not
         zone = find_zone(acc, zone_domain)
         if not zone:
             if "zones" not in acc:
@@ -111,6 +125,9 @@ def add_rotation_group_menu():
         print(f"❌ An unexpected error occurred: {e}")
 
 def edit_rotation_group_menu():
+    """
+    Guides the user through editing an existing rotation group.
+    """
     data = load_config()
     all_groups = []
     for acc in data.get("accounts", []):
@@ -134,8 +151,6 @@ def edit_rotation_group_menu():
     print(f"\n--- Editing Group: {group_to_edit['name']} ---")
     print(f"Current records: {', '.join(group_to_edit['records'])}")
     
-    # For simplicity, we'll ask for the new list of records from scratch.
-    # A more advanced implementation might allow adding/removing single records.
     print("You will need to re-select all records for the group.")
     
     try:
@@ -191,6 +206,9 @@ def edit_rotation_group_menu():
 
 
 def delete_rotation_group_menu():
+    """
+    Guides the user through deleting a rotation group.
+    """
     data = load_config()
     all_groups = []
     for acc in data.get("accounts", []):
@@ -218,7 +236,9 @@ def delete_rotation_group_menu():
         )
 
 def rotate_ips_between_records_management_menu():
-    """Displays the menu for managing scheduled rotation between records."""
+    """
+    Displays the main menu for managing scheduled rotation groups.
+    """
     while True:
         clear_screen()
         print("\n--- Rotate IPs Between Records (Scheduled) ---")

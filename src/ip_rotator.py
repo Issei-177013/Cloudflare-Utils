@@ -9,12 +9,18 @@ from cloudflare import APIError
 def rotate_ips_between_records(cf_api, zone_id, records, order):
     """
     Rotates IPs among selected DNS records based on a custom order.
-    
+
+    This function takes a list of DNS records and a specified order, then
+    rotates the IP addresses among them in a circular shift manner. The last
+    IP in the sequence is moved to the first record, and all other IPs are
+    shifted one position down.
+
     Args:
-        cf_api: CloudflareAPI instance
-        zone_id: Cloudflare zone ID
-        records: Full list of records fetched from Cloudflare
-        order: List of indices (integers) indicating user-selected order
+        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
+        zone_id (str): The ID of the Cloudflare zone containing the records.
+        records (list): The full list of DNS record objects fetched from Cloudflare.
+        order (list): A list of integer indices indicating the user-selected
+                      order of records to rotate.
     """
     logger.info(f"[IP Rotator] Rotating IPs for {len(order)} records by custom order.")
 
@@ -49,7 +55,23 @@ def rotate_ips_between_records(cf_api, zone_id, records, order):
 
     logger.info("[IP Rotator] Custom order IP rotation completed.")
 
+
 def rotate_ip(ip_list, current_ip, logger):
+    """
+    Selects the next IP address from a list in a round-robin fashion.
+
+    Given a list of IPs and the current IP, this function finds the next
+    IP in the list. If the current IP is not in the list, it returns the
+    first IP. If the list is empty, it returns the current IP.
+
+    Args:
+        ip_list (list): A list of IP addresses to rotate through.
+        current_ip (str): The current IP address.
+        logger (logging.Logger): The logger instance for logging messages.
+
+    Returns:
+        str: The next IP address to be used.
+    """
     if not ip_list:
         logger.warning("IP list is empty. Cannot rotate.")
         return current_ip
@@ -71,7 +93,28 @@ def rotate_ip(ip_list, current_ip, logger):
 
     return new_ip
 
+
 def run_rotation():
+    """
+    Main function to run the IP rotation logic.
+
+    This function is the core of the automated IP rotation process and is
+    intended to be run periodically (e.g., via a cron job). It loads the
+    configuration and rotation status, then iterates through all configured
+    accounts, zones, and records to perform IP rotation where needed.
+
+    The function handles three types of rotation:
+    1.  **Global Rotations:** Rotates a shared pool of IPs across multiple
+        records from different zones, managed globally.
+    2.  **Single-Record Rotations:** Rotates IPs for individual DNS records
+        based on their own list of IPs and rotation schedule.
+    3.  **Rotation Groups:** Rotates the current IPs among a group of records
+        within the same zone.
+
+    It checks the `rotation_status.json` file to determine if a rotation is
+    due based on the configured interval for each record or group. After a
+    successful rotation, it updates the status file with the current timestamp.
+    """
     config = load_config()
     rotation_status = load_rotation_status()
     state = load_state()
@@ -219,18 +262,29 @@ def run_rotation():
 
 def rotate_ips_for_multi_record(records, ip_pool, rotation_index):
     """
-    Rotates a shared list of IPs across multiple DNS records in a synchronized, round-robin manner.
+    Rotates a shared list of IPs across multiple DNS records.
+
+    This function implements a synchronized, round-robin rotation mechanism.
+    It assigns IPs from a shared pool to a list of DNS records, starting
+    from a given rotation index. This ensures that each record gets a new
+    IP from the pool in a predictable, sequential manner.
 
     Args:
-        records (list): A list of DNS record objects to be updated. Each object must have 'name' and 'content' attributes.
-        ip_pool (list): A shared list of available IPs.
-        rotation_index (int): The starting index for the IP rotation.
+        records (list): A list of DNS record objects to be updated. Each
+                        object must have 'id', 'name', 'type', and 'content'
+                        attributes.
+        ip_pool (list): The shared list of available IP addresses.
+        rotation_index (int): The starting index for the IP rotation within
+                              the `ip_pool`.
 
     Returns:
         tuple: A tuple containing:
-            - list: A list of dictionaries, where each dictionary represents an updated record
-                    and contains 'name', 'old_ip', and 'new_ip'.
-            - int: The updated rotation_index for the next run.
+            - list: A list of dictionaries, where each dictionary represents
+                    a record that needs to be updated. Each dictionary
+                    includes 'record_id', 'name', 'type', 'old_ip', and
+                    'new_ip'.
+            - int: The updated `rotation_index` for the next run, which
+                   advances the starting point for the next rotation.
     """
     updated_records = []
     pool_size = len(ip_pool)
