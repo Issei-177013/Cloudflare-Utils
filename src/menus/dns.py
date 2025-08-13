@@ -6,7 +6,7 @@ from ..logger import logger
 from ..display import display_as_table
 from ..error_handler import MissingPermissionError
 from cloudflare import APIError
-from .utils import clear_screen, select_from_list, confirm_action
+from .utils import clear_screen, select_from_list, confirm_action, parse_selection
 
 def dns_management_menu():
     """Displays the DNS Record Management submenu."""
@@ -226,33 +226,61 @@ def edit_dns_record(cf_api, zone_id, zone_name, records):
     input("\nPress Enter to continue...")
 
 def delete_dns_record(cf_api, zone_id, zone_name, records):
-    """Handles deleting an existing DNS record."""
-    print("\n--- Delete DNS Record ---")
+    """Handles deleting one or more existing DNS records."""
+    print("\n--- Delete DNS Records ---")
+    selection_str = input("Enter the # of the record(s) to delete (e.g., 1, 2-4, 5): ")
+
     try:
-        selection = int(input("Enter the # of the record to delete: "))
-        if not (1 <= selection <= len(records)):
-            print("❌ Invalid selection.")
+        indices_to_delete = parse_selection(selection_str, len(records))
+        if not indices_to_delete:
+            print("No valid records selected.")
+            input("\nPress Enter to continue...")
             return
 
-        record_to_delete = records[selection - 1]
-
-        print(f"\n⚠️ You are about to delete the record: {record_to_delete.name} ({record_to_delete.type})")
+        records_to_delete = [records[i] for i in indices_to_delete]
         
-        confirmation = input(f"To confirm, please type the record name '{record_to_delete.name}': ")
-        
-        if confirmation.strip().lower() == record_to_delete.name.lower():
-            try:
-                print("Deleting DNS record...")
-                cf_api.delete_dns_record(zone_id, record_to_delete.id)
-                logger.info(f"DNS record '{record_to_delete.name}' deleted successfully from zone '{zone_name}'.")
-                print("✅ DNS record deleted successfully!")
-            except APIError as e:
-                logger.error(f"Failed to delete DNS record in zone {zone_name}: {e}")
-                print(f"❌ Error deleting DNS record: {e}")
+        # Confirmation logic
+        if len(records_to_delete) == 1:
+            record_to_delete = records_to_delete[0]
+            print(f"\n⚠️  You are about to delete the record: {record_to_delete.name} ({record_to_delete.type})")
+            confirmation = input(f"To confirm, please type the record name '{record_to_delete.name}': ")
+            if confirmation.strip().lower() != record_to_delete.name.lower():
+                print("❌ Deletion cancelled. The entered name did not match.")
+                input("\nPress Enter to continue...")
+                return
         else:
-            print("❌ Deletion cancelled. The entered name did not match.")
+            print("\n⚠️  You are about to delete the following records:")
+            for i, record in enumerate(records_to_delete):
+                 print(f"{i+1}. {record.name} ({record.type}) - {record.content}")
+            
+            confirmation = input("To confirm, please type 'delete': ")
+            if confirmation.strip().lower() != 'delete':
+                print("❌ Deletion cancelled.")
+                input("\nPress Enter to continue...")
+                return
 
-    except ValueError:
-        print("❌ Invalid input. Please enter a number.")
+        # Deletion logic
+        deleted_count = 0
+        failed_count = 0
+        print("") # for spacing
+        for record in records_to_delete:
+            try:
+                print(f"Deleting record {record.name}...")
+                cf_api.delete_dns_record(zone_id, record.id)
+                logger.info(f"DNS record '{record.name}' deleted successfully from zone '{zone_name}'.")
+                deleted_count += 1
+            except APIError as e:
+                logger.error(f"Failed to delete DNS record {record.name} in zone {zone_name}: {e}")
+                print(f"❌ Error deleting record {record.name}: {e}")
+                failed_count += 1
+        
+        print("\n--- Deletion Summary ---")
+        if deleted_count > 0:
+            print(f"✅ Successfully deleted {deleted_count} record(s).")
+        if failed_count > 0:
+            print(f"❌ Failed to delete {failed_count} record(s).")
+
+    except ValueError as e:
+        print(f"❌ Invalid input: {e}")
     
     input("\nPress Enter to continue...")

@@ -88,3 +88,36 @@ def view_live_logs(record_name=None):
         logger.error(f"Error reading log file: {e}")
         print(f"An error occurred while trying to read the log file: {e}")
         input("\nPress Enter to return...")
+
+
+def parse_selection(selection_str, max_value):
+    """
+    Parses a selection string (e.g., "1,3-5,7") into a list of indices.
+    """
+    indices = set()
+    parts = selection_str.replace(" ", "").split(',')
+    for part in parts:
+        if not part:
+            continue
+        if '-' in part:
+            try:
+                start, end = map(int, part.split('-'))
+                if start > end:
+                    start, end = end, start # handle reverse ranges
+                if 1 <= start <= max_value and 1 <= end <= max_value:
+                    for i in range(start, end + 1):
+                        indices.add(i - 1)
+                else:
+                    raise ValueError("Range out of bounds.")
+            except ValueError:
+                raise ValueError(f"Invalid range '{part}'.")
+        else:
+            try:
+                index = int(part)
+                if 1 <= index <= max_value:
+                    indices.add(index - 1)
+                else:
+                    raise ValueError(f"Index {index} is out of bounds.")
+            except ValueError:
+                raise ValueError(f"Invalid selection '{part}'.")
+    return sorted(list(indices))
