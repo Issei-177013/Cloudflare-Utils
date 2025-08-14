@@ -94,3 +94,37 @@ def get_zone_type():
         else:
             logger.warning(f"Invalid zone type entered: {zone_type}")
             print(f"❌ {error_message}")
+
+def get_user_input(prompt):
+    """
+    Prompts the user for input and ensures it is not empty.
+    """
+    while True:
+        user_input = input(prompt).strip()
+        if user_input:
+            return user_input
+        print("❌ Input cannot be empty.")
+
+def get_numeric_input(prompt, num_type, default=None, min_val=None, max_val=None):
+    """
+    Prompts for a numeric value, with optional default, type, and range validation.
+    """
+    while True:
+        user_input = input(prompt).strip()
+        if not user_input and default is not None:
+            return default
+        
+        try:
+            num_value = num_type(user_input)
+            
+            if min_val is not None and num_value < min_val:
+                print(f"❌ Value must be at least {min_val}.")
+                continue
+            
+            if max_val is not None and num_value > max_val:
+                print(f"❌ Value must be no more than {max_val}.")
+                continue
+                
+            return num_value
+        except ValueError:
+            print(f"❌ Invalid input. Please enter a valid number ({num_type.__name__}).")
