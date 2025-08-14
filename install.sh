@@ -13,9 +13,9 @@ VERSION_TAG=""
 
 # --- Helper Functions ---
 install_base_dependencies() {
-    echo -e "\e[1;34mInstalling base dependencies (git, python3-pip)...\e[0m"
+    echo -e "\e[1;34mInstalling base dependencies (git, python3-pip, python3-venv)...\e[0m"
     sudo apt-get update
-    sudo apt-get install -y git python3-pip
+    sudo apt-get install -y git python3-pip python3-venv
 }
 
 clone_repository() {
@@ -41,8 +41,11 @@ install_controller() {
     install_base_dependencies
     clone_repository
 
-    echo -e "\e[1;34mInstalling Controller Python dependencies...\e[0m"
-    pip3 install --break-system-packages -r "$CONTROLLER_DIR/requirements.txt"
+    echo -e "\e[1;34mSetting up Python virtual environment...\e[0m"
+    python3 -m venv "$CONTROLLER_DIR/venv"
+
+    echo -e "\e[1;34mInstalling Controller Python dependencies into virtual environment...\e[0m"
+    "$CONTROLLER_DIR/venv/bin/pip" install -r "$CONTROLLER_DIR/requirements.txt"
     
     echo -e "\e[1;34mSetting up runner script, config file, and cron job...\e[0m"
     # Create runner for cron job
@@ -50,7 +53,7 @@ install_controller() {
 #!/bin/bash
 cd "$CONTROLLER_DIR"
 export LOG_TO_FILE=true
-python3 -m src.ip_rotator
+"$CONTROLLER_DIR/venv/bin/python3" -m src.ip_rotator
 EOF
     chmod +x "$CONTROLLER_DIR/run.sh"
 
