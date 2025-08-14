@@ -38,7 +38,6 @@ def main():
         if not config.get("accounts"):
             print("\nNo account was added. Exiting.")
             sys.exit(0)
-
     try:
         # Start the main interactive menu.
         main_menu()

@@ -9,6 +9,7 @@ as required for managing configurations and system services (like cron jobs).
 If the script is not run as root, it attempts to re-launch itself using `sudo`
 to elevate privileges.
 """
+
 import os
 import sys
 import subprocess
