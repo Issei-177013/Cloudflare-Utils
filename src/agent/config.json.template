@@ -1,0 +1,6 @@
+{
+  "api_key": "YOUR_KEY",
+  "whitelist": ["1.2.3.4"],
+  "vnstat_interface": "eth0",
+  "port": 15728
+}

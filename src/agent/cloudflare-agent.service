@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloudflare Traffic Monitoring Agent
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/opt/cloudflare-agent
+ExecStart=/usr/bin/python3 /opt/cloudflare-agent/agent.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

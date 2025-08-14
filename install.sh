@@ -1,147 +1,230 @@
 #!/bin/bash
 set -e
 
-PROGRAM_NAME="Cloudflare-Utils"
+# --- Configuration ---
+CONTROLLER_PROGRAM_NAME="Cloudflare-Utils"
+AGENT_PROGRAM_NAME="cloudflare-agent"
 DEFAULT_BRANCH="main"
+# Allow branch to be specified as an argument, e.g., ./install.sh dev
 BRANCH="${1:-$DEFAULT_BRANCH}"
-PROGRAM_DIR="/opt/$PROGRAM_NAME"
+CONTROLLER_DIR="/opt/$CONTROLLER_PROGRAM_NAME"
+AGENT_DIR="/opt/$AGENT_PROGRAM_NAME"
 VERSION_TAG=""
 
-install_packages() {
-    echo -e "\e[1;34mInstalling dependencies...\e[0m"
+# --- Helper Functions ---
+install_base_dependencies() {
+    echo -e "\e[1;34mInstalling base dependencies (git, python3-pip)...\e[0m"
     sudo apt-get update
     sudo apt-get install -y git python3-pip
-
-    # Check if typing-extensions is installed by apt
-    if dpkg -s python3-typing-extensions &> /dev/null; then
-        echo -e "\e[1;33mDetected 'python3-typing-extensions' package installed by apt, which may conflict with pip.\e[0m"
-        read -rp "Do you want to remove 'python3-typing-extensions' to avoid conflicts? [y/N]: " answer
-        case "$answer" in
-            [Yy]* )
-                echo -e "\e[1;34mRemoving 'python3-typing-extensions'...\e[0m"
-                sudo apt-get remove -y python3-typing-extensions || {
-                    echo -e "\e[1;31mFailed to remove 'python3-typing-extensions'. Aborting installation.\e[0m"
-                    exit 1
-                }
-                ;;
-            * )
-                echo -e "\e[1;31mCannot proceed without removing 'python3-typing-extensions'. Aborting.\e[0m"
-                exit 1
-                ;;
-        esac
-    fi
-
-    pip3 install --break-system-packages cloudflare python-dotenv coloredlogs tabulate
 }
 
-
 clone_repository() {
-    echo -e "\e[1;34mCloning from branch '$BRANCH'...\e[0m"
-    if [ -d "$PROGRAM_DIR/.git" ]; then
-        cd "$PROGRAM_DIR"
-        git fetch origin
+    echo -e "\e[1;34mCloning repository from branch '$BRANCH' into $CONTROLLER_DIR...\e[0m"
+    if [ -d "$CONTROLLER_DIR/.git" ]; then
+        cd "$CONTROLLER_DIR"
+        git fetch origin --all
         git checkout "$BRANCH"
         git pull origin "$BRANCH"
     else
-        git clone --branch "$BRANCH" https://github.com/Issei-177013/Cloudflare-Utils.git "$PROGRAM_DIR"
+        git clone --branch "$BRANCH" https://github.com/Issei-177013/Cloudflare-Utils.git "$CONTROLLER_DIR"
     fi
 
-    cd "$PROGRAM_DIR"
+    cd "$CONTROLLER_DIR"
     VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
     cd - > /dev/null
+    echo -e "\e[1;32m✅ Repository cloned/updated successfully.\e[0m"
 }
 
-create_runner() {
-    cat << EOF > "$PROGRAM_DIR/run.sh"
+# --- Controller Functions ---
+install_controller() {
+    echo -e "\n\e[1;36m--- Installing Cloudflare-Utils Controller ---\e[0m"
+    install_base_dependencies
+    clone_repository
+
+    echo -e "\e[1;34mInstalling Controller Python dependencies...\e[0m"
+    pip3 install --break-system-packages -r "$CONTROLLER_DIR/requirements.txt"
+    
+    echo -e "\e[1;34mSetting up runner script, config file, and cron job...\e[0m"
+    # Create runner for cron job
+    cat << EOF > "$CONTROLLER_DIR/run.sh"
 #!/bin/bash
-cd "$PROGRAM_DIR"
+cd "$CONTROLLER_DIR"
 export LOG_TO_FILE=true
 python3 -m src.ip_rotator
 EOF
-
-    chmod +x "$PROGRAM_DIR/run.sh"
-}
-
-# Function to set up the configuration file
-setup_config_file() {
-    echo -e "\e[1;34mSetting up config file and logs directory...\e[0m"
-    CONFIG_FILE_PATH="$PROGRAM_DIR/src/configs.json"
-    LOGS_DIR_PATH="$PROGRAM_DIR/logs"
+    chmod +x "$CONTROLLER_DIR/run.sh"
 
     # Create config file if it doesn't exist
-    if [ ! -f "$CONFIG_FILE_PATH" ]; then
-        echo '{"accounts": []}' > "$CONFIG_FILE_PATH"
-        echo -e "\e[1;32mCreated empty config file: $CONFIG_FILE_PATH\e[0m"
-    else
-        echo -e "\e[1;33mConfig file already exists, no changes made.\e[0m"
+    mkdir -p "$CONTROLLER_DIR/src"
+    if [ ! -f "$CONTROLLER_DIR/src/configs.json" ]; then
+        echo '{"accounts": [], "agents": []}' > "$CONTROLLER_DIR/src/configs.json"
     fi
+    mkdir -p "$CONTROLLER_DIR/logs"
 
-    # Create logs directory if it doesn't exist
-    mkdir -p "$LOGS_DIR_PATH"
-    echo -e "\e[1;32mEnsured logs directory exists: $LOGS_DIR_PATH\e[0m"
-}
-
-# Function to set up cron jobs
-setup_cron() {
-    echo -e "\e[1;34mSetting up cron...\e[0m"
-    CRON_JOB_RUNNER="/bin/bash $PROGRAM_DIR/run.sh"
-    # Remove existing cron jobs for this runner to avoid duplicates
+    # Setup cron job
+    CRON_JOB_RUNNER="/bin/bash $CONTROLLER_DIR/run.sh"
     (crontab -l 2>/dev/null | grep -v -F "$CRON_JOB_RUNNER" || true) | crontab -
-    
-    # Add new cron jobs
     (crontab -l 2>/dev/null; echo "*/1 * * * * $CRON_JOB_RUNNER") | crontab -
     (crontab -l 2>/dev/null; echo "@reboot $CRON_JOB_RUNNER") | crontab -
-    echo -e "\e[1;32mCron job set to run every 1 minute and on reboot.\e[0m"
+
+    # Create global command
+    ln -sf "$CONTROLLER_DIR/cf-utils.py" "/usr/local/bin/cfu"
+    chmod +x "$CONTROLLER_DIR/cf-utils.py"
+    chmod +x "/usr/local/bin/cfu"
+
+    echo -e "\e[1;32m✅ Cloudflare-Utils Controller installed successfully (Version: $VERSION_TAG).\e[0m"
+    echo -e "\e[1;32m   Use 'cfu' to manage the controller.\e[0m"
 }
 
-# Main menu
+remove_controller() {
+    echo -e "\n\e[1;31m--- Removing Cloudflare-Utils Controller ---\e[0m"
+    read -rp "Are you sure you want to remove the Controller? [y/N]: " answer
+    if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
+        echo "Removal cancelled."
+        return
+    fi
+
+    if [ ! -d "$CONTROLLER_DIR" ]; then
+        echo -e "\e[1;33mController directory not found. Nothing to remove.\e[0m"
+    else
+        echo "Removing cron job..."
+        (crontab -l 2>/dev/null | grep -v "$CONTROLLER_DIR/run.sh" || true) | crontab -
+        
+        echo "Removing global command..."
+        rm -f "/usr/local/bin/cfu"
+
+        echo "Removing directory..."
+        rm -rf "$CONTROLLER_DIR"
+        echo -e "\e[1;32m✅ Controller removed successfully.\e[0m"
+    fi
+}
+
+# --- Agent Functions ---
+install_agent() {
+    echo -e "\n\e[1;36m--- Installing Monitoring Agent ---\e[0m"
+    install_base_dependencies
+
+    echo -e "\e[1;34mInstalling Agent system dependencies (vnstat)...\e[0m"
+    sudo apt-get install -y vnstat
+
+    echo -e "\e[1;34mInstalling Agent Python dependencies (flask, psutil)...\e[0m"
+    pip3 install --break-system-packages flask psutil
+
+    clone_repository
+    AGENT_SRC_DIR="$CONTROLLER_DIR/src/agent"
+
+    if [ ! -d "$AGENT_SRC_DIR" ]; then
+        echo -e "\e[1;31mError: Agent source files not found in '$AGENT_SRC_DIR'. Aborting.\e[0m"
+        exit 1
+    fi
+
+    echo -e "\e[1;34mSetting up Agent directory: $AGENT_DIR\e[0m"
+    mkdir -p "$AGENT_DIR"
+    cp -r "$AGENT_SRC_DIR"/* "$AGENT_DIR/"
+
+    echo -e "\n\e[1;34m--- Agent Configuration ---\e[0m"
+    read -rp "Enter a secure API Key for the agent (leave blank to generate one): " api_key
+    if [ -z "$api_key" ]; then
+        api_key=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)
+        echo "Generated API Key: $api_key"
+    fi
+
+    read -rp "Enter the controller's IP address to whitelist: " whitelist_ip
+    while [ -z "$whitelist_ip" ]; do
+        read -rp "Whitelist IP cannot be empty. Please enter the controller's IP: " whitelist_ip
+    done
+
+    # --- FIXED network interface detection ---
+    interfaces_list=()
+    for iface in /sys/class/net/*; do
+        iface_name=$(basename "$iface")
+        [ "$iface_name" != "lo" ] && interfaces_list+=("$iface_name")
+    done
+    interfaces_str="${interfaces_list[*]}"
+    # ------------------------------------------
+
+    read -rp "Enter the network interface to monitor (detected: $interfaces_str): " vnstat_interface
+    if [ -z "$vnstat_interface" ]; then
+        vnstat_interface=$(echo "$interfaces_str" | awk '{print $1}')
+        echo "No interface specified, using default: $vnstat_interface"
+    fi
+
+    echo -e "\e[1;34mCreating config file: $AGENT_DIR/config.json\e[0m"
+    cat << EOF > "$AGENT_DIR/config.json"
+{
+  "api_key": "$api_key",
+  "whitelist": ["$whitelist_ip", "127.0.0.1"],
+  "vnstat_interface": "$vnstat_interface"
+}
+EOF
+
+    echo -e "\e[1;34mSetting up systemd service...\e[0m"
+    cp "$AGENT_DIR/cloudflare-agent.service" "/etc/systemd/system/"
+    systemctl daemon-reload
+    systemctl enable cloudflare-agent.service
+    systemctl restart cloudflare-agent.service
+
+    echo -e "\e[1;32m✅ Monitoring Agent installed and started successfully.\e[0m"
+    echo -e "\e[1;33mTo check agent status, run: systemctl status cloudflare-agent\e[0m"
+}
+
+remove_agent() {
+    echo -e "\n\e[1;31m--- Removing Monitoring Agent ---\e[0m"
+    read -rp "Are you sure you want to remove the Agent? [y/N]: " answer
+    if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
+        echo "Removal cancelled."
+        return
+    fi
+    
+    if [ -f "/etc/systemd/system/cloudflare-agent.service" ]; then
+        echo "Stopping and disabling systemd service..."
+        systemctl stop cloudflare-agent.service || true
+        systemctl disable cloudflare-agent.service || true
+        
+        echo "Removing service file..."
+        rm -f "/etc/systemd/system/cloudflare-agent.service"
+        systemctl daemon-reload
+    else
+        echo -e "\e[1;33mAgent service file not found. Skipping service removal.\e[0m"
+    fi
+
+    if [ ! -d "$AGENT_DIR" ]; then
+        echo -e "\e[1;33mAgent directory not found. Nothing to remove.\e[0m"
+    else
+        echo "Removing directory..."
+        rm -rf "$AGENT_DIR"
+        echo -e "\e[1;32m✅ Agent removed successfully.\e[0m"
+    fi
+}
+
+# --- Main Menu ---
 main_menu() {
-    PS3="Please choose: "
-    options=("Install $PROGRAM_NAME (branch '$BRANCH')" "Remove $PROGRAM_NAME" "Exit")
+    clear
+    echo -e "\e[1;35m--- Cloudflare-Utils & Monitoring Agent Installer ---\e[0m"
+    PS3="\nPlease choose an option: "
+    options=(
+        "Install/Update Controller (Cloudflare-Utils)"
+        "Install/Update Agent (on remote server)"
+        "Remove Controller"
+        "Remove Agent"
+        "Exit"
+    )
     select opt in "${options[@]}"; do
         case $opt in
-            "Install $PROGRAM_NAME (branch '$BRANCH')")
-                install_packages
-                clone_repository
-
-                echo -e "\e[1;34mRemoving old log file...\e[0m"
-                rm -f "$PROGRAM_DIR/log_file.log"
-
-                create_runner
-                setup_config_file # Call the new function
-                setup_cron
-
-                # Create global command
-                CLI_PATH="$PROGRAM_DIR/cf-utils.py"
-                GLOBAL_CMD_PATH="/usr/local/bin/cfu"
-                echo -e "\e[1;34mCreating global command '$GLOBAL_CMD_PATH'...\e[0m"
-                if [ -f "$CLI_PATH" ]; then
-                    ln -sf "$CLI_PATH" "$GLOBAL_CMD_PATH"
-                    chmod +x "$CLI_PATH" # Ensure the script itself is executable
-                    chmod +x "$GLOBAL_CMD_PATH" # Ensure the symlink is executable
-                    echo -e "\e[1;32m✅ Global command 'cfu' created. You can now use 'cfu' from anywhere.\e[0m"
-                else
-                    echo -e "\e[1;31m❌ Error: $CLI_PATH not found. Cannot create global command.\e[0m"
-                fi
-
-                echo -e "\e[1;32m✅ Installed version: $VERSION_TAG\e[0m"
-                echo -e "\e[1;32m📌 You can also use \`python3 $PROGRAM_DIR/cf-utils.py\` to manage settings.\e[0m"
+            "Install/Update Controller (Cloudflare-Utils)")
+                install_controller
                 break
                 ;;
-            "Remove $PROGRAM_NAME")
-                echo -e "\e[1;34mRemoving $PROGRAM_NAME...\e[0m"
-                sudo rm -rf "$PROGRAM_DIR"
-                crontab -l | grep -v "$PROGRAM_DIR/run.sh" | crontab -
-                
-                # Remove global command
-                GLOBAL_CMD_PATH="/usr/local/bin/cfu"
-                if [ -L "$GLOBAL_CMD_PATH" ]; then # Check if it's a symlink
-                    echo -e "\e[1;34mRemoving global command '$GLOBAL_CMD_PATH'...\e[0m"
-                    sudo rm -f "$GLOBAL_CMD_PATH"
-                    echo -e "\e[1;32m✅ Global command 'cfu' removed.\e[0m"
-                fi
-
-                echo -e "\e[1;31mRemoved $PROGRAM_NAME and cron jobs.\e[0m"
+            "Install/Update Agent (on remote server)")
+                install_agent
+                break
+                ;;
+            "Remove Controller")
+                remove_controller
+                break
+                ;;
+            "Remove Agent")
+                remove_agent
                 break
                 ;;
             "Exit")
