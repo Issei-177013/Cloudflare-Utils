@@ -6,7 +6,7 @@ After=network.target
 User=root
 Group=root
 WorkingDirectory=/opt/cloudflare-agent
-ExecStart=/usr/bin/python3 /opt/cloudflare-agent/agent.py
+ExecStart=__PYTHON_EXEC_PATH__ /opt/cloudflare-agent/agent.py
 Restart=always
 RestartSec=5
 

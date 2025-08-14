@@ -110,9 +110,6 @@ install_agent() {
     echo -e "\e[1;34mInstalling Agent system dependencies (vnstat)...\e[0m"
     sudo apt-get install -y vnstat
 
-    echo -e "\e[1;34mInstalling Agent Python dependencies (flask, psutil)...\e[0m"
-    pip3 install --break-system-packages flask psutil
-
     clone_repository
     AGENT_SRC_DIR="$CONTROLLER_DIR/src/agent"
 
@@ -124,6 +121,12 @@ install_agent() {
     echo -e "\e[1;34mSetting up Agent directory: $AGENT_DIR\e[0m"
     mkdir -p "$AGENT_DIR"
     cp -r "$AGENT_SRC_DIR"/* "$AGENT_DIR/"
+
+    echo -e "\e[1;34mSetting up Python virtual environment for Agent...\e[0m"
+    python3 -m venv "$AGENT_DIR/venv"
+
+    echo -e "\e[1;34mInstalling Agent Python dependencies into virtual environment...\e[0m"
+    "$AGENT_DIR/venv/bin/pip" install flask psutil
 
     echo -e "\n\e[1;34m--- Agent Configuration ---\e[0m"
     read -rp "Enter a secure API Key for the agent (leave blank to generate one): " api_key
@@ -162,7 +165,9 @@ install_agent() {
 EOF
 
     echo -e "\e[1;34mSetting up systemd service...\e[0m"
-    cp "$AGENT_DIR/cloudflare-agent.service" "/etc/systemd/system/"
+    cp "$AGENT_DIR/cloudflare-agent.service" "/etc/systemd/system/cloudflare-agent.service"
+    sed -i "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "/etc/systemd/system/cloudflare-agent.service"
+
     systemctl daemon-reload
     systemctl enable cloudflare-agent.service
     systemctl restart cloudflare-agent.service
