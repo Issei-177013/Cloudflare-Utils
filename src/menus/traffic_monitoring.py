@@ -5,10 +5,12 @@ This module provides the user interface for managing monitoring agents,
 viewing their status, and checking traffic usage.
 """
 import requests
-from ..logger import logger
+
 from ..config import load_config, save_config
-from .utils import clear_screen, confirm_action, print_table
+from ..display import display_as_table
 from ..input_helper import get_user_input, get_numeric_input
+from ..logger import logger
+from .utils import clear_screen, confirm_action
 
 def list_agents():
     """Lists all configured agents and their status."""
@@ -51,7 +53,7 @@ def list_agents():
         
     clear_screen()
     print("--- Configured Agents ---")
-    print_table(headers, rows)
+    display_as_table(rows, headers)
     input("\nPress Enter to return to the menu...")
 
 
@@ -101,7 +103,7 @@ def remove_agent():
     print("--- Remove Agent ---")
     headers = ["#", "Name", "URL"]
     rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
-    print_table(headers, rows)
+    display_as_table(rows, headers)
     
     choice = get_numeric_input("\nEnter the # of the agent to remove (or 0 to cancel):", int, min_val=0, max_val=len(agents))
 
@@ -135,7 +137,7 @@ def view_agent_usage():
     print("--- View Agent Usage ---")
     headers = ["#", "Name", "URL"]
     rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
-    print_table(headers, rows)
+    display_as_table(rows, headers)
     
     choice = get_numeric_input("\nEnter the # of the agent to view (or 0 to cancel):", int, min_val=0, max_val=len(agents))
 
