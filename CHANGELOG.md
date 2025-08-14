@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.8.0] - 2025-08-14
+
+### Added
+- **Comprehensive Docstrings**: Added full Google-style docstrings to all major Python files in `src` and its subdirectories, including:
+  - `cf-utils.py`
+  - `src/app.py`
+  - `src/cloudflare_api.py`
+  - `src/config.py`
+  - `src/dns_manager.py`
+  - `src/ip_rotator.py`
+  - `src/logger.py`
+  - `src/validator.py`
+  - All files in `src/menus/`
+- **Project Structure Section in README**: Added a tree view of the project structure for quick developer onboarding.
+- **Troubleshooting Section in README**: Added guidance for resolving common issues like `MissingPermissionError` and API errors.
+- **Quick Start Guide**: Added a quick setup section for rapid onboarding.
+- **DNS Records Management Menu**: Manage DNS records (view, add, edit, delete) directly from the CLI.
+- **Logging Configuration**: New `console_logging` setting in `configs.json` and Settings menu toggle to instantly enable/disable console logging.
+- **Edit Zone Settings**: Added the ability to view and update core Cloudflare zone settings from the Zone Management menu.
+- **Supported Zone Settings**: SSL/TLS Mode, Always Use HTTPS, Automatic HTTPS Rewrites, Minimum TLS Version.
+- **API Wrappers for Zone Settings**: Added `get_zone_setting`, `update_zone_setting`, and `get_zone_core_settings` methods.
+- **Zone Management Menu**:
+  - List all zones for an account.
+  - Add a new zone.
+  - View detailed zone information.
+  - Delete a zone with confirmation prompt (requires typing the domain name).
+
+### Changed
+- **Improved `README.md`**:
+  - Clarified Python version requirements and dependencies.
+  - Expanded API Token Permissions section with explanations for each required permission.
+  - Added details about configuration files (`configs.json`, `rotation_status.json`, `state.json`).
+  - Added real-world CLI usage example with sample output.
+- **Standardized Docstring Format**: All docstrings now follow the Google format.
+- **Corrected License Information**: Updated to Apache License 2.0, matching the `LICENSE` file.
+- **Menu Refactor**: Moved all menu logic into the `src/menus` directory for better modularity.
+- **Input Validation**: Expanded to support more DNS record types.
+- **Logger Setup**: Made `setup_logger` reconfigurable to apply new settings immediately.
+- **Error Messages**: Improved clarity for permission and API errors.
+
+### Fixed
+- Prevented duplicate console log messages when console logging is disabled.
+
+### Removed
+- **Redundant Comments**: Removed unnecessary code comments in favor of descriptive docstrings.
+- **Incorrect License Text**: Removed incorrect MIT License text from the `README.md`.
+
 ## [2.8.0-rc.2] - 2025-08-13
 
 ### Changed
