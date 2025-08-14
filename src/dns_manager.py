@@ -1,9 +1,31 @@
+"""
+DNS and Account Configuration Management.
+
+This module provides functions for managing DNS records, rotation groups, and
+Cloudflare accounts within the local `configs.json` file. These functions
+handle the business logic for adding, editing, and deleting configuration
+entries, abstracting the direct manipulation of the configuration file.
+
+All functions operate on the local configuration and do not directly interact
+with the Cloudflare API.
+"""
 from .config import load_config, validate_and_save_config, find_account, find_zone, find_record, find_rotation_group
-from .validator import is_valid_record_type
+from .validator import is_valid_rotator_record_type
 from .logger import logger
 
 def add_record(account_name, zone_domain, record_name, record_type, ips, rotation_interval_minutes):
-    if not is_valid_record_type(record_type):
+    """
+    Adds a new DNS record configuration for IP rotation.
+
+    Args:
+        account_name (str): The name of the Cloudflare account.
+        zone_domain (str): The domain of the zone for the record.
+        record_name (str): The name of the DNS record.
+        record_type (str): The type of the record ('A' or 'AAAA').
+        ips (list): A list of IP addresses for rotation.
+        rotation_interval_minutes (int or None): The rotation interval in minutes.
+    """
+    if not is_valid_rotator_record_type(record_type):
         logger.error(f"Invalid record type: {record_type}")
         print(f"❌ Invalid record type '{record_type}'. Must be 'A' or 'AAAA'.")
         return
@@ -37,6 +59,14 @@ def add_record(account_name, zone_domain, record_name, record_type, ips, rotatio
         print("✅ Record added successfully!")
 
 def delete_record(account_name, zone_domain, record_name):
+    """
+    Deletes a DNS record configuration.
+
+    Args:
+        account_name (str): The name of the Cloudflare account.
+        zone_domain (str): The domain of the zone for the record.
+        record_name (str): The name of the DNS record to delete.
+    """
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -61,6 +91,18 @@ def delete_record(account_name, zone_domain, record_name):
 
 
 def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_interval):
+    """
+    Edits an existing DNS record configuration.
+
+    Args:
+        account_name (str): The name of the Cloudflare account.
+        zone_domain (str): The domain of the zone for the record.
+        record_name (str): The name of the DNS record to edit.
+        new_ips (list or None): A new list of IPs, or None to keep existing.
+        new_type (str or None): A new record type, or None to keep existing.
+        new_interval (str or None): A new rotation interval, or None to keep existing.
+                                     Use 'none' to remove the interval.
+    """
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -81,7 +123,7 @@ def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_i
     if new_ips:
         record_to_edit['ips'] = new_ips
     if new_type:
-        if is_valid_record_type(new_type):
+        if is_valid_rotator_record_type(new_type):
             record_to_edit['type'] = new_type
         else:
             logger.error(f"Invalid record type provided for edit: {new_type}")
@@ -106,6 +148,14 @@ def edit_record(account_name, zone_domain, record_name, new_ips, new_type, new_i
         print(f"✅ Record '{record_to_edit['name']}' updated successfully.")
 
 def edit_account_in_config(account_name, new_name, new_token):
+    """
+    Edits the details of a Cloudflare account in the configuration.
+
+    Args:
+        account_name (str): The current name of the account to edit.
+        new_name (str or None): The new name for the account, or None to keep existing.
+        new_token (str or None): The new API token, or None to keep existing.
+    """
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -122,6 +172,12 @@ def edit_account_in_config(account_name, new_name, new_token):
         print(f"✅ Account '{account_name}' updated successfully.")
 
 def delete_account_from_config(account_name):
+    """
+    Deletes a Cloudflare account from the configuration.
+
+    Args:
+        account_name (str): The name of the account to delete.
+    """
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -135,7 +191,19 @@ def delete_account_from_config(account_name):
 
 
 def add_rotation_group(account_name, zone_domain, group_name, record_names, rotation_interval_minutes):
-    """Adds a new rotation group to the configuration."""
+    """
+    Adds a new rotation group to the configuration.
+
+    A rotation group defines a set of DNS records within a zone whose IPs
+    will be rotated among themselves.
+
+    Args:
+        account_name (str): The name of the Cloudflare account.
+        zone_domain (str): The domain of the zone.
+        group_name (str): The name for the new rotation group.
+        record_names (list): A list of record names to include in the group.
+        rotation_interval_minutes (int): The rotation interval in minutes.
+    """
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -169,7 +237,17 @@ def add_rotation_group(account_name, zone_domain, group_name, record_names, rota
         print("✅ Rotation group added successfully!")
 
 def edit_rotation_group(account_name, zone_domain, group_name, new_record_names, new_interval):
-    """Edits an existing rotation group."""
+    """
+    Edits an existing rotation group.
+
+    Args:
+        account_name (str): The name of the Cloudflare account.
+        zone_domain (str): The domain of the zone.
+        group_name (str): The name of the group to edit.
+        new_record_names (list or None): A new list of record names, or None to keep existing.
+        new_interval (str or None): A new rotation interval, or None to keep existing.
+                                     Use 'none' to remove the interval.
+    """
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:
@@ -209,7 +287,14 @@ def edit_rotation_group(account_name, zone_domain, group_name, new_record_names,
         print(f"✅ Rotation group '{group_name}' updated successfully.")
 
 def delete_rotation_group(account_name, zone_domain, group_name):
-    """Deletes a rotation group from the configuration."""
+    """
+    Deletes a rotation group from the configuration.
+
+    Args:
+        account_name (str): The name of the Cloudflare account.
+        zone_domain (str): The domain of the zone.
+        group_name (str): The name of the group to delete.
+    """
     data = load_config()
     acc = find_account(data, account_name)
     if not acc:

@@ -80,3 +80,6 @@ __pypackages__/
 
 # Do NOT ignore your tests
 # tests/ ❌ (do not ignore u
+
+# Dev note
+update_note.md

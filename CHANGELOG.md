@@ -6,11 +6,70 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
-## [2.6.6] - 2025-08-12
+
+## [2.8.0-rc.2] - 2025-08-13
+
+### Changed
+- Improved `README.md`
+
+## [2.8.0-rc.1] - 2025-08-13
+
+### Added
+- **Comprehensive Docstrings**: Added Google-style docstrings to all major Python files in the `src` directory and its subdirectories, including:
+  - `cf-utils.py`
+  - `src/app.py`
+  - `src/cloudflare_api.py`
+  - `src/config.py`
+  - `src/dns_manager.py`
+  - `src/ip_rotator.py`
+  - `src/logger.py`
+  - `src/validator.py`
+  - All files in `src/menus/`
+- **Project Structure Section in README**: Added a tree-like view of the project structure to help new developers understand the layout.
+- **Troubleshooting Section in README**: Added guidance for resolving common issues such as `MissingPermissionError` and API errors.
+- **Quick Start Section in README**: Added a quick setup guide for fast onboarding.
+- **DNS Records Management Menu**: Manage DNS records (view, add, edit, delete) directly from the CLI.
+- **Logging Configuration**: New `console_logging` setting in `configs.json` and a Settings menu toggle to enable/disable console logging instantly.
+
+### Changed
+- **Improved `README.md`**:
+  - **Prerequisites**: Clarified Python version and listed key dependencies.
+  - **Configuration**: Expanded API Token Permissions section to explain the purpose of each required permission. Added details about all configuration files (`configs.json`, `rotation_status.json`, `state.json`).
+  - **Usage**: Added a real-world example of CLI usage with sample output.
+- **Standardized Docstring Format**: Ensured all docstrings follow the Google format for consistency.
+- **Corrected License Information**: Updated `README.md` to correctly state the Apache License 2.0, matching the `LICENSE` file.
+- **Menu Refactor**: Moved all menu-related logic into `src/menus` directory for better modularity.
+- **Input Validation**: Expanded to support more DNS record types.
+- **Logger Setup**: Made `setup_logger` reconfigurable to apply new settings immediately.
 
 ### Fixed
-- **Account Editing**: Resolved `TypeError` when passing `allow_empty` to `get_validated_input` by adding the parameter to the function signature and updating its logic.
-- **Validation Calls**: Added missing `error_message` argument in `src/app.py` calls to `get_validated_input`.
+- Prevented duplicate console log messages when console logging is disabled.
+
+### Removed
+- **Redundant Comments**: Removed unnecessary code comments in favor of descriptive docstrings.
+- **Incorrect License Text**: Removed incorrect MIT License text from the `README.md`.
+
+## [2.7.1-rc.1] - 2025-08-12
+
+### Added
+- **Edit Zone Settings**: New option in the Zone Management menu to view and update core Cloudflare zone settings.
+- **Supported Settings**: SSL/TLS Mode, Always Use HTTPS, Automatic HTTPS Rewrites, Minimum TLS Version.
+- **API Wrappers**: Added `get_zone_setting`, `update_zone_setting`, and `get_zone_core_settings` methods in `cloudflare_api.py`.
+- **Error Handling**: Detailed error messages for API failures, invalid input, and missing permissions.
+
+## [2.7.0-rc.1] - 2025-08-12
+
+### Added
+- **Clear Error Messages**: Display clear, descriptive error messages when attempting to use features without the required API token permissions.
+- **API Token Setup Guide**: Added a comprehensive guide in CLI to help users create API tokens with the correct scopes.
+- **Zone Management**: Introduced a new top-level menu for managing Cloudflare zones:
+  - List all zones for a selected account in a table view.
+  - Add a new zone (domain) to an account.
+  - View detailed information for a specific zone.
+  - Delete a zone with a confirmation prompt that requires typing the domain name to avoid accidental deletion.
+
+### Changed
+- Updated the main menu to include the new **Manage Zones** option.
 
 ## [2.6.5] - 2025-08-02
 
@@ -27,6 +86,26 @@ This release focuses on enhancing the stability and permission logic of the inst
 - Enforce root privileges at the script's entry point to avoid partial or broken setups.
 
 > These changes improve security and robustness when installing via `install.sh` with or without `sudo`.
+
+## [2.6.5-dev4] - 2025-08-02
+
+### Fixed
+- enforce root privileges at the script entry point
+
+## [2.6.5-dev3] - 2025-08-02
+
+### Fixed
+- delay logger directory creation to prevent permission errors
+
+## [2.6.5-dev2] - 2025-08-02
+
+### Changed
+- enforce root execution and simplify permissions.
+
+## [2.6.5-dev] - 2025-08-02
+
+### Added
+- Add config permission checks
 
 ## [2.6.5-dev4] - 2025-08-02
 

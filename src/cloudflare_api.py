@@ -1,57 +1,352 @@
+"""
+Cloudflare API Wrapper.
+
+This module provides a simplified interface for interacting with the Cloudflare API.
+It encapsulates the official `cloudflare-python` library, handling common API calls
+for managing zones, DNS records, and account information. It also includes custom
+error handling to provide more specific feedback, such as for missing API token
+permissions.
+"""
 from cloudflare import Cloudflare, APIError
+from .config import REQUIRED_PERMISSIONS
+from .error_handler import MissingPermissionError
 
 class CloudflareAPI:
+    """
+    A wrapper class for the Cloudflare API.
+
+    This class simplifies interactions with the Cloudflare API by providing
+    methods for common operations like managing zones, DNS records, and
+    verifying API tokens.
+
+    Attributes:
+        cf (Cloudflare): An instance of the official Cloudflare client.
+    """
+
     def __init__(self, api_token):
+        """
+        Initializes the CloudflareAPI client.
+
+        Args:
+            api_token (str): The Cloudflare API token for authentication.
+        """
         self.cf = Cloudflare(api_token=api_token)
+
+    def list_zones(self):
+        """
+        Retrieves a list of all zones accessible by the API token.
+
+        Returns:
+            list: A list of zone objects.
+
+        Raises:
+            RuntimeError: If there is an API error while listing zones.
+        """
+        try:
+            return self.cf.zones.list()
+        except APIError as e:
+            raise RuntimeError(f"Error listing zones: {e}")
+
+    def get_zone_details(self, zone_id):
+        """
+        Retrieves the details for a specific zone.
+
+        Args:
+            zone_id (str): The ID of the zone to retrieve.
+
+        Returns:
+            dict: An object containing the details of the zone.
+
+        Raises:
+            RuntimeError: If there is an API error.
+        """
+        try:
+            return self.cf.zones.get(zone_id=zone_id)
+        except APIError as e:
+            raise RuntimeError(f"Error getting zone details: {e}")
+
+    def add_zone(self, domain_name, zone_type="full"):
+        """
+        Adds a new zone (domain) to the Cloudflare account.
+
+        Args:
+            domain_name (str): The name of the domain to add.
+            zone_type (str, optional): The type of zone to create.
+                                       Defaults to "full".
+
+        Returns:
+            dict: The result from the API call upon successful creation.
+
+        Raises:
+            MissingPermissionError: If the API token lacks the required
+                                    permissions to add a zone.
+            RuntimeError: If the zone creation fails for other reasons.
+        """
+        try:
+            url = "https://api.cloudflare.com/client/v4/zones"
+            headers = {
+                "Authorization": f"Bearer {self.cf.api_token}",
+                "Content-Type": "application/json"
+            }
+            payload = {"name": domain_name, "type": zone_type}
+
+            import requests
+            response = requests.post(url, headers=headers, json=payload)
+            data = response.json()
+
+            if not response.ok or not data.get("success", False):
+                errors = data.get("errors", [])
+                for error in errors:
+                    if "Requires permission" in error.get("message", ""):
+                        permission_needed = error["message"].split('"')[1]
+                        raise MissingPermissionError(f"'{permission_needed}'")
+                raise RuntimeError(f"Failed to add zone: {errors}")
+
+            return data["result"]
+
+        except MissingPermissionError:
+            raise
+        except Exception as e:
+            raise RuntimeError(f"❌ Failed to add zone '{domain_name}': {e}")
+
+    def delete_zone(self, zone_id):
+        """
+        Deletes a specific zone from the Cloudflare account.
+
+        Args:
+            zone_id (str): The ID of the zone to delete.
+
+        Returns:
+            dict: The result from the API call upon successful deletion.
+
+        Raises:
+            RuntimeError: If there is an API error during deletion.
+        """
+        try:
+            return self.cf.zones.delete(zone_id=zone_id)
+        except APIError as e:
+            raise RuntimeError(f"Error deleting zone: {e}")
+
+    def get_account_id(self):
+        """
+        Retrieves the ID of the first Cloudflare account found.
+
+        Returns:
+            str: The ID of the Cloudflare account.
+
+        Raises:
+            RuntimeError: If no accounts are found or if there is an API error.
+        """
+        try:
+            accounts_iterator = self.cf.accounts.list()
+            first_account = next(iter(accounts_iterator), None)
+            if first_account:
+                return first_account.id
+            else:
+                raise RuntimeError("❌ No Cloudflare accounts found.")
+        except APIError as e:
+            raise RuntimeError(f"Cloudflare API error when fetching account ID: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error fetching account ID: {e}")
+
+    def verify_token(self):
+        """
+        Verifies that the API token has the necessary permissions.
+
+        This method attempts to list zones, which is a basic read operation.
+        If it fails with a specific permission error code (9109), it raises
+        a `MissingPermissionError`.
+
+        Raises:
+            MissingPermissionError: If the token is missing required permissions.
+            APIError: For other types of API errors during verification.
+        """
+        try:
+            self.cf.zones.list()
+        except APIError as e:
+            if e.code == 9109:
+                permission_name = "Unknown"
+                if "zones" in e.request.url:
+                    permission_name = REQUIRED_PERMISSIONS['validation_map'].get('Zone:Read', 'Zone.Zone')
+                raise MissingPermissionError(
+                    f"Token is missing required permission: '{permission_name}'. "
+                    "Please ensure your token has Zone:Read and DNS:Read/Edit permissions."
+                )
+            else:
+                raise e
+        except Exception as e:
+            raise APIError(f"An unexpected error occurred during token verification: {e}")
 
     def list_dns_records(self, zone_id):
         """
-        Returns a list of DNS records for the given zone.
+        Retrieves a list of DNS records for a given zone.
+
+        Args:
+            zone_id (str): The ID of the zone.
+
+        Returns:
+            list: A list of DNS record objects.
+
+        Raises:
+            APIError: If the API call fails.
         """
         try:
             return self.cf.dns.records.list(zone_id=zone_id)
         except APIError as e:
             raise e
 
-    def list_zones(self):
+    def create_dns_record(self, zone_id, name, type, content, proxied=False, ttl=None):
         """
-        Returns a list of all zones available in the account.
+        Creates a new DNS record in a specific zone.
+
+        Args:
+            zone_id (str): The ID of the zone.
+            name (str): The record name (e.g., 'subdomain.example.com').
+            type (str): The DNS record type (e.g., 'A', 'AAAA', 'CNAME').
+            content (str): The record content (e.g., an IP address).
+            proxied (bool, optional): Whether the record is proxied by
+                                      Cloudflare. Defaults to False.
+            ttl (int, optional): The Time To Live for the record in seconds.
+                                 Defaults to None (automatic).
+
+        Returns:
+            dict: The newly created DNS record object.
+
+        Raises:
+            APIError: If the API call fails.
         """
         try:
-            return self.cf.zones.list()
+            return self.cf.dns.records.create(
+                zone_id=zone_id,
+                name=name,
+                type=type,
+                content=content,
+                proxied=proxied,
+                ttl=ttl
+            )
         except APIError as e:
             raise e
 
-    def verify_token(self):
+    def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied=False, ttl=None):
         """
-        Verifies the API token by attempting to list zones.
-        If the token is invalid, an APIError is raised.
-        """
-        try:
-            zones = self.cf.zones.list()  # This returns an iterable of Zone objects
-            # Just check if we got something iterable with expected attributes
-            if not hasattr(zones, '__iter__'):
-                raise APIError("Unexpected API response format", request=None, body=None)
-            # Optionally check if first item has id and name (basic sanity check)
-            first_zone = next(iter(zones), None)
-            if first_zone is None or not hasattr(first_zone, 'id') or not hasattr(first_zone, 'name'):
-                raise APIError("Unexpected API response format", request=None, body=None)
-        except Exception as e:
-            # Wrap all exceptions into APIError with message
-            raise APIError(f"Cloudflare API Error on token verification: {e}", request=None, body=None)
+        Updates an existing DNS record.
 
-    def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied=False):
-        """
-        Updates the content of a specific DNS record.
+        Args:
+            zone_id (str): The ID of the zone.
+            dns_record_id (str): The ID of the DNS record to update.
+            name (str): The record name.
+            type (str): The DNS record type.
+            content (str): The new record content.
+            proxied (bool, optional): Whether the record is proxied.
+                                      Defaults to False.
+            ttl (int, optional): The new TTL for the record. Defaults to None.
+
+        Returns:
+            dict: The updated DNS record object.
+
+        Raises:
+            APIError: If the API call fails.
         """
         try:
-            self.cf.dns.records.update(
+            return self.cf.dns.records.update(
                 zone_id=zone_id,
                 dns_record_id=dns_record_id,
                 name=name,
                 type=type,
                 content=content,
-                proxied=proxied
+                proxied=proxied,
+                ttl=ttl
             )
         except APIError as e:
             raise e
+
+    def delete_dns_record(self, zone_id, dns_record_id):
+        """
+        Deletes a specific DNS record.
+
+        Args:
+            zone_id (str): The ID of the zone.
+            dns_record_id (str): The ID of the DNS record to delete.
+
+        Returns:
+            dict: A confirmation object from the API.
+
+        Raises:
+            APIError: If the API call fails.
+        """
+        try:
+            return self.cf.dns.records.delete(
+                zone_id=zone_id,
+                dns_record_id=dns_record_id
+            )
+        except APIError as e:
+            raise e
+
+    def get_zone_setting(self, zone_id, setting_name):
+        """
+        Fetches a specific setting for a zone.
+
+        Args:
+            zone_id (str): The ID of the zone.
+            setting_name (str): The name of the setting to retrieve
+                                (e.g., 'ssl', 'always_use_https').
+
+        Returns:
+            any: The value of the requested setting, or None if not found.
+
+        Raises:
+            MissingPermissionError: If the token lacks permission to read
+                                    zone settings.
+            APIError: For other API-related errors.
+        """
+        try:
+            setting = self.cf.zones.settings.get(zone_id=zone_id, setting_id=setting_name)
+            return setting.value
+        except APIError as e:
+            if "setting not found" in str(e).lower():
+                return None
+            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Read'") if "permission" in str(e).lower() else e
+
+    def update_zone_setting(self, zone_id, setting_name, new_value):
+        """
+        Updates a specific setting for a zone.
+
+        Args:
+            zone_id (str): The ID of the zone.
+            setting_name (str): The name of the setting to update.
+            new_value (any): The new value for the setting.
+
+        Raises:
+            MissingPermissionError: If the token lacks permission to edit
+                                    zone settings.
+            APIError: For other API-related errors.
+        """
+        try:
+            self.cf.zones.settings.update(zone_id=zone_id, setting_id=setting_name, value=new_value)
+        except APIError as e:
+            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Edit'") if "permission" in str(e).lower() else e
+
+    def get_zone_core_settings(self, zone_id):
+        """
+        Fetches a dictionary of core settings for a zone.
+
+        This method retrieves a predefined list of important zone settings,
+        such as SSL, Always Use HTTPS, and TLS version.
+
+        Args:
+            zone_id (str): The ID of the zone.
+
+        Returns:
+            dict: A dictionary where keys are setting names and values are
+                  the current settings.
+        """
+        settings_to_fetch = [
+            "ssl",
+            "always_use_https",
+            "automatic_https_rewrites",
+            "min_tls_version"
+        ]
+        core_settings = {}
+        for setting_name in settings_to_fetch:
+            core_settings[setting_name] = self.get_zone_setting(zone_id, setting_name)
+        return core_settings

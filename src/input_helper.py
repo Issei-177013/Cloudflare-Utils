@@ -79,3 +79,18 @@ def get_rotation_interval(optional=False):
         except ValueError:
             logger.warning(f"Invalid interval input: {interval_str}")
             print("❌ Invalid input. Please enter a number.")
+
+def get_zone_type():
+    """
+    Prompts the user for a zone type and validates it.
+    """
+    prompt = "Zone type (full/partial, default: full): "
+    error_message = "Invalid zone type. Please enter 'full' or 'partial'."
+    
+    while True:
+        zone_type = input(prompt).strip().lower()
+        if zone_type in ['full', 'partial', '']:
+            return zone_type or 'full'
+        else:
+            logger.warning(f"Invalid zone type entered: {zone_type}")
+            print(f"❌ {error_message}")
