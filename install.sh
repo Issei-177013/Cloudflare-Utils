@@ -193,6 +193,11 @@ update_cfutils() {
         return
     fi
 
+    cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR'"
+    local old_commit_hash
+    old_commit_hash=$(git rev-parse HEAD)
+    log_info "Current version commit: $old_commit_hash"
+
     log_info "Backing up configuration files..."
     mkdir -p /tmp/cfutils_backup
     if [ -f "$CFUTILS_DIR/src/configs.json" ]; then
@@ -205,8 +210,6 @@ update_cfutils() {
     fi
 
     log_info "Updating repository from branch '$BRANCH'..."
-    cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR'"
-    
     git stash
     if ! (git fetch --all --prune && git checkout "$BRANCH" && git reset --hard "origin/$BRANCH"); then
         log_error "Failed to update the repository. Please check for errors."
@@ -221,8 +224,7 @@ update_cfutils() {
         die "Update failed. Your configuration has been restored."
     fi
     git clean -fd
-    cd - > /dev/null
-    
+
     log_info "Restoring configuration files..."
     if [ -f "/tmp/cfutils_backup/configs.json" ]; then
         mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/src/configs.json"
@@ -237,6 +239,21 @@ update_cfutils() {
     log_info "Updating Python dependencies..."
     setup_cfutils_venv
 
+    log_info "Verifying update..."
+    if ! run_verification_checks_cfutils; then
+        log_error "Update verification failed. Rolling back to the previous version."
+        
+        log_info "Restoring previous version ($old_commit_hash)..."
+        git reset --hard "$old_commit_hash" || log_warning "Failed to reset git repo. It may be in an inconsistent state."
+        git clean -fd
+
+        log_info "Restoring previous Python dependencies..."
+        setup_cfutils_venv
+
+        die "Update rolled back. Your previous version has been restored."
+    fi
+
+    cd - > /dev/null
     VERSION_TAG=$(cd "$CFUTILS_DIR" && (git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD))
     log_success "Cloudflare-Utils updated successfully (Version: $VERSION_TAG)."
 }
@@ -372,20 +389,21 @@ update_agent() {
         return
     fi
 
-    log_info "Stopping agent service..."
+    log_info "Stopping agent service to begin update..."
     systemctl stop cloudflare-utils-agent.service
 
-    log_info "Backing up agent configuration..."
+    log_info "Creating a full backup of the agent directory..."
+    rm -rf /tmp/agent_full_backup
+    cp -a "$AGENT_DIR" "/tmp/agent_full_backup" || die "Failed to create agent backup."
+
+    log_info "Backing up agent configuration separately..."
     mkdir -p /tmp/agent_backup
     if [ -f "$AGENT_DIR/config.json" ]; then
         cp "$AGENT_DIR/config.json" "/tmp/agent_backup/config.json"
         log_info "Backed up config.json."
-    else
-        log_warning "Agent config.json not found. A new one will be created if needed."
     fi
 
     verify_branch_and_agent_dir
-
     log_info "Downloading updated agent files..."
     download_agent_files
 
@@ -402,14 +420,25 @@ update_agent() {
     log_info "Reloading systemd and restarting the agent..."
     sed "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "$AGENT_DIR/cloudflare-utils-agent.service" > "/etc/systemd/system/cloudflare-utils-agent.service"
     systemctl daemon-reload
-    systemctl restart cloudflare-utils-agent.service || die "Failed to restart agent service."
-    
-    if ! systemctl is-active --quiet cloudflare-utils-agent.service; then
-        log_error "Agent service failed to start after update. Please check the logs."
-        journalctl -u cloudflare-utils-agent.service --no-pager
-        die "Update failed."
+    systemctl restart cloudflare-utils-agent.service
+
+    log_info "Verifying update..."
+    if ! run_verification_checks_agent; then
+        log_error "Agent update verification failed. Rolling back to the previous version."
+        systemctl stop cloudflare-utils-agent.service
+        rm -rf "$AGENT_DIR"
+        mv "/tmp/agent_full_backup" "$AGENT_DIR"
+        
+        log_info "Restoring previous systemd service file and restarting..."
+        if [ -f "$AGENT_DIR/cloudflare-utils-agent.service" ]; then
+            sed "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "$AGENT_DIR/cloudflare-utils-agent.service" > "/etc/systemd/system/cloudflare-utils-agent.service"
+            systemctl daemon-reload
+        fi
+        systemctl start cloudflare-utils-agent.service
+        die "Agent update rolled back. Your previous version has been restored."
     fi
 
+    rm -rf /tmp/agent_full_backup
     log_success "Monitoring Agent updated successfully."
 }
 
@@ -556,46 +585,7 @@ remove_agent() {
 }
 
 # --- Verification & Rollback Functions ---
-rollback_cfutils() {
-    log_warning "--- Rolling back Cfutils installation ---"
-    if [ ! -d "$CFUTILS_DIR" ]; then
-        log_info "Cfutils directory not found. Nothing to roll back."
-    else
-        log_info "Removing cron job..."
-        (crontab -l 2>/dev/null | grep -v "$CFUTILS_DIR/run.sh" || true) | crontab -
-        
-        log_info "Removing global command..."
-        rm -f "/usr/local/bin/cfu"
-
-        log_info "Removing log rotation config..."
-        rm -f "/etc/logrotate.d/cloudflare-utils"
-
-        log_info "Removing directory: $CFUTILS_DIR..."
-        rm -rf "$CFUTILS_DIR"
-        log_success "Cloudflare-Utils rollback complete."
-    fi
-}
-
-rollback_agent() {
-    log_warning "--- Rolling back Agent installation ---"
-    if [ -f "/etc/systemd/system/cloudflare-utils-agent.service" ]; then
-        log_info "Stopping and disabling systemd service..."
-        systemctl stop cloudflare-utils-agent.service
-        systemctl disable cloudflare-utils-agent.service
-        
-        log_info "Removing service file..."
-        rm -f "/etc/systemd/system/cloudflare-utils-agent.service"
-        systemctl daemon-reload
-    fi
-
-    if [ -d "$AGENT_DIR" ]; then
-        log_info "Removing directory: $AGENT_DIR..."
-        rm -rf "$AGENT_DIR"
-        log_success "Agent rollback complete."
-    fi
-}
-
-verify_cfutils_installation() {
+run_verification_checks_cfutils() {
     log_info "--- Verifying Cloudflare-Utils Installation ---"
     local all_checks_passed=true
     local checklist=""
@@ -651,8 +641,53 @@ verify_cfutils_installation() {
     echo -e "\n$checklist"
 
     if [ "$all_checks_passed" = true ]; then
-        log_success "Installation verified successfully. All components are working correctly."
+        return 0 # Success
     else
+        return 1 # Failure
+    fi
+}
+
+rollback_cfutils() {
+    log_warning "--- Rolling back Cfutils installation ---"
+    if [ ! -d "$CFUTILS_DIR" ]; then
+        log_info "Cfutils directory not found. Nothing to roll back."
+    else
+        log_info "Removing cron job..."
+        (crontab -l 2>/dev/null | grep -v "$CFUTILS_DIR/run.sh" || true) | crontab -
+        
+        log_info "Removing global command..."
+        rm -f "/usr/local/bin/cfu"
+
+        log_info "Removing log rotation config..."
+        rm -f "/etc/logrotate.d/cloudflare-utils"
+
+        log_info "Removing directory: $CFUTILS_DIR..."
+        rm -rf "$CFUTILS_DIR"
+        log_success "Cloudflare-Utils rollback complete."
+    fi
+}
+
+rollback_agent() {
+    log_warning "--- Rolling back Agent installation ---"
+    if [ -f "/etc/systemd/system/cloudflare-utils-agent.service" ]; then
+        log_info "Stopping and disabling systemd service..."
+        systemctl stop cloudflare-utils-agent.service
+        systemctl disable cloudflare-utils-agent.service
+        
+        log_info "Removing service file..."
+        rm -f "/etc/systemd/system/cloudflare-utils-agent.service"
+        systemctl daemon-reload
+    fi
+
+    if [ -d "$AGENT_DIR" ]; then
+        log_info "Removing directory: $AGENT_DIR..."
+        rm -rf "$AGENT_DIR"
+        log_success "Agent rollback complete."
+    fi
+}
+
+verify_cfutils_installation() {
+    if ! run_verification_checks_cfutils; then
         log_error "Cloudflare-Utils installation verification failed."
         local answer
         read -rp "$(echo -e "${C_YELLOW}An error occurred during verification. Do you want to roll back the installation? [Y/n]: ${C_RESET}")" answer
@@ -660,10 +695,12 @@ verify_cfutils_installation() {
             rollback_cfutils
         fi
         die "Aborting due to verification failure."
+    else
+        log_success "Installation verified successfully. All components are working correctly."
     fi
 }
 
-verify_agent_installation() {
+run_verification_checks_agent() {
     log_info "--- Verifying Agent Installation ---"
     local all_checks_passed=true
     local checklist=""
@@ -744,8 +781,14 @@ verify_agent_installation() {
     echo -e "\n$checklist"
 
     if [ "$all_checks_passed" = true ]; then
-        log_success "Installation verified successfully. All components are working correctly."
+        return 0 # Success
     else
+        return 1 # Failure
+    fi
+}
+
+verify_agent_installation() {
+    if ! run_verification_checks_agent; then
         log_error "Agent installation verification failed."
         local answer
         read -rp "$(echo -e "${C_YELLOW}An error occurred during verification. Do you want to roll back the installation? [Y/n]: ${C_RESET}")" answer
@@ -753,6 +796,8 @@ verify_agent_installation() {
             rollback_agent
         fi
         die "Aborting due to verification failure."
+    else
+        log_success "Installation verified successfully. All components are working correctly."
     fi
 }
 
@@ -776,8 +821,8 @@ main_menu() {
                     update_cfutils
                 else
                     install_cfutils
+                    verify_cfutils_installation
                 fi
-                verify_cfutils_installation
                 break
                 ;;
             "Install/Update Agent")
@@ -786,8 +831,8 @@ main_menu() {
                     update_agent
                 else
                     install_agent
+                    verify_agent_installation
                 fi
-                verify_agent_installation
                 break
                 ;;
             "Remove Cloudflare-Utils")
