@@ -39,7 +39,7 @@ ensure_root() {
 }
 
 check_command() {
-    command -v "$1" >/dev/null 2>&1 || die "Command '$1' is required but not found. Please install it."
+    which "$1" >/dev/null 2>&1 || die "Command '$1' is required but not found. Please install it."
 }
 
 # --- Pre-flight Checks ---
