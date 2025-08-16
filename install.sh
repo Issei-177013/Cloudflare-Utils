@@ -64,6 +64,35 @@ check_command() {
     fi
 }
 
+select_branch() {
+    log_info "Please select the branch for installation/update."
+    PS3="$(echo -e "${C_YELLOW}Choose a branch: ${C_RESET}")"
+    local options=("main" "dev" "Custom")
+    select opt in "${options[@]}"; do
+        case $opt in
+            "main")
+                BRANCH="main"
+                break
+                ;;
+            "dev")
+                BRANCH="dev"
+                break
+                ;;
+            "Custom")
+                read -rp "Enter the custom branch name: " custom_branch
+                if [ -z "$custom_branch" ]; then
+                    log_warning "Branch name cannot be empty. Please try again."
+                else
+                    BRANCH="$custom_branch"
+                    break
+                fi
+                ;;
+            *) log_warning "Invalid option '$REPLY'";;
+        esac
+    done
+    log_success "Selected branch: $BRANCH"
+}
+
 # --- Pre-flight Checks ---
 pre_flight_checks() {
     log_info "Running pre-flight checks..."
@@ -144,37 +173,74 @@ download_agent_files() {
     log_success "All agent files downloaded successfully."
 }
 
-clone_or_update_repo() {
-    log_info "Cloning or updating repository from branch '$BRANCH'..."
-    if [ -d "$CFUTILS_DIR/.git" ]; then
-        log_info "Existing repository found. Attempting to update..."
-        cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR'"
-        
-        # Attempt to update. If it fails, fallback to re-cloning.
-        if ! (git fetch --all --prune && git checkout "$BRANCH" && git reset --hard "origin/$BRANCH"); then
-            log_warning "Failed to update the repository. It might be in a broken state."
-            log_info "Attempting a fallback: removing and re-cloning..."
-            
-            # Go to a safe directory before removing the repo dir
-            cd /tmp || die "Could not navigate to /tmp"
-            rm -rf "$CFUTILS_DIR" || die "Failed to remove old directory '$CFUTILS_DIR'."
-            
-            # Re-clone
-            git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository after fallback."
-        fi
-    else
-        log_info "Cloning new repository..."
-        rm -rf "$CFUTILS_DIR" # Ensure directory is empty before cloning
-        git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository."
-    fi
+clone_repo() {
+    log_info "Cloning new repository from branch '$BRANCH'..."
+    rm -rf "$CFUTILS_DIR" # Ensure directory is empty before cloning
+    git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository."
 
-    cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR' after clone/pull."
+    cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR' after clone."
     VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
     cd - > /dev/null
-    log_success "Repository is up to date (Version: $VERSION_TAG)."
+    log_success "Repository is ready (Version: $VERSION_TAG)."
 }
 
 # --- Cloudflare-Utils Functions ---
+update_cfutils() {
+    log_info "--- Starting Cloudflare-Utils Update ---"
+    if [ ! -d "$CFUTILS_DIR" ]; then
+        log_warning "Cloudflare-Utils is not installed. Running installer instead..."
+        install_cfutils
+        return
+    fi
+
+    log_info "Backing up configuration files..."
+    mkdir -p /tmp/cfutils_backup
+    if [ -f "$CFUTILS_DIR/src/configs.json" ]; then
+        cp "$CFUTILS_DIR/src/configs.json" "/tmp/cfutils_backup/configs.json"
+        log_info "Backed up configs.json."
+    fi
+    if [ -f "$CFUTILS_DIR/src/rotation_status.json" ]; then
+        cp "$CFUTILS_DIR/src/rotation_status.json" "/tmp/cfutils_backup/rotation_status.json"
+        log_info "Backed up rotation_status.json."
+    fi
+
+    log_info "Updating repository from branch '$BRANCH'..."
+    cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR'"
+    
+    git stash
+    if ! (git fetch --all --prune && git checkout "$BRANCH" && git reset --hard "origin/$BRANCH"); then
+        log_error "Failed to update the repository. Please check for errors."
+        log_info "Restoring configuration files from backup..."
+        if [ -f "/tmp/cfutils_backup/configs.json" ]; then
+            mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/src/configs.json"
+        fi
+        if [ -f "/tmp/cfutils_backup/rotation_status.json" ]; then
+            mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/src/rotation_status.json"
+        fi
+        rm -rf /tmp/cfutils_backup
+        die "Update failed. Your configuration has been restored."
+    fi
+    git clean -fd
+    cd - > /dev/null
+    
+    log_info "Restoring configuration files..."
+    if [ -f "/tmp/cfutils_backup/configs.json" ]; then
+        mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/src/configs.json"
+        log_info "Restored configs.json."
+    fi
+    if [ -f "/tmp/cfutils_backup/rotation_status.json" ]; then
+        mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/src/rotation_status.json"
+        log_info "Restored rotation_status.json."
+    fi
+    rm -rf /tmp/cfutils_backup
+
+    log_info "Updating Python dependencies..."
+    setup_cfutils_venv
+
+    VERSION_TAG=$(cd "$CFUTILS_DIR" && (git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD))
+    log_success "Cloudflare-Utils updated successfully (Version: $VERSION_TAG)."
+}
+
 setup_cfutils_venv() {
     log_info "Setting up Python virtual environment for the Cloudflare-Utils..."
     python3 -m venv "$CFUTILS_DIR/venv" || die "Failed to create virtual environment."
@@ -230,8 +296,7 @@ EOF
 
 install_cfutils() {
     log_info "--- Starting Cloudflare-Utils Installation ---"
-    rollback_cfutils
-    clone_or_update_repo
+    clone_repo
     setup_cfutils_venv
 
     log_info "Creating required directories and files..."
@@ -283,16 +348,7 @@ remove_cfutils() {
 }
 
 # --- Agent Functions ---
-install_agent() {
-    log_info "--- Starting Monitoring Agent Installation ---"
-    rollback_agent
-    verify_branch_and_agent_dir
-
-    log_info "Setting up Agent directory: $AGENT_DIR"
-    mkdir -p "$AGENT_DIR"
-    
-    download_agent_files
-
+setup_agent_venv() {
     log_info "Setting up Python virtual environment for Agent..."
     python3 -m venv "$AGENT_DIR/venv" || die "Failed to create agent virtual environment."
     
@@ -300,11 +356,73 @@ install_agent() {
     "$AGENT_DIR/venv/bin/pip" install --upgrade pip || log_warning "Failed to upgrade pip."
 
     if [ -f "$AGENT_DIR/requirements.txt" ]; then
-        log_info "Installing Agent dependencies from requirements.txt..."
+        log_info "Installing/Updating Agent dependencies from requirements.txt..."
         "$AGENT_DIR/venv/bin/pip" install -r "$AGENT_DIR/requirements.txt" || die "Failed to install agent dependencies."
     else
         die "Agent requirements.txt not found. Cannot proceed."
     fi
+    log_success "Agent virtual environment is up to date."
+}
+
+update_agent() {
+    log_info "--- Starting Monitoring Agent Update ---"
+    if [ ! -d "$AGENT_DIR" ]; then
+        log_warning "Agent is not installed. Running installer instead..."
+        install_agent
+        return
+    fi
+
+    log_info "Stopping agent service..."
+    systemctl stop cloudflare-utils-agent.service
+
+    log_info "Backing up agent configuration..."
+    mkdir -p /tmp/agent_backup
+    if [ -f "$AGENT_DIR/config.json" ]; then
+        cp "$AGENT_DIR/config.json" "/tmp/agent_backup/config.json"
+        log_info "Backed up config.json."
+    else
+        log_warning "Agent config.json not found. A new one will be created if needed."
+    fi
+
+    verify_branch_and_agent_dir
+
+    log_info "Downloading updated agent files..."
+    download_agent_files
+
+    log_info "Restoring agent configuration..."
+    if [ -f "/tmp/agent_backup/config.json" ]; then
+        mv "/tmp/agent_backup/config.json" "$AGENT_DIR/config.json"
+        log_info "Restored config.json."
+    fi
+    rm -rf /tmp/agent_backup
+
+    log_info "Updating Python dependencies for Agent..."
+    setup_agent_venv
+
+    log_info "Reloading systemd and restarting the agent..."
+    sed "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "$AGENT_DIR/cloudflare-utils-agent.service" > "/etc/systemd/system/cloudflare-utils-agent.service"
+    systemctl daemon-reload
+    systemctl restart cloudflare-utils-agent.service || die "Failed to restart agent service."
+    
+    if ! systemctl is-active --quiet cloudflare-utils-agent.service; then
+        log_error "Agent service failed to start after update. Please check the logs."
+        journalctl -u cloudflare-utils-agent.service --no-pager
+        die "Update failed."
+    fi
+
+    log_success "Monitoring Agent updated successfully."
+}
+
+install_agent() {
+    log_info "--- Starting Monitoring Agent Installation ---"
+    verify_branch_and_agent_dir
+
+    log_info "Setting up Agent directory: $AGENT_DIR"
+    mkdir -p "$AGENT_DIR"
+    
+    download_agent_files
+
+    setup_agent_venv
 
     echo -e "\n${C_CYAN}--- Agent Configuration ---${C_RESET}"
     local api_key
@@ -653,12 +771,22 @@ main_menu() {
     select opt in "${options[@]}"; do
         case $opt in
             "Install/Update Cloudflare-Utils")
-                install_cfutils
+                select_branch
+                if [ -d "$CFUTILS_DIR" ]; then
+                    update_cfutils
+                else
+                    install_cfutils
+                fi
                 verify_cfutils_installation
                 break
                 ;;
             "Install/Update Agent")
-                install_agent
+                select_branch
+                if [ -d "$AGENT_DIR" ]; then
+                    update_agent
+                else
+                    install_agent
+                fi
                 verify_agent_installation
                 break
                 ;;
