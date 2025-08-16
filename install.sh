@@ -75,6 +75,7 @@ pre_flight_checks() {
     check_command "jq" "jq"
     check_command "openssl" "openssl"
     check_command "vnstat" "vnstat"
+    check_command "crontab" "cron"
 
     if ! python3 -c "import venv" &>/dev/null; then
         log_warning "The 'python3-venv' package seems to be missing."
@@ -201,9 +202,11 @@ EOF
     chmod +x "$cron_runner_path"
 
     # Atomically update crontab
-    (crontab -l 2>/dev/null | grep -v -F "$cron_runner_path"; \
+    if ! (crontab -l 2>/dev/null | grep -v -F "$cron_runner_path"; \
      echo "*/1 * * * * $cron_runner_path"; \
-     echo "@reboot $cron_runner_path") | crontab -
+     echo "@reboot $cron_runner_path") | crontab -; then
+        die "Failed to set up cron job. Please check if 'cron' service is running."
+    fi
     log_success "Cron job set up successfully."
 }
 
@@ -494,7 +497,7 @@ verify_cfutils_installation() {
         checklist+="${C_RED}[✗]${C_RESET} Python virtual environment not found.\n"
         all_checks_passed=false
     fi
-    
+
     # Check 3: Dependencies
     if [ -f "$CFUTILS_DIR/venv/bin/pip" ] && "$CFUTILS_DIR/venv/bin/pip" freeze | grep -qi "requests"; then
         checklist+="${C_GREEN}[✓]${C_RESET} Python dependencies are installed.\n"
@@ -503,7 +506,15 @@ verify_cfutils_installation() {
         all_checks_passed=false
     fi
 
-    # Check 4: Cron job
+    # Check 4: Cron service
+    if systemctl is-active --quiet cron || systemctl is-active --quiet crond; then
+        checklist+="${C_GREEN}[✓]${C_RESET} Cron service is running.\n"
+    else
+        checklist+="${C_RED}[✗]${C_RESET} Cron service is not running.\n"
+        all_checks_passed=false
+    fi
+
+    # Check 5: Cron job
     if crontab -l 2>/dev/null | grep -q "$CFUTILS_DIR/run.sh"; then
         checklist+="${C_GREEN}[✓]${C_RESET} Cron job is configured.\n"
     else
@@ -511,7 +522,7 @@ verify_cfutils_installation() {
         all_checks_passed=false
     fi
 
-    # Check 5: Global command
+    # Check 6: Global command
     if [ -L "/usr/local/bin/cfu" ] && [ -x "/usr/local/bin/cfu" ]; then
         checklist+="${C_GREEN}[✓]${C_RESET} Global command 'cfu' is set up correctly.\n"
     else
