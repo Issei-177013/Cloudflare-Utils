@@ -39,20 +39,42 @@ ensure_root() {
 }
 
 check_command() {
-    which "$1" >/dev/null 2>&1 || die "Command '$1' is required but not found. Please install it."
+    local command="$1"
+    local package_name="$2"
+
+    if which "$command" >/dev/null 2>&1; then
+        return 0
+    fi
+
+    log_warning "Command '$command' is required but not found."
+
+    if [ -z "$package_name" ]; then
+        package_name="$command"
+    fi
+
+    log_info "Attempting to install '$package_name'..."
+    if apt-get install -y "$package_name"; then
+        log_success "Successfully installed '$package_name'."
+    else
+        die "Failed to install '$package_name'. Please install it manually."
+    fi
+
+    if ! which "$command" >/dev/null 2>&1; then
+        die "Command '$command' could not be found even after installation. Please check your PATH or install it manually."
+    fi
 }
 
 # --- Pre-flight Checks ---
 pre_flight_checks() {
     log_info "Running pre-flight checks..."
     ensure_root
-    check_command "git"
-    check_command "python3"
-    check_command "pip3"
-    check_command "curl"
-    check_command "jq"
-    check_command "openssl"
-    check_command "vnstat"
+    check_command "git" "git"
+    check_command "python3" "python3"
+    check_command "pip3" "python3-pip"
+    check_command "curl" "curl"
+    check_command "jq" "jq"
+    check_command "openssl" "openssl"
+    check_command "vnstat" "vnstat"
 
     if ! python3 -c "import venv" &>/dev/null; then
         log_warning "The 'python3-venv' package seems to be missing."
