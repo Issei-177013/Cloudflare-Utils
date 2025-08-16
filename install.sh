@@ -21,7 +21,7 @@ die() { log_error "$1"; exit 1; }
 
 # --- Configuration ---
 CONTROLLER_PROGRAM_NAME="Cloudflare-Utils"
-AGENT_PROGRAM_NAME="cloudflare-agent"
+AGENT_PROGRAM_NAME="Cloudflare-Utils-Agent"
 DEFAULT_BRANCH="main"
 # Allow branch to be specified as an argument, e.g., ./install.sh dev
 BRANCH="${1:-$DEFAULT_BRANCH}"
@@ -301,22 +301,22 @@ EOF
     chown root:root "$AGENT_DIR/config.json"
 
     log_info "Setting up systemd service..."
-    sed "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "$AGENT_DIR/cloudflare-agent.service" > "/etc/systemd/system/cloudflare-agent.service"
+    sed "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "$AGENT_DIR/cloudflare-utils-agent.service" > "/etc/systemd/system/cloudflare-utils-agent.service"
     
     log_info "Reloading systemd, enabling and starting the agent..."
     systemctl daemon-reload
-    systemctl enable cloudflare-agent.service || die "Failed to enable agent service."
-    systemctl restart cloudflare-agent.service || die "Failed to restart agent service."
+    systemctl enable cloudflare-utils-agent.service || die "Failed to enable agent service."
+    systemctl restart cloudflare-utils-agent.service || die "Failed to restart agent service."
 
-    if ! systemctl is-active --quiet cloudflare-agent.service; then
+    if ! systemctl is-active --quiet cloudflare-utils-agent.service; then
         log_error "Agent service failed to start. Please check the logs for errors:"
-        log_error "journalctl -u cloudflare-agent.service"
+        log_error "journalctl -u cloudflare-utils-agent.service"
         die "Installation failed."
     fi
 
     log_success "Monitoring Agent installed and started successfully."
     echo -e "${C_GREEN}Your API Key is: ${C_YELLOW}$api_key${C_RESET}"
-    echo -e "${C_CYAN}To check agent status, run: systemctl status cloudflare-agent${C_RESET}"
+    echo -e "${C_CYAN}To check agent status, run: systemctl status cloudflare-utils-agent.service${C_RESET}"
 }
 
 remove_agent() {
@@ -328,17 +328,17 @@ remove_agent() {
         return
     fi
     
-    if [ -f "/etc/systemd/system/cloudflare-agent.service" ]; then
+    if [ -f "/etc/systemd/system/cloudflare-utils-agent.service" ]; then
         log_info "Stopping and disabling systemd service..."
-        systemctl stop cloudflare-agent.service
-        if systemctl is-active --quiet cloudflare-agent.service; then
+        systemctl stop cloudflare-utils-agent.service
+        if systemctl is-active --quiet cloudflare-utils-agent.service; then
             die "Failed to stop the agent service. Please stop it manually and run the removal again."
         fi
         log_success "Agent service stopped."
-        systemctl disable cloudflare-agent.service
+        systemctl disable cloudflare-utils-agent.service
         
         log_info "Removing service file..."
-        rm -f "/etc/systemd/system/cloudflare-agent.service"
+        rm -f "/etc/systemd/system/cloudflare-utils-agent.service"
         systemctl daemon-reload
     else
         log_warning "Agent service file not found. Skipping service removal."
@@ -376,13 +376,13 @@ rollback_controller() {
 
 rollback_agent() {
     log_warning "--- Rolling back Agent installation ---"
-    if [ -f "/etc/systemd/system/cloudflare-agent.service" ]; then
+    if [ -f "/etc/systemd/system/cloudflare-utils-agent.service" ]; then
         log_info "Stopping and disabling systemd service..."
-        systemctl stop cloudflare-agent.service
-        systemctl disable cloudflare-agent.service
+        systemctl stop cloudflare-utils-agent.service
+        systemctl disable cloudflare-utils-agent.service
         
         log_info "Removing service file..."
-        rm -f "/etc/systemd/system/cloudflare-agent.service"
+        rm -f "/etc/systemd/system/cloudflare-utils-agent.service"
         systemctl daemon-reload
     fi
 
@@ -512,15 +512,15 @@ verify_agent_installation() {
     fi
     
     # Check 5: Systemd service
-    if [ -f "/etc/systemd/system/cloudflare-agent.service" ]; then
+    if [ -f "/etc/systemd/system/cloudflare-utils-agent.service" ]; then
         checklist+="${C_GREEN}[✓]${C_RESET} Systemd service file exists.\n"
-        if systemctl is-enabled --quiet cloudflare-agent.service; then
+        if systemctl is-enabled --quiet cloudflare-utils-agent.service; then
             checklist+="${C_GREEN}[✓]${C_RESET} Agent service is enabled.\n"
         else
             checklist+="${C_RED}[✗]${C_RESET} Agent service is not enabled.\n"
             all_checks_passed=false
         fi
-        if systemctl is-active --quiet cloudflare-agent.service; then
+        if systemctl is-active --quiet cloudflare-utils-agent.service; then
             checklist+="${C_GREEN}[✓]${C_RESET} Agent service is active and running.\n"
         else
             checklist+="${C_RED}[✗]${C_RESET} Agent service is not running.\n"
