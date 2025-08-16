@@ -99,7 +99,7 @@ clone_or_update_repo() {
     if [ -d "$CONTROLLER_DIR/.git" ]; then
         cd "$CONTROLLER_DIR" || die "Could not navigate to '$CONTROLLER_DIR'"
         log_info "Fetching latest changes..."
-        git fetch origin --all --prune || die "Failed to fetch from repository."
+        git fetch --all --prune || die "Failed to fetch from repository."
         log_info "Checking out branch '$BRANCH'..."
         git checkout "$BRANCH" || die "Branch '$BRANCH' does not exist in the remote repository."
         log_info "Pulling latest changes from '$BRANCH'..."
