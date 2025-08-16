@@ -52,6 +52,7 @@ pre_flight_checks() {
     check_command "curl"
     check_command "jq"
     check_command "openssl"
+    check_command "vnstat"
 
     if ! python3 -c "import venv" &>/dev/null; then
         log_warning "The 'python3-venv' package seems to be missing."
@@ -260,7 +261,6 @@ remove_cfutils() {
 install_agent() {
     log_info "--- Starting Monitoring Agent Installation ---"
     rollback_agent
-    check_command "vnstat"
     verify_branch_and_agent_dir
 
     log_info "Setting up Agent directory: $AGENT_DIR"
@@ -607,7 +607,7 @@ verify_agent_installation() {
 
 # --- Main Menu ---
 main_menu() {
-    clear
+    [ -t 1 ] && clear
     echo -e "${C_MAGENTA}--- Cloudflare-Utils Installer ---${C_RESET}"
     PS3="$(echo -e "${C_YELLOW}\nPlease choose an option: ${C_RESET}")"
     options=(
