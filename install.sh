@@ -20,12 +20,12 @@ log_error() { echo -e "${C_RED}❌ ERROR: ${1}${C_RESET}"; }
 die() { log_error "$1"; exit 1; }
 
 # --- Configuration ---
-CONTROLLER_PROGRAM_NAME="Cloudflare-Utils"
+CFUTILS_PROGRAM_NAME="Cloudflare-Utils"
 AGENT_PROGRAM_NAME="Cloudflare-Utils-Agent"
 DEFAULT_BRANCH="main"
 # Allow branch to be specified as an argument, e.g., ./install.sh dev
 BRANCH="${1:-$DEFAULT_BRANCH}"
-CONTROLLER_DIR="/opt/$CONTROLLER_PROGRAM_NAME"
+CFUTILS_DIR="/opt/$CFUTILS_PROGRAM_NAME"
 AGENT_DIR="/opt/$AGENT_PROGRAM_NAME"
 REPO_URL="https://github.com/Issei-177013/Cloudflare-Utils.git"
 VERSION_TAG=""
@@ -96,8 +96,8 @@ verify_branch_and_agent_dir() {
 
 clone_or_update_repo() {
     log_info "Cloning or updating repository from branch '$BRANCH'..."
-    if [ -d "$CONTROLLER_DIR/.git" ]; then
-        cd "$CONTROLLER_DIR" || die "Could not navigate to '$CONTROLLER_DIR'"
+    if [ -d "$CFUTILS_DIR/.git" ]; then
+        cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR'"
         log_info "Fetching latest changes..."
         git fetch --all --prune || die "Failed to fetch from repository."
         log_info "Checking out branch '$BRANCH'..."
@@ -106,35 +106,35 @@ clone_or_update_repo() {
         git pull origin "$BRANCH" || die "Failed to pull from branch '$BRANCH'."
     else
         log_info "Cloning new repository..."
-        git clone --branch "$BRANCH" "$REPO_URL" "$CONTROLLER_DIR" || die "Failed to clone repository."
+        git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository."
     fi
 
-    cd "$CONTROLLER_DIR" || die "Could not navigate to '$CONTROLLER_DIR' after clone/pull."
+    cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR' after clone/pull."
     VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
     cd - > /dev/null
     log_success "Repository is up to date (Version: $VERSION_TAG)."
 }
 
-# --- Controller Functions ---
-setup_controller_venv() {
-    log_info "Setting up Python virtual environment for the Controller..."
-    python3 -m venv "$CONTROLLER_DIR/venv" || die "Failed to create virtual environment."
+# --- Cloudflare-Utils Functions ---
+setup_cfutils_venv() {
+    log_info "Setting up Python virtual environment for the Cloudflare-Utils..."
+    python3 -m venv "$CFUTILS_DIR/venv" || die "Failed to create virtual environment."
     
     log_info "Upgrading pip in the new virtual environment..."
-    "$CONTROLLER_DIR/venv/bin/pip" install --upgrade pip || log_warning "Failed to upgrade pip, continuing with existing version."
+    "$CFUTILS_DIR/venv/bin/pip" install --upgrade pip || log_warning "Failed to upgrade pip, continuing with existing version."
 
-    log_info "Installing Controller dependencies..."
-    "$CONTROLLER_DIR/venv/bin/pip" install -r "$CONTROLLER_DIR/requirements.txt" || die "Failed to install dependencies from requirements.txt."
+    log_info "Installing Cloudflare-Utils dependencies..."
+    "$CFUTILS_DIR/venv/bin/pip" install -r "$CFUTILS_DIR/requirements.txt" || die "Failed to install dependencies from requirements.txt."
 }
 
-setup_controller_cron() {
+setup_cfutils_cron() {
     log_info "Setting up cron job for IP rotation..."
-    local cron_runner_path="$CONTROLLER_DIR/run.sh"
+    local cron_runner_path="$CFUTILS_DIR/run.sh"
     cat << EOF > "$cron_runner_path"
 #!/bin/bash
-cd "$CONTROLLER_DIR"
+cd "$CFUTILS_DIR"
 export LOG_TO_FILE=true
-"$CONTROLLER_DIR/venv/bin/python3" -m src.ip_rotator >> "$CONTROLLER_DIR/logs/cron.log" 2>&1
+"$CFUTILS_DIR/venv/bin/python3" -m src.ip_rotator >> "$CFUTILS_DIR/logs/cron.log" 2>&1
 EOF
     chmod +x "$cron_runner_path"
 
@@ -146,10 +146,10 @@ EOF
 }
 
 setup_log_rotation() {
-    log_info "Setting up log rotation for Controller logs..."
-    local logrotate_conf="/etc/logrotate.d/cloudflare-utils-controller"
+    log_info "Setting up log rotation for Cloudflare-Utils logs..."
+    local logrotate_conf="/etc/logrotate.d/cloudflare-utils"
     cat << EOF > "$logrotate_conf"
-$CONTROLLER_DIR/logs/cron.log {
+$CFUTILS_DIR/logs/cron.log {
     weekly
     missingok
     rotate 4
@@ -162,56 +162,56 @@ EOF
     log_success "Log rotation configured at $logrotate_conf."
 }
 
-install_controller() {
-    log_info "--- Starting Cloudflare-Utils Controller Installation ---"
+install_cfutils() {
+    log_info "--- Starting Cloudflare-Utils Installation ---"
     clone_or_update_repo
-    setup_controller_venv
+    setup_cfutils_venv
 
     log_info "Creating required directories and files..."
-    mkdir -p "$CONTROLLER_DIR/src" "$CONTROLLER_DIR/logs"
-    touch "$CONTROLLER_DIR/logs/cron.log"
-    chown -R root:root "$CONTROLLER_DIR" || log_warning "Could not set ownership to root:root. May require manual adjustment."
+    mkdir -p "$CFUTILS_DIR/src" "$CFUTILS_DIR/logs"
+    touch "$CFUTILS_DIR/logs/cron.log"
+    chown -R root:root "$CFUTILS_DIR" || log_warning "Could not set ownership to root:root. May require manual adjustment."
     
-    if [ ! -f "$CONTROLLER_DIR/src/configs.json" ]; then
-        echo '{"accounts": [], "agents": []}' > "$CONTROLLER_DIR/src/configs.json"
+    if [ ! -f "$CFUTILS_DIR/src/configs.json" ]; then
+        echo '{"accounts": [], "agents": []}' > "$CFUTILS_DIR/src/configs.json"
     fi
 
-    setup_controller_cron
+    setup_cfutils_cron
     setup_log_rotation
 
     log_info "Creating global 'cfu' command..."
-    ln -sf "$CONTROLLER_DIR/cf-utils.py" "/usr/local/bin/cfu"
-    chmod +x "$CONTROLLER_DIR/cf-utils.py"
+    ln -sf "$CFUTILS_DIR/cf-utils.py" "/usr/local/bin/cfu"
+    chmod +x "$CFUTILS_DIR/cf-utils.py"
     chmod +x "/usr/local/bin/cfu"
 
-    log_success "Cloudflare-Utils Controller installed successfully (Version: $VERSION_TAG)."
-    echo -e "${C_CYAN}   Use 'cfu' to manage the controller.${C_RESET}"
+    log_success "Cloudflare-Utils installed successfully (Version: $VERSION_TAG)."
+    echo -e "${C_CYAN}   Use 'cfu' to manage the Cloudflare-Utils.${C_RESET}"
 }
 
-remove_controller() {
-    log_info "--- Starting Cloudflare-Utils Controller Removal ---"
+remove_cfutils() {
+    log_info "--- Starting Cloudflare-Utils Removal ---"
     local answer
-    read -rp "$(echo -e "${C_YELLOW}Are you sure you want to remove the Controller? [y/N]: ${C_RESET}")" answer
+    read -rp "$(echo -e "${C_YELLOW}Are you sure you want to remove the Cloudflare-Utils? [y/N]: ${C_RESET}")" answer
     if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
         log_info "Removal cancelled."
         return
     fi
 
-    if [ ! -d "$CONTROLLER_DIR" ]; then
-        log_warning "Controller directory not found. Nothing to remove."
+    if [ ! -d "$CFUTILS_DIR" ]; then
+        log_warning "Cloudflare-Utils directory not found. Nothing to remove."
     else
         log_info "Removing cron job..."
-        (crontab -l 2>/dev/null | grep -v "$CONTROLLER_DIR/run.sh" || true) | crontab -
+        (crontab -l 2>/dev/null | grep -v "$CFUTILS_DIR/run.sh" || true) | crontab -
         
         log_info "Removing global command..."
         rm -f "/usr/local/bin/cfu"
 
         log_info "Removing log rotation config..."
-        rm -f "/etc/logrotate.d/cloudflare-utils-controller"
+        rm -f "/etc/logrotate.d/cloudflare-utils"
 
-        log_info "Removing directory: $CONTROLLER_DIR..."
-        rm -rf "$CONTROLLER_DIR"
-        log_success "Controller removed successfully."
+        log_info "Removing directory: $CFUTILS_DIR..."
+        rm -rf "$CFUTILS_DIR"
+        log_success "Cloudflare-Utils removed successfully."
     fi
 }
 
@@ -222,7 +222,7 @@ install_agent() {
     verify_branch_and_agent_dir
 
     clone_or_update_repo
-    local agent_src_dir="$CONTROLLER_DIR/src/agent"
+    local agent_src_dir="$CFUTILS_DIR/src/agent"
     if [ ! -d "$agent_src_dir" ]; then
         die "Agent source files not found in '$agent_src_dir' on branch '$BRANCH'."
     fi
@@ -354,23 +354,23 @@ remove_agent() {
 }
 
 # --- Verification & Rollback Functions ---
-rollback_controller() {
-    log_warning "--- Rolling back Controller installation ---"
-    if [ ! -d "$CONTROLLER_DIR" ]; then
-        log_info "Controller directory not found. Nothing to roll back."
+rollback_cfutils() {
+    log_warning "--- Rolling back Cfutils installation ---"
+    if [ ! -d "$CFUTILS_DIR" ]; then
+        log_info "Cfutils directory not found. Nothing to roll back."
     else
         log_info "Removing cron job..."
-        (crontab -l 2>/dev/null | grep -v "$CONTROLLER_DIR/run.sh" || true) | crontab -
+        (crontab -l 2>/dev/null | grep -v "$CFUTILS_DIR/run.sh" || true) | crontab -
         
         log_info "Removing global command..."
         rm -f "/usr/local/bin/cfu"
 
         log_info "Removing log rotation config..."
-        rm -f "/etc/logrotate.d/cloudflare-utils-controller"
+        rm -f "/etc/logrotate.d/cloudflare-utils"
 
-        log_info "Removing directory: $CONTROLLER_DIR..."
-        rm -rf "$CONTROLLER_DIR"
-        log_success "Controller rollback complete."
+        log_info "Removing directory: $CFUTILS_DIR..."
+        rm -rf "$CFUTILS_DIR"
+        log_success "Cloudflare-Utils rollback complete."
     fi
 }
 
@@ -393,21 +393,21 @@ rollback_agent() {
     fi
 }
 
-verify_controller_installation() {
-    log_info "--- Verifying Controller Installation ---"
+verify_cfutils_installation() {
+    log_info "--- Verifying Cloudflare-Utils Installation ---"
     local all_checks_passed=true
     local checklist=""
 
     # Check 1: Directory
-    if [ -d "$CONTROLLER_DIR" ]; then
-        checklist+="${C_GREEN}[✓]${C_RESET} Controller directory exists at '$CONTROLLER_DIR'.\n"
+    if [ -d "$CFUTILS_DIR" ]; then
+        checklist+="${C_GREEN}[✓]${C_RESET} Cloudflare-Utils directory exists at '$CFUTILS_DIR'.\n"
     else
-        checklist+="${C_RED}[✗]${C_RESET} Controller directory not found at '$CONTROLLER_DIR'.\n"
+        checklist+="${C_RED}[✗]${C_RESET} Cloudflare-Utils directory not found at '$CFUTILS_DIR'.\n"
         all_checks_passed=false
     fi
 
     # Check 2: Venv
-    if [ -d "$CONTROLLER_DIR/venv" ]; then
+    if [ -d "$CFUTILS_DIR/venv" ]; then
         checklist+="${C_GREEN}[✓]${C_RESET} Python virtual environment exists.\n"
     else
         checklist+="${C_RED}[✗]${C_RESET} Python virtual environment not found.\n"
@@ -415,7 +415,7 @@ verify_controller_installation() {
     fi
     
     # Check 3: Dependencies
-    if [ -f "$CONTROLLER_DIR/venv/bin/pip" ] && "$CONTROLLER_DIR/venv/bin/pip" freeze | grep -qi "requests"; then
+    if [ -f "$CFUTILS_DIR/venv/bin/pip" ] && "$CFUTILS_DIR/venv/bin/pip" freeze | grep -qi "requests"; then
         checklist+="${C_GREEN}[✓]${C_RESET} Python dependencies are installed.\n"
     else
         checklist+="${C_RED}[✗]${C_RESET} Python dependencies are not installed correctly.\n"
@@ -423,7 +423,7 @@ verify_controller_installation() {
     fi
 
     # Check 4: Cron job
-    if crontab -l 2>/dev/null | grep -q "$CONTROLLER_DIR/run.sh"; then
+    if crontab -l 2>/dev/null | grep -q "$CFUTILS_DIR/run.sh"; then
         checklist+="${C_GREEN}[✓]${C_RESET} Cron job is configured.\n"
     else
         checklist+="${C_RED}[✗]${C_RESET} Cron job is not configured.\n"
@@ -443,11 +443,11 @@ verify_controller_installation() {
     if [ "$all_checks_passed" = true ]; then
         log_success "Installation verified successfully. All components are working correctly."
     else
-        log_error "Controller installation verification failed."
+        log_error "Cloudflare-Utils installation verification failed."
         local answer
         read -rp "$(echo -e "${C_YELLOW}An error occurred during verification. Do you want to roll back the installation? [Y/n]: ${C_RESET}")" answer
         if [[ "$answer" != "n" && "$answer" != "N" ]]; then
-            rollback_controller
+            rollback_cfutils
         fi
         die "Aborting due to verification failure."
     fi
@@ -549,23 +549,23 @@ verify_agent_installation() {
 # --- Main Menu ---
 main_menu() {
     clear
-    echo -e "${C_MAGENTA}--- Cloudflare-Utils & Monitoring Agent Installer ---${C_RESET}"
+    echo -e "${C_MAGENTA}--- Cloudflare-Utils Installer ---${C_RESET}"
     if [ -n "$VERSION_TAG" ]; then
         echo -e "${C_CYAN}Version: $VERSION_TAG${C_RESET}"
     fi
     PS3="$(echo -e "${C_YELLOW}\nPlease choose an option: ${C_RESET}")"
     options=(
-        "Install/Update Controller"
+        "Install/Update Cloudflare-Utils"
         "Install/Update Agent"
-        "Remove Controller"
+        "Remove Cloudflare-Utils"
         "Remove Agent"
         "Exit"
     )
     select opt in "${options[@]}"; do
         case $opt in
-            "Install/Update Controller")
-                install_controller
-                verify_controller_installation
+            "Install/Update Cloudflare-Utils")
+                install_cfutils
+                verify_cfutils_installation
                 break
                 ;;
             "Install/Update Agent")
@@ -573,8 +573,8 @@ main_menu() {
                 verify_agent_installation
                 break
                 ;;
-            "Remove Controller")
-                remove_controller
+            "Remove Cloudflare-Utils")
+                remove_cfutils
                 break
                 ;;
             "Remove Agent")
