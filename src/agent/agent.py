@@ -52,20 +52,17 @@ def get_usage_route():
     today = traffic.get('day', [{}])[0]
     current_month = traffic.get('month', [{}])[0]
     
-    # vnstat JSON output for daily/monthly is in KiB, convert to bytes
-    bytes_in_kib = 1024
-
     usage_stats = {
         "interface": interface,
         "today": {
-            "rx_bytes": today.get('rx', 0) * bytes_in_kib,
-            "tx_bytes": today.get('tx', 0) * bytes_in_kib,
-            "total_bytes": (today.get('rx', 0) + today.get('tx', 0)) * bytes_in_kib
+            "rx_bytes": today.get('rx', 0),
+            "tx_bytes": today.get('tx', 0),
+            "total_bytes": today.get('rx', 0) + today.get('tx', 0)
         },
         "this_month": {
-            "rx_bytes": current_month.get('rx', 0) * bytes_in_kib,
-            "tx_bytes": current_month.get('tx', 0) * bytes_in_kib,
-            "total_bytes": (current_month.get('rx', 0) + current_month.get('tx', 0)) * bytes_in_kib
+            "rx_bytes": current_month.get('rx', 0),
+            "tx_bytes": current_month.get('tx', 0),
+            "total_bytes": current_month.get('rx', 0) + current_month.get('tx', 0)
         }
     }
     return jsonify(usage_stats)
