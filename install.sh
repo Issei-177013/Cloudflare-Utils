@@ -3,6 +3,7 @@
 # This script must be run as root.
 
 set -e
+trap 'log_error "Installer aborted unexpectedly at line $LINENO"' ERR
 
 # --- Colors and Logging ---
 C_RESET='\e[0m'
@@ -97,15 +98,24 @@ verify_branch_and_agent_dir() {
 clone_or_update_repo() {
     log_info "Cloning or updating repository from branch '$BRANCH'..."
     if [ -d "$CFUTILS_DIR/.git" ]; then
+        log_info "Existing repository found. Attempting to update..."
         cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR'"
-        log_info "Fetching latest changes..."
-        git fetch --all --prune || die "Failed to fetch from repository."
-        log_info "Checking out branch '$BRANCH'..."
-        git checkout "$BRANCH" || die "Branch '$BRANCH' does not exist in the remote repository."
-        log_info "Pulling latest changes from '$BRANCH'..."
-        git pull origin "$BRANCH" || die "Failed to pull from branch '$BRANCH'."
+        
+        # Attempt to update. If it fails, fallback to re-cloning.
+        if ! (git fetch --all --prune && git checkout "$BRANCH" && git reset --hard "origin/$BRANCH"); then
+            log_warning "Failed to update the repository. It might be in a broken state."
+            log_info "Attempting a fallback: removing and re-cloning..."
+            
+            # Go to a safe directory before removing the repo dir
+            cd /tmp || die "Could not navigate to /tmp"
+            rm -rf "$CFUTILS_DIR" || die "Failed to remove old directory '$CFUTILS_DIR'."
+            
+            # Re-clone
+            git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository after fallback."
+        fi
     else
         log_info "Cloning new repository..."
+        rm -rf "$CFUTILS_DIR" # Ensure directory is empty before cloning
         git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository."
     fi
 
@@ -123,8 +133,12 @@ setup_cfutils_venv() {
     log_info "Upgrading pip in the new virtual environment..."
     "$CFUTILS_DIR/venv/bin/pip" install --upgrade pip || log_warning "Failed to upgrade pip, continuing with existing version."
 
-    log_info "Installing Cloudflare-Utils dependencies..."
-    "$CFUTILS_DIR/venv/bin/pip" install -r "$CFUTILS_DIR/requirements.txt" || die "Failed to install dependencies from requirements.txt."
+    if [ -f "$CFUTILS_DIR/requirements.txt" ]; then
+        log_info "Installing Cloudflare-Utils dependencies..."
+        "$CFUTILS_DIR/venv/bin/pip" install -r "$CFUTILS_DIR/requirements.txt" || die "Failed to install dependencies from requirements.txt."
+    else
+        log_warning "requirements.txt not found, skipping dependency installation."
+    fi
 }
 
 setup_cfutils_cron() {
@@ -138,10 +152,10 @@ export LOG_TO_FILE=true
 EOF
     chmod +x "$cron_runner_path"
 
-    # Remove old cron job entry and add new ones
-    (crontab -l 2>/dev/null | grep -v -F "$cron_runner_path") | crontab -
-    (crontab -l 2>/dev/null; echo "*/1 * * * * $cron_runner_path") | crontab -
-    (crontab -l 2>/dev/null; echo "@reboot $cron_runner_path") | crontab -
+    # Atomically update crontab
+    (crontab -l 2>/dev/null | grep -v -F "$cron_runner_path"; \
+     echo "*/1 * * * * $cron_runner_path"; \
+     echo "@reboot $cron_runner_path") | crontab -
     log_success "Cron job set up successfully."
 }
 
@@ -150,9 +164,10 @@ setup_log_rotation() {
     local logrotate_conf="/etc/logrotate.d/cloudflare-utils"
     cat << EOF > "$logrotate_conf"
 $CFUTILS_DIR/logs/cron.log {
-    weekly
+    daily
+    size 10M
     missingok
-    rotate 4
+    rotate 7
     compress
     delaycompress
     notifempty
@@ -164,6 +179,7 @@ EOF
 
 install_cfutils() {
     log_info "--- Starting Cloudflare-Utils Installation ---"
+    rollback_cfutils
     clone_or_update_repo
     setup_cfutils_venv
 
@@ -218,6 +234,7 @@ remove_cfutils() {
 # --- Agent Functions ---
 install_agent() {
     log_info "--- Starting Monitoring Agent Installation ---"
+    rollback_agent
     check_command "vnstat"
     verify_branch_and_agent_dir
 
@@ -305,12 +322,15 @@ EOF
     
     log_info "Reloading systemd, enabling and starting the agent..."
     systemctl daemon-reload
-    systemctl enable cloudflare-utils-agent.service || die "Failed to enable agent service."
-    systemctl restart cloudflare-utils-agent.service || die "Failed to restart agent service."
+    systemctl enable --now cloudflare-utils-agent.service || die "Failed to enable and start agent service."
 
     if ! systemctl is-active --quiet cloudflare-utils-agent.service; then
-        log_error "Agent service failed to start. Please check the logs for errors:"
-        log_error "journalctl -u cloudflare-utils-agent.service"
+        log_error "Agent service failed to start. Please check the logs for errors."
+        local log_file="$AGENT_DIR/logs/startup.log"
+        mkdir -p "$(dirname "$log_file")"
+        journalctl -u cloudflare-utils-agent.service --no-pager > "$log_file"
+        log_error "Logs saved to $log_file"
+        log_error "You can also run: journalctl -u cloudflare-utils-agent.service"
         die "Installation failed."
     fi
 
@@ -550,9 +570,6 @@ verify_agent_installation() {
 main_menu() {
     clear
     echo -e "${C_MAGENTA}--- Cloudflare-Utils Installer ---${C_RESET}"
-    if [ -n "$VERSION_TAG" ]; then
-        echo -e "${C_CYAN}Version: $VERSION_TAG${C_RESET}"
-    fi
     PS3="$(echo -e "${C_YELLOW}\nPlease choose an option: ${C_RESET}")"
     options=(
         "Install/Update Cloudflare-Utils"
@@ -591,5 +608,4 @@ main_menu() {
 
 # --- Main Execution ---
 pre_flight_checks
-clone_or_update_repo # Clone once at the start to get version tag for the menu
 main_menu
