@@ -51,6 +51,7 @@ pre_flight_checks() {
     check_command "pip3"
     check_command "curl"
     check_command "jq"
+    check_command "openssl"
 
     if ! python3 -c "import venv" &>/dev/null; then
         log_warning "The 'python3-venv' package seems to be missing."
@@ -282,17 +283,23 @@ install_agent() {
 
     echo -e "\n${C_CYAN}--- Agent Configuration ---${C_RESET}"
     local api_key
-    api_key=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 32)
+    api_key=$(openssl rand -base64 32)
     
     local whitelist_input
-    read -rp "Enter comma-separated IPs to whitelist (e.g., 1.1.1.1,8.8.8.8) [optional]: " whitelist_input
-    local whitelist_json="\"127.0.0.1\""
+    read -rp "Enter comma-separated IPs to whitelist (e.g., 1.1.1.1,8.8.8.8) [optional, press Enter to skip]: " whitelist_input
+    local whitelist_json=""
     if [ -n "$whitelist_input" ]; then
+        local processed_ips=()
         local ips
         IFS=',' read -ra ips <<< "$whitelist_input"
         for ip in "${ips[@]}"; do
-            whitelist_json="$whitelist_json, \"$ip\""
+            # Trim whitespace
+            ip=$(echo "$ip" | sed 's/ //g')
+            if [ -n "$ip" ]; then
+                processed_ips+=("\"$ip\"")
+            fi
         done
+        whitelist_json=$(IFS=,; echo "${processed_ips[*]}")
     else
         log_warning "Whitelist is empty. The agent will accept connections from any IP."
     fi
@@ -329,6 +336,10 @@ install_agent() {
         log_success "vnstat validation passed for interface '$iface'."
     fi
 
+    log_info "Creating Agent log directory..."
+    mkdir -p "$AGENT_DIR/logs"
+    touch "$AGENT_DIR/logs/startup.log"
+
     log_info "Creating config file: '$AGENT_DIR/config.json'"
     cat << EOF > "$AGENT_DIR/config.json"
 {
@@ -350,7 +361,7 @@ EOF
     if ! systemctl is-active --quiet cloudflare-utils-agent.service; then
         log_error "Agent service failed to start. Please check the logs for errors."
         local log_file="$AGENT_DIR/logs/startup.log"
-        mkdir -p "$(dirname "$log_file")"
+        # The directory is already created, so no need for mkdir -p here.
         journalctl -u cloudflare-utils-agent.service --no-pager > "$log_file"
         log_error "Logs saved to $log_file"
         log_error "You can also run: journalctl -u cloudflare-utils-agent.service"
@@ -358,8 +369,13 @@ EOF
     fi
 
     log_success "Monitoring Agent installed and started successfully."
-    echo -e "${C_GREEN}Your API Key is: ${C_YELLOW}$api_key${C_RESET}"
-    echo -e "${C_CYAN}To check agent status, run: systemctl status cloudflare-utils-agent.service${C_RESET}"
+    echo -e "${C_GREEN}--- Agent API Key ---${C_RESET}"
+    echo -e "Your API Key is: ${C_YELLOW}$api_key${C_RESET}"
+    echo -e "This key is stored in ${C_CYAN}$AGENT_DIR/config.json${C_RESET}"
+    echo -e "You will need to add this agent and its key to the Cloudflare-Utils configuration using the 'cfu' command."
+    echo -e "Example: ${C_YELLOW}cfu add-agent --name my-server --ip <server-ip> --key 'YOUR_API_KEY'${C_RESET}"
+    echo -e "\nTo check agent status, run: ${C_CYAN}systemctl status cloudflare-utils-agent.service${C_RESET}"
+    echo -e "Agent logs are available at: ${C_CYAN}$AGENT_DIR/logs/startup.log${C_RESET}"
 }
 
 remove_agent() {

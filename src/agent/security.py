@@ -15,10 +15,11 @@ def create_security_decorator(config):
             if not api_key or api_key != config.get('api_key'):
                 return jsonify({"error": "Unauthorized: Invalid API Key"}), 401
 
-            # Check if the client's IP is in the whitelist
-            client_ip = request.remote_addr
-            if client_ip not in config.get('whitelist', []):
-                return jsonify({"error": f"Forbidden: IP {client_ip} not whitelisted"}), 403
+            whitelist = config.get('whitelist', [])
+            if whitelist:
+                client_ip = request.remote_addr
+                if client_ip not in whitelist:
+                    return jsonify({"error": f"Forbidden: IP {client_ip} not whitelisted"}), 403
 
             return f(*args, **kwargs)
         return decorated_function
