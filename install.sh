@@ -88,11 +88,35 @@ verify_branch_and_agent_dir() {
         elif [ "$http_status" -eq 404 ]; then
             die "'src/agent' directory not found on branch '$BRANCH'. Cannot proceed with Agent installation."
         else
-            log_warning "Could not verify 'src/agent' via GitHub API (HTTP status: $http_status). Will clone and check locally."
+            die "Could not verify 'src/agent' via GitHub API (HTTP status: $http_status). Agent installation cannot proceed."
         fi
     else
-        log_warning "Could not parse GitHub repository path from URL. Skipping remote directory check."
+        die "Could not parse GitHub repository path from URL. Skipping remote directory check."
     fi
+}
+
+download_agent_files() {
+    log_info "Downloading agent files from branch '$BRANCH'..."
+    local github_repo_path
+    github_repo_path=$(echo "$REPO_URL" | sed -n 's|https://github.com/||p' | sed 's/\.git$//')
+    local api_url="https://api.github.com/repos/$github_repo_path/contents/src/agent?ref=$BRANCH"
+
+    # Fetch file list from GitHub API
+    local files_json
+    files_json=$(curl -s -H "Accept: application/vnd.github.v3+json" "$api_url")
+    if ! echo "$files_json" | jq -e '.[0].name' > /dev/null 2>&1; then
+        die "Failed to retrieve file list from GitHub API or directory is empty."
+    fi
+
+    # Download each file
+    echo "$files_json" | jq -r '.[] | .name' | while read -r filename; do
+        local download_url="https://raw.githubusercontent.com/$github_repo_path/$BRANCH/src/agent/$filename"
+        log_info "Downloading '$filename'..."
+        if ! curl -s -L "$download_url" -o "$AGENT_DIR/$filename"; then
+            die "Failed to download '$filename'."
+        fi
+    done
+    log_success "All agent files downloaded successfully."
 }
 
 clone_or_update_repo() {
@@ -238,15 +262,10 @@ install_agent() {
     check_command "vnstat"
     verify_branch_and_agent_dir
 
-    clone_or_update_repo
-    local agent_src_dir="$CFUTILS_DIR/src/agent"
-    if [ ! -d "$agent_src_dir" ]; then
-        die "Agent source files not found in '$agent_src_dir' on branch '$BRANCH'."
-    fi
-
     log_info "Setting up Agent directory: $AGENT_DIR"
     mkdir -p "$AGENT_DIR"
-    cp -r "$agent_src_dir/." "$AGENT_DIR/" || die "Failed to copy agent files."
+    
+    download_agent_files
 
     log_info "Setting up Python virtual environment for Agent..."
     python3 -m venv "$AGENT_DIR/venv" || die "Failed to create agent virtual environment."
@@ -254,8 +273,12 @@ install_agent() {
     log_info "Upgrading pip in agent venv..."
     "$AGENT_DIR/venv/bin/pip" install --upgrade pip || log_warning "Failed to upgrade pip."
 
-    log_info "Installing Agent dependencies (flask, psutil)..."
-    "$AGENT_DIR/venv/bin/pip" install flask psutil || die "Failed to install agent dependencies."
+    if [ -f "$AGENT_DIR/requirements.txt" ]; then
+        log_info "Installing Agent dependencies from requirements.txt..."
+        "$AGENT_DIR/venv/bin/pip" install -r "$AGENT_DIR/requirements.txt" || die "Failed to install agent dependencies."
+    else
+        die "Agent requirements.txt not found. Cannot proceed."
+    fi
 
     echo -e "\n${C_CYAN}--- Agent Configuration ---${C_RESET}"
     local api_key
