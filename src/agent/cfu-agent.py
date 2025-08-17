@@ -7,14 +7,43 @@ import sys
 import requests
 import re
 from datetime import datetime
+from security import generate_api_key
 
 # Define paths
 AGENT_DIR = "/opt/Cloudflare-Utils-Agent"
 AGENT_CONFIG_PATH = os.path.join(AGENT_DIR, "config.json")
 AGENT_SERVICE_NAME = "cloudflare-utils-agent.service"
 AGENT_VERSION_PATH = os.path.join(AGENT_DIR, "version.py")
+AUDIT_LOG_PATH = "/var/log/cfu-agent-audit.log"
+
 
 # --- Helper Functions ---
+
+def _log_audit_event(message):
+    """Logs a security-sensitive event to the audit log."""
+    try:
+        # Ensure the log directory exists (though /var/log should always exist)
+        os.makedirs(os.path.dirname(AUDIT_LOG_PATH), exist_ok=True)
+        
+        # Get current timestamp and username
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        username = os.getenv('SUDO_USER') or os.getenv('USER') or 'unknown'
+
+        log_entry = f"{timestamp} - User:{username} - Event: {message}\n"
+        
+        with open(AUDIT_LOG_PATH, 'a') as f:
+            f.write(log_entry)
+        
+        # Set secure permissions for the audit log
+        os.chmod(AUDIT_LOG_PATH, 0o640)
+
+    except (IOError, PermissionError) as e:
+        print(f"\nWarning: Could not write to audit log at {AUDIT_LOG_PATH}.")
+        print(f"  Reason: {e}")
+        print("  Please ensure you have the necessary permissions.")
+        print("  You may need to create the file manually (`sudo touch /var/log/cfu-agent-audit.log`)")
+        print("  and grant write permissions to the appropriate user/group.")
+
 
 def _is_service_active():
     """Checks if the agent service is active."""
@@ -61,40 +90,62 @@ def _restart_agent_service():
 
 # --- Command Functions ---
 
-def handle_token_set(args):
-    """Sets a new API key for the agent."""
-    config = _read_agent_config()
-    if config is None:
-        return
-    
-    config['api_key'] = args.key
-    if _write_agent_config(config):
-        print("Agent API key set successfully.")
-        _restart_agent_service()
-
-def handle_token_revoke(args):
-    """Revokes the current API key."""
-    config = _read_agent_config()
-    if config is None:
-        return
-    
-    if 'api_key' in config:
-        del config['api_key']
-        if _write_agent_config(config):
-            print("Agent API key revoked.")
-            _restart_agent_service()
-    else:
-        print("No API key to revoke.")
-
 def handle_token_display(args):
-    """Displays the current API key (masked)."""
+    """Displays the current API key."""
     config = _read_agent_config()
-    if config and 'api_key' in config:
-        key = config['api_key']
-        masked_key = key[:4] + '*' * (len(key) - 8) + key[-4:] if len(key) > 8 else key[:2] + '*' * (len(key) - 4) + key[-2:]
-        print(f"Current API Key: {masked_key}")
-    else:
+    if not config or 'api_key' not in config or not config['api_key']:
         print("No API key is set.")
+        return
+
+    key = config['api_key']
+
+    if args.full:
+        if not args.force:
+            print("Warning: Displaying the full API token is a security risk.")
+            if input("Are you sure you want to continue? (y/N): ").lower() != 'y':
+                print("Aborted.")
+                return
+        
+        print(f"Full API Key: {key}")
+        _log_audit_event("Displayed full API token.")
+    else:
+        masked_key = key[:4] + '*' * (len(key) - 8) + key[-4:] if len(key) > 8 else key[:2] + '*' * (len(key) - 4) + key[-2:]
+        print(f"Current API Key (masked): {masked_key}")
+
+
+def handle_token_change(args):
+    """Revokes the old token and generates a new one."""
+    if not args.force:
+        print("Warning: This will revoke the current token and generate a new one.")
+        print("The agent service will be restarted, and any application using the old token will lose access.")
+        if input("Are you sure you want to continue? (y/N): ").lower() != 'y':
+            print("Aborted.")
+            return
+
+    config = _read_agent_config()
+    if config is None:
+        return
+
+    # Generate a new token
+    new_token = generate_api_key()
+    config['api_key'] = new_token
+    config['token_last_changed'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    if 'token_created_at' not in config:
+        config['token_created_at'] = config['token_last_changed']
+
+    if _write_agent_config(config):
+        print("New API token generated and saved.")
+        _log_audit_event("Changed API token.")
+        _restart_agent_service()
+        
+        print("\n--- NEW API TOKEN ---")
+        print("Please copy this token and store it securely. It will not be shown again.")
+        print(f"Token: {new_token}")
+        print("---------------------\n")
+    else:
+        print("Failed to save the new token to the configuration file.")
+
 
 def handle_service_start(args):
     """Starts the agent service."""
@@ -239,28 +290,62 @@ def handle_config_display(args):
         
         print(json.dumps(config, indent=2))
 
+class HelpOnFailArgumentParser(argparse.ArgumentParser):
+    """Custom ArgumentParser that prints help on error."""
+    def error(self, message):
+        sys.stderr.write(f'error: {message}\n')
+        self.print_help()
+        sys.exit(2)
+
 def main():
     """Main function for the agent CLI."""
-    parser = argparse.ArgumentParser(
+    parser = HelpOnFailArgumentParser(
         description="A CLI for managing the Cloudflare-Utils-Agent.",
         prog="cfu-agent"
     )
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
-
     # Token management
-    parser_token = subparsers.add_parser('token', help='Manage agent API token')
-    token_subparsers = parser_token.add_subparsers(dest='action', required=True)
-    parser_token_set = token_subparsers.add_parser('set', help='Set a new token')
-    parser_token_set.add_argument('key', help='The new API key')
-    parser_token_set.set_defaults(func=handle_token_set)
-    parser_token_revoke = token_subparsers.add_parser('revoke', help='Revoke the current token')
-    parser_token_revoke.set_defaults(func=handle_token_revoke)
-    parser_token_display = token_subparsers.add_parser('display', help='Display the current token (masked)')
+    # We are using a new variable for subparsers to use the custom class
+    subparsers = parser.add_subparsers(dest='command', parser_class=HelpOnFailArgumentParser)
+
+    parser_token = subparsers.add_parser('token',
+                                         help='Manage agent API token',
+                                         description='Manage the agent API token. Use "display" to see the current token or "change" to generate a new one.',
+                                         epilog="""
+Examples:
+  cfu-agent token display
+  cfu-agent token display --full
+  cfu-agent token change --force
+""")
+    token_subparsers = parser_token.add_subparsers(dest='action', help='Action to perform', required=True)
+    
+    # cfu-agent token display
+    parser_token_display = token_subparsers.add_parser('display', help='Display the current token (masked by default)',
+                                                       description='Displays the current token. Shows a masked version by default for security.',
+                                                       epilog="""
+Example:
+  cfu-agent token display
+  cfu-agent token display --full
+  cfu-agent token display --full --force
+""")
+    parser_token_display.add_argument('--full', action='store_true', help='Display the full, unmasked token with a confirmation warning.')
+    parser_token_display.add_argument('--force', action='store_true', help='Skip the confirmation warning when displaying the full token.')
     parser_token_display.set_defaults(func=handle_token_display)
+
+    # cfu-agent token change
+    parser_token_change = token_subparsers.add_parser('change', help='Change token (revoke old, create new, show full)',
+                                                      description='Revokes the current token, generates a new one, saves it, and restarts the agent.',
+                                                      epilog="""
+Example:
+  cfu-agent token change
+  cfu-agent token change --force
+""")
+    parser_token_change.add_argument('--force', action='store_true', help='Skip the confirmation prompt before changing the token.')
+    parser_token_change.set_defaults(func=handle_token_change)
+
 
     # Service control
     parser_service = subparsers.add_parser('service', help='Control the agent service')
-    service_subparsers = parser_service.add_subparsers(dest='action', required=True)
+    service_subparsers = parser_service.add_subparsers(dest='action', help='Action to perform', required=True)
     parser_service_start = service_subparsers.add_parser('start', help='Start the agent service')
     parser_service_start.set_defaults(func=handle_service_start)
     parser_service_stop = service_subparsers.add_parser('stop', help='Stop the agent service')
@@ -282,7 +367,7 @@ def main():
 
     # Statistics
     parser_stats = subparsers.add_parser('stats', help='Display agent traffic/usage statistics')
-    stats_subparsers = parser_stats.add_subparsers(dest='action')
+    stats_subparsers = parser_stats.add_subparsers(dest='action', parser_class=HelpOnFailArgumentParser)
     parser_stats_reset = stats_subparsers.add_parser('reset', help='Reset statistics')
     parser_stats_reset.add_argument('--force', action='store_true', help='Reset without prompting for confirmation')
     parser_stats_reset.set_defaults(func=handle_stats_reset)
@@ -291,7 +376,7 @@ def main():
 
     # Configuration
     parser_config = subparsers.add_parser('config', help='Manage agent configuration')
-    config_subparsers = parser_config.add_subparsers(dest='action', required=True)
+    config_subparsers = parser_config.add_subparsers(dest='action', required=True, parser_class=HelpOnFailArgumentParser)
     parser_config_display = config_subparsers.add_parser('show', help='Display the current configuration file')
     parser_config_display.set_defaults(func=handle_config_display)
 
@@ -301,23 +386,15 @@ def main():
     parser_help.set_defaults(func=lambda args: parser.parse_args([args.help_command, '--help'] if args.help_command else ['--help']))
 
 
+    # If no command is provided, print help and exit.
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+        
     args = parser.parse_args()
-
-    if not hasattr(args, 'command') or args.command is None:
-        parser.print_help()
-        sys.exit(0)
 
     if hasattr(args, 'func'):
         args.func(args)
-    else:
-        # If no subcommand was provided to a command that requires one
-        # (like 'token' or 'service'), print that command's help.
-        if len(sys.argv) > 1:
-            # e.g. user typed 'cfu-agent token'
-            parser.parse_args(sys.argv[1:] + ['--help'])
-        else:
-            # This case is now handled above
-            parser.print_help()
 
 if __name__ == '__main__':
     main()

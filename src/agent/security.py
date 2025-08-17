@@ -1,5 +1,19 @@
+import secrets
 from functools import wraps
 from flask import request, jsonify
+
+def generate_api_key(length=32):
+    """
+    Generates a cryptographically secure, URL-safe API key.
+    
+    Args:
+        length (int): The number of bytes of randomness to use.
+                      The resulting key will be longer due to hex encoding.
+                      
+    Returns:
+        str: A new, securely generated API key.
+    """
+    return secrets.token_hex(length)
 
 def create_security_decorator(config):
     """

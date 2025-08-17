@@ -480,6 +480,7 @@ install_agent() {
 
     setup_agent_venv
 
+    # TODO: Use generate_api_key func for key creation.
     echo -e "\n${C_CYAN}--- Agent Configuration ---${C_RESET}"
     local api_key
     api_key=$(openssl rand -base64 32)
