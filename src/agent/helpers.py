@@ -66,32 +66,31 @@ def get_vnstat_data(interface, json_mode=None):
     if json_mode:
         command.append(json_mode)
     command.extend(['-i', interface])
-        
+
     try:
         result = subprocess.run(
             command,
             capture_output=True,
-            text=True,
-            check=True
+            text=True
         )
-        
-        # If vnstat returns no output, it means there's no data.
-        # Return a valid, empty vnstat-like JSON structure to avoid parsing errors.
-        if not result.stdout.strip():
-            # This structure mimics a valid vnstat response with no traffic data,
-            # allowing the calling function to handle it gracefully.
+
+        if result.returncode != 0:
+            error_message = result.stderr.strip() or "vnstat returned an error with no message"
+            return None, f"vnstat error: {error_message}"
+
+        stdout = result.stdout.strip()
+
+        if not stdout:
             return {"interfaces": [{"name": interface, "traffic": {}}]}, None
 
-        data = json.loads(result.stdout)
-        return data, None
+        try:
+            data = json.loads(stdout)
+            return data, None
+        except json.JSONDecodeError as e:
+            snippet = stdout[:300].replace("\n", " ")
+            return None, f"Failed to parse vnstat JSON output: {str(e)} | Raw snippet: {snippet}"
+
     except FileNotFoundError:
         return None, "vnstat command not found. Is it installed and in the system's PATH?"
-    except subprocess.CalledProcessError as e:
-        error_message = f"vnstat error: {e.stderr.strip()}"
-        if "not found" in e.stderr.lower():
-            error_message = f"Interface '{interface}' not found by vnstat. Check your config."
-        return None, error_message
-    except json.JSONDecodeError:
-        return None, "Failed to parse vnstat JSON output."
     except Exception as e:
         return None, f"An unexpected error occurred: {str(e)}"
