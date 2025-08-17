@@ -249,6 +249,8 @@ update_cfutils() {
     log_info "Updating Python dependencies..."
     setup_cfutils_venv
 
+    log_info "Deleting old entrypoint..."
+    rm -f "/usr/local/bin/cfu"
     log_info "Re-linking global command..."
     ln -sf "$CFUTILS_DIR/cf-utils.py" "/usr/local/bin/cfu"
     chmod +x "$CFUTILS_DIR/cf-utils.py"
@@ -439,6 +441,8 @@ update_agent() {
     log_info "Updating Python dependencies for Agent..."
     setup_agent_venv
 
+    log_info "Deleting old entrypoint..."
+    rm -f "/usr/local/bin/cfu-agent"
     log_info "Re-linking global 'cfu-agent' command..."
     ln -sf "$AGENT_DIR/cfu-agent.py" "/usr/local/bin/cfu-agent"
     chmod +x "$AGENT_DIR/cfu-agent.py"
