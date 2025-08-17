@@ -1,5 +1,5 @@
-from flask import Flask, jsonify
-
+from flask import Flask, jsonify, request
+from datetime import datetime, timedelta
 # Import modularized components
 from helpers import load_config, get_hostname, get_uptime, get_vnstat_data
 from security import create_security_decorator
@@ -72,6 +72,96 @@ def get_usage_route():
 def handle_action_route():
     """Placeholder for triggering actions on the agent."""
     return jsonify({"status": "action endpoint not yet implemented"}), 501
+
+
+@app.route('/usage_by_period', methods=['GET'])
+@secure_route
+def get_usage_by_period_route():
+    """
+    Returns network usage statistics for a specified period.
+    Supports 'hourly', 'weekly', '15-day', and 'custom' periods.
+    """
+    interface = config.get('vnstat_interface')
+    period = request.args.get('period', 'daily') # Default to daily if not specified
+
+    options = []
+    if period == 'hourly':
+        options = ['--hours']
+    elif period == 'weekly':
+        options = ['--weeks']
+    elif period == '15-day':
+        options = ['--days'] # Fetch all days, then slice
+    elif period == 'custom':
+        days = int(request.args.get('days', 0))
+        hours = int(request.args.get('hours', 0))
+        # vnstat doesn't support minute-level granularity, so we ignore it.
+
+        total_hours = (days * 24) + hours
+        
+        # Fetch daily and hourly data. We need both to cover a larger custom range.
+        daily_data, error_d = get_vnstat_data(interface, ['--days'])
+        hourly_data, error_h = get_vnstat_data(interface, ['--hours'])
+
+        if error_d or error_h:
+            return jsonify({"error": error_d or error_h}), 500
+
+        interface_daily = next((iface for iface in daily_data.get('interfaces', []) if iface.get('name') == interface), None)
+        interface_hourly = next((iface for iface in hourly_data.get('interfaces', []) if iface.get('name') == interface), None)
+
+        if not interface_daily or not interface_hourly:
+            return jsonify({"error": "Could not find interface data"}), 500
+
+        # Combine data from days and hours to fulfill the request
+        total_rx = 0
+        total_tx = 0
+        
+        # Get full days data
+        full_days_to_process = total_hours // 24
+        days_traffic = interface_daily.get('traffic', {}).get('day', [])
+        
+        # Iterate over the most recent full days
+        for day in days_traffic[-full_days_to_process:]:
+            total_rx += day.get('rx', 0)
+            total_tx += day.get('tx', 0)
+            
+        # Get remaining hours data
+        remaining_hours = total_hours % 24
+        hours_traffic = interface_hourly.get('traffic', {}).get('hour', [])
+        
+        # Iterate over the most recent remaining hours
+        for hour in hours_traffic[-remaining_hours:]:
+            total_rx += hour.get('rx', 0)
+            total_tx += hour.get('tx', 0)
+
+        custom_data = {
+            "rx": total_rx,
+            "tx": total_tx,
+            "total": total_rx + total_tx,
+            "query": {"days": days, "hours": hours}
+        }
+        return jsonify({"period": "custom", "data": custom_data})
+
+    else: # Default to daily
+        options = ['--days']
+
+    vnstat_data, error = get_vnstat_data(interface, options)
+    if error:
+        return jsonify({"error": error}), 500
+
+    interface_data = next((iface for iface in vnstat_data.get('interfaces', []) if iface.get('name') == interface), None)
+    if not interface_data:
+        return jsonify({"error": f"Could not find data for interface '{interface}' in vnstat output."}), 500
+    
+    traffic_data = interface_data.get('traffic', {})
+    
+    # Post-process for 15-day period
+    if period == '15-day':
+        if 'day' in traffic_data:
+            traffic_data['day'] = traffic_data['day'][-15:]
+        # The period for the client is 'day' not '15-day'
+        return jsonify({"period": "day", "data": traffic_data})
+
+    return jsonify({"period": period, "data": traffic_data})
 
 
 # --- Main Execution ---

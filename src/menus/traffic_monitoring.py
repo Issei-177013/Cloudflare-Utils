@@ -124,7 +124,7 @@ def remove_agent():
 
 
 def view_agent_usage():
-    """Views detailed traffic usage for a specific agent."""
+    """Views detailed traffic usage for a specific agent, with selectable time periods."""
     config = load_config()
     agents = config.get("agents", [])
 
@@ -134,21 +134,54 @@ def view_agent_usage():
         return
 
     clear_screen()
-    print("--- View Agent Usage ---")
+    print("--- Select Agent to View Usage ---")
     headers = ["#", "Name", "URL"]
     rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
     display_as_table(rows, headers)
     
-    choice = get_numeric_input("\nEnter the # of the agent to view (or 0 to cancel):", int, min_val=0, max_val=len(agents))
-
-    if choice == 0:
-        print("Cancelled.")
+    agent_choice = get_numeric_input("\nEnter the # of the agent to view (or 0 to cancel):", int, min_val=0, max_val=len(agents))
+    if agent_choice == 0:
         return
+
+    agent = agents[agent_choice - 1]
+
+    while True:
+        clear_screen()
+        print(f"--- Usage for {agent['name']} ---")
+        print("Select a time period:")
+        print("1. Daily & Monthly (Default)")
+        print("2. Hourly")
+        print("3. Weekly")
+        print("4. Last 15 Days")
+        print("5. Custom Timeframe")
+        print("0. Back to Agent Selection")
+        print("--------------------------------")
         
-    agent = agents[choice - 1]
-    clear_screen()
-    print(f"--- Usage for {agent['name']} ---")
-    
+        period_choice = input("👉 Enter your choice: ").strip()
+
+        if period_choice == '0':
+            break
+        elif period_choice == '1':
+            fetch_and_display_default_usage(agent)
+        elif period_choice in ['2', '3', '4', '5']:
+            period_map = {'2': 'hourly', '3': 'weekly', '4': '15-day', '5': 'custom'}
+            period = period_map[period_choice]
+            
+            params = {'period': period}
+            if period == 'custom':
+                days = get_numeric_input("Enter days:", int, default=0)
+                hours = get_numeric_input("Enter hours:", int, default=0)
+                minutes = get_numeric_input("Enter minutes:", int, default=0)
+                params.update({'days': days, 'hours': hours, 'minutes': minutes})
+
+            fetch_and_display_periodic_usage(agent, params)
+        else:
+            print("❌ Invalid choice. Please select a valid option.")
+        
+        input("\nPress Enter to continue...")
+
+def fetch_and_display_default_usage(agent):
+    """Fetches and displays the default (today/month) usage view."""
     try:
         response = requests.get(f"{agent['url']}/usage", headers={"X-API-Key": agent['api_key']}, timeout=5)
         if response.status_code == 200:
@@ -160,10 +193,9 @@ def view_agent_usage():
             today_total_gb = bytes_to_gb(data['today']['total_bytes'])
             month_total_gb = bytes_to_gb(data['this_month']['total_bytes'])
             threshold_gb = agent['threshold_gb']
-            
             usage_percent = (month_total_gb / threshold_gb) * 100 if threshold_gb > 0 else 0
 
-            print(f"Interface: {data['interface']}")
+            print(f"\nInterface: {data['interface']}")
             print("\n--- Today ---")
             print(f"  Received: {bytes_to_gb(data['today']['rx_bytes']):.2f} GB")
             print(f"  Sent:     {bytes_to_gb(data['today']['tx_bytes']):.2f} GB")
@@ -172,18 +204,75 @@ def view_agent_usage():
             print(f"  Received: {bytes_to_gb(data['this_month']['rx_bytes']):.2f} GB")
             print(f"  Sent:     {bytes_to_gb(data['this_month']['tx_bytes']):.2f} GB")
             print(f"  Total:    {month_total_gb:.2f} GB")
-            
             print("\n--- Threshold ---")
             print(f"  Monthly Threshold: {threshold_gb} GB")
             print(f"  Current Usage:     {month_total_gb:.2f} GB ({usage_percent:.2f}%)")
+        else:
+            print(f"\n❌ Error fetching usage: {response.status_code} - {response.text}")
+    except requests.RequestException as e:
+        print(f"\n❌ Could not connect to agent. Details: {e}")
+
+def fetch_and_display_periodic_usage(agent, params):
+    """Fetches and displays usage for a specified period from the new endpoint."""
+    try:
+        response = requests.get(f"{agent['url']}/usage_by_period", headers={"X-API-Key": agent['api_key']}, params=params, timeout=10)
+        if response.status_code == 200:
+            result = response.json()
+            period = result.get('period')
+            data = result.get('data', {})
+            
+            def bytes_to_gb(b):
+                return b / (1024**3)
+
+            print(f"\n--- Usage for: {period.replace('_', ' ').title()} ---")
+
+            if not data:
+                print("No data returned for this period.")
+                return
+
+            # Map the requested period to the actual key in the vnstat JSON response
+            period_key_map = {
+                'hourly': 'hour',
+                'weekly': 'week',
+                '15-day': 'day', # Agent returns 'day' for this
+                'daily': 'day'
+            }
+            # Use the original period for 'custom' as it has a different structure
+            data_key = period_key_map.get(period, period)
+
+            if isinstance(data.get(data_key), list):
+                headers = ["Date", "Received (GB)", "Sent (GB)", "Total (GB)"]
+                rows = []
+                for entry in data[data_key]:
+                    total_gb = bytes_to_gb(entry.get('rx', 0) + entry.get('tx', 0))
+                    # Date formatting can be improved here in a future update
+                    date_str = f"{entry.get('date', {}).get('year', '')}-{entry.get('date', {}).get('month', '')}-{entry.get('date', {}).get('day', '')}"
+                    if 'time' in entry:
+                         date_str += f" {entry['time']['hour']}:{entry['time']['minute']}"
+                    rows.append([
+                        date_str,
+                        f"{bytes_to_gb(entry.get('rx', 0)):.3f}",
+                        f"{bytes_to_gb(entry.get('tx', 0)):.3f}",
+                        f"{total_gb:.3f}"
+                    ])
+                display_as_table(rows, headers)
+            elif period == 'custom':
+                query = data.get('query', {})
+                print(f"  Query: {query.get('days')} days, {query.get('hours')} hours")
+                total_gb = bytes_to_gb(data.get('total', 0))
+                print(f"  Received: {bytes_to_gb(data.get('rx', 0)):.3f} GB")
+                print(f"  Sent:     {bytes_to_gb(data.get('tx', 0)):.3f} GB")
+                print(f"  Total:    {total_gb:.3f} GB")
+            else: # Handle other formats or a single entry
+                total_gb = bytes_to_gb(data.get('rx', 0) + data.get('tx', 0))
+                print(f"  Received: {bytes_to_gb(data.get('rx', 0)):.3f} GB")
+                print(f"  Sent:     {bytes_to_gb(data.get('tx', 0)):.3f} GB")
+                print(f"  Total:    {total_gb:.3f} GB")
 
         else:
             print(f"\n❌ Error fetching usage: {response.status_code} - {response.text}")
-            
     except requests.RequestException as e:
-        print(f"\n❌ Error: Could not connect to agent at {agent['url']}. Details: {e}")
-
-    input("\nPress Enter to return to the menu...")
+        print(f"\n❌ Could not connect to agent. Details: {e}")
 
 
 def traffic_monitoring_menu():
