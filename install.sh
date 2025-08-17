@@ -250,6 +250,10 @@ update_cfutils() {
         log_info "Restoring previous Python dependencies..."
         setup_cfutils_venv
 
+        log_info "Re-linking global command..."
+        ln -sf "$CFUTILS_DIR/cf-utils.py" "/usr/local/bin/cfu"
+        chmod +x "$CFUTILS_DIR/cf-utils.py"
+
         die "Update rolled back. Your previous version has been restored."
     fi
 
