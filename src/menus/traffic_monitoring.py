@@ -149,11 +149,12 @@ def view_agent_usage():
         clear_screen()
         print(f"--- Usage for {agent['name']} ---")
         print("Select a time period:")
-        print("1. Daily & Monthly (Default)")
+        print("1. Five Minutes")
         print("2. Hourly")
-        print("3. Weekly")
-        print("4. Last 15 Days")
-        print("5. Custom Timeframe")
+        print("3. Daily")
+        print("4. Monthly")
+        print("5. Yearly")
+        print("6. Top Days")
         print("0. Back to Agent Selection")
         print("--------------------------------")
         
@@ -161,113 +162,85 @@ def view_agent_usage():
 
         if period_choice == '0':
             break
-        elif period_choice == '1':
-            fetch_and_display_default_usage(agent)
-        elif period_choice in ['2', '3', '4', '5']:
-            period_map = {'2': 'hourly', '3': 'weekly', '4': '15-day', '5': 'custom'}
-            period = period_map[period_choice]
-            
-            params = {'period': period}
-            if period == 'custom':
-                days = get_numeric_input("Enter days:", int, default=0)
-                hours = get_numeric_input("Enter hours:", int, default=0)
-                minutes = get_numeric_input("Enter minutes:", int, default=0)
-                params.update({'days': days, 'hours': hours, 'minutes': minutes})
 
+        # Map choice to vnstat json mode
+        period_map = {
+            '3': 'd', # daily
+            '4': 'm', # monthly
+            '5': 'y', # yearly
+            '2': 'h', # hourly
+            '6': 't', # top
+            '1': 'f'  # five minutes
+        }
+        
+        if period_choice in period_map:
+            period = period_map[period_choice]
+            params = {'period': period}
             fetch_and_display_periodic_usage(agent, params)
         else:
             print("❌ Invalid choice. Please select a valid option.")
         
         input("\nPress Enter to continue...")
 
-def fetch_and_display_default_usage(agent):
-    """Fetches and displays the default (today/month) usage view."""
-    try:
-        response = requests.get(f"{agent['url']}/usage", headers={"X-API-Key": agent['api_key']}, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            
-            def bytes_to_gb(b):
-                return b / (1024**3)
-
-            today_total_gb = bytes_to_gb(data['today']['total_bytes'])
-            month_total_gb = bytes_to_gb(data['this_month']['total_bytes'])
-            threshold_gb = agent['threshold_gb']
-            usage_percent = (month_total_gb / threshold_gb) * 100 if threshold_gb > 0 else 0
-
-            print(f"\nInterface: {data['interface']}")
-            print("\n--- Today ---")
-            print(f"  Received: {bytes_to_gb(data['today']['rx_bytes']):.2f} GB")
-            print(f"  Sent:     {bytes_to_gb(data['today']['tx_bytes']):.2f} GB")
-            print(f"  Total:    {today_total_gb:.2f} GB")
-            print("\n--- This Month ---")
-            print(f"  Received: {bytes_to_gb(data['this_month']['rx_bytes']):.2f} GB")
-            print(f"  Sent:     {bytes_to_gb(data['this_month']['tx_bytes']):.2f} GB")
-            print(f"  Total:    {month_total_gb:.2f} GB")
-            print("\n--- Threshold ---")
-            print(f"  Monthly Threshold: {threshold_gb} GB")
-            print(f"  Current Usage:     {month_total_gb:.2f} GB ({usage_percent:.2f}%)")
-        else:
-            print(f"\n❌ Error fetching usage: {response.status_code} - {response.text}")
-    except requests.RequestException as e:
-        print(f"\n❌ Could not connect to agent. Details: {e}")
-
 def fetch_and_display_periodic_usage(agent, params):
-    """Fetches and displays usage for a specified period from the new endpoint."""
+    """
+    Fetches and displays usage for a specified period from the agent.
+    It now handles various vnstat data formats directly.
+    """
     try:
         response = requests.get(f"{agent['url']}/usage_by_period", headers={"X-API-Key": agent['api_key']}, params=params, timeout=10)
         if response.status_code == 200:
             result = response.json()
-            period = result.get('period')
-            data = result.get('data', {})
-            
+            title = result.get('period_title', 'Usage Data')
+            data_list = result.get('data', [])
+
             def bytes_to_gb(b):
-                return b / (1024**3)
+                # Ensure input is a number, default to 0 if not
+                return (b / (1024**3)) if isinstance(b, (int, float)) else 0
 
-            print(f"\n--- Usage for: {period.replace('_', ' ').title()} ---")
+            print(f"\n--- {title} ---")
 
-            if not data:
+            if not data_list:
                 print("No data returned for this period.")
                 return
 
-            # Map the requested period to the actual key in the vnstat JSON response
-            period_key_map = {
-                'hourly': 'hour',
-                'weekly': 'week',
-                '15-day': 'day', # Agent returns 'day' for this
-                'daily': 'day'
-            }
-            # Use the original period for 'custom' as it has a different structure
-            data_key = period_key_map.get(period, period)
+            # Prepare table headers and rows
+            headers = ["Date", "Time", "Received (GB)", "Sent (GB)", "Total (GB)"]
+            rows = []
 
-            if isinstance(data.get(data_key), list):
-                headers = ["Date", "Received (GB)", "Sent (GB)", "Total (GB)"]
-                rows = []
-                for entry in data[data_key]:
-                    total_gb = bytes_to_gb(entry.get('rx', 0) + entry.get('tx', 0))
-                    # Date formatting can be improved here in a future update
-                    date_str = f"{entry.get('date', {}).get('year', '')}-{entry.get('date', {}).get('month', '')}-{entry.get('date', {}).get('day', '')}"
-                    if 'time' in entry:
-                         date_str += f" {entry['time']['hour']}:{entry['time']['minute']}"
-                    rows.append([
-                        date_str,
-                        f"{bytes_to_gb(entry.get('rx', 0)):.3f}",
-                        f"{bytes_to_gb(entry.get('tx', 0)):.3f}",
-                        f"{total_gb:.3f}"
-                    ])
-                display_as_table(rows, headers)
-            elif period == 'custom':
-                query = data.get('query', {})
-                print(f"  Query: {query.get('days')} days, {query.get('hours')} hours")
-                total_gb = bytes_to_gb(data.get('total', 0))
-                print(f"  Received: {bytes_to_gb(data.get('rx', 0)):.3f} GB")
-                print(f"  Sent:     {bytes_to_gb(data.get('tx', 0)):.3f} GB")
-                print(f"  Total:    {total_gb:.3f} GB")
-            else: # Handle other formats or a single entry
-                total_gb = bytes_to_gb(data.get('rx', 0) + data.get('tx', 0))
-                print(f"  Received: {bytes_to_gb(data.get('rx', 0)):.3f} GB")
-                print(f"  Sent:     {bytes_to_gb(data.get('tx', 0)):.3f} GB")
-                print(f"  Total:    {total_gb:.3f} GB")
+            for entry in data_list:
+                rx_gb = bytes_to_gb(entry.get('rx', 0))
+                tx_gb = bytes_to_gb(entry.get('tx', 0))
+                total_gb = rx_gb + tx_gb
+                
+                # Format date string from date object
+                date_info = entry.get('date', {})
+                date_str = f"{date_info.get('year', 'YYYY')}-{date_info.get('month', 'MM'):02d}-{date_info.get('day', 'DD'):02d}"
+
+                # Format time string if time object exists
+                time_info = entry.get('time', {})
+                time_str = ""
+                if 'hour' in time_info:
+                    time_str = f"{time_info.get('hour'):02d}:{time_info.get('minute'):02d}"
+
+                rows.append([
+                    date_str,
+                    time_str,
+                    f"{rx_gb:.3f}",
+                    f"{tx_gb:.3f}",
+                    f"{total_gb:.3f}"
+                ])
+            
+            # If no entry had a time string, the column is not needed
+            has_time_data = any(row[1] for row in rows)
+            
+            if not has_time_data:
+                # Remove the "Time" header and the corresponding empty column from all rows
+                headers.pop(1)
+                for row in rows:
+                    row.pop(1)
+
+            display_as_table(rows, headers)
 
         else:
             print(f"\n❌ Error fetching usage: {response.status_code} - {response.text}")
