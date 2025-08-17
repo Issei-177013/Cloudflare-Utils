@@ -56,15 +56,16 @@ def get_uptime():
     except Exception:
         return "N/A"
 
-def get_vnstat_data(interface, options=None):
+def get_vnstat_data(interface, json_mode=None):
     """
     Fetches traffic data from vnstat for the specified interface.
-    Accepts optional flags to customize the query (e.g., for hourly, daily data).
+    Accepts an optional json_mode to customize the query (e.g., 'h' for hourly).
     Returns parsed JSON data or an error message.
     """
-    command = ['vnstat', '--json', '-i', interface]
-    if options:
-        command.extend(options)
+    command = ['vnstat', '--json']
+    if json_mode:
+        command.append(json_mode)
+    command.extend(['-i', interface])
         
     try:
         result = subprocess.run(

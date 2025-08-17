@@ -1,5 +1,7 @@
 from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
+from collections import defaultdict
+
 # Import modularized components
 from helpers import load_config, get_hostname, get_uptime, get_vnstat_data
 from security import create_security_decorator
@@ -84,14 +86,8 @@ def get_usage_by_period_route():
     interface = config.get('vnstat_interface')
     period = request.args.get('period', 'daily') # Default to daily if not specified
 
-    options = []
-    if period == 'hourly':
-        options = ['--hours']
-    elif period == 'weekly':
-        options = ['--weeks']
-    elif period == '15-day':
-        options = ['--days'] # Fetch all days, then slice
-    elif period == 'custom':
+    # Custom period has its own complex logic
+    if period == 'custom':
         days = int(request.args.get('days', 0))
         hours = int(request.args.get('hours', 0))
         # vnstat doesn't support minute-level granularity, so we ignore it.
@@ -99,8 +95,8 @@ def get_usage_by_period_route():
         total_hours = (days * 24) + hours
         
         # Fetch daily and hourly data. We need both to cover a larger custom range.
-        daily_data, error_d = get_vnstat_data(interface, ['--days'])
-        hourly_data, error_h = get_vnstat_data(interface, ['--hours'])
+        daily_data, error_d = get_vnstat_data(interface, json_mode='d')
+        hourly_data, error_h = get_vnstat_data(interface, json_mode='h')
 
         if error_d or error_h:
             return jsonify({"error": error_d or error_h}), 500
@@ -141,10 +137,10 @@ def get_usage_by_period_route():
         }
         return jsonify({"period": "custom", "data": custom_data})
 
-    else: # Default to daily
-        options = ['--days']
-
-    vnstat_data, error = get_vnstat_data(interface, options)
+    # Determine json_mode for other periods
+    json_mode = 'h' if period == 'hourly' else 'd'
+    
+    vnstat_data, error = get_vnstat_data(interface, json_mode=json_mode)
     if error:
         return jsonify({"error": error}), 500
 
@@ -154,13 +150,33 @@ def get_usage_by_period_route():
     
     traffic_data = interface_data.get('traffic', {})
     
-    # Post-process for 15-day period
-    if period == '15-day':
+    # Post-process for weekly and 15-day period
+    if period == 'weekly':
+        daily_traffic = traffic_data.get('day', [])
+        weekly_traffic = defaultdict(lambda: {'rx': 0, 'tx': 0, 'date': {}})
+        
+        # Aggregate daily into weekly
+        for day in daily_traffic:
+            date_obj = datetime(day['date']['year'], day['date']['month'], day['date']['day'])
+            start_of_week = date_obj - timedelta(days=date_obj.weekday())
+            week_key = start_of_week.strftime('%Y-%m-%d')
+            
+            weekly_traffic[week_key]['rx'] += day.get('rx', 0)
+            weekly_traffic[week_key]['tx'] += day.get('tx', 0)
+            if not weekly_traffic[week_key]['date']:
+                 weekly_traffic[week_key]['date'] = {'year': start_of_week.year, 'month': start_of_week.month, 'day': start_of_week.day}
+        
+        # The data structure for the client
+        final_data = {'week': sorted(list(weekly_traffic.values()), key=lambda x: (x['date']['year'], x['date']['month'], x['date']['day']))}
+        return jsonify({"period": "weekly", "data": final_data})
+
+    elif period == '15-day':
         if 'day' in traffic_data:
             traffic_data['day'] = traffic_data['day'][-15:]
         # The period for the client is 'day' not '15-day'
         return jsonify({"period": "day", "data": traffic_data})
 
+    # For 'hourly' and 'daily'
     return jsonify({"period": period, "data": traffic_data})
 
 
