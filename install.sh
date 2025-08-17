@@ -191,6 +191,8 @@ clone_repo() {
     log_success "Repository is ready (Version: $VERSION_TAG)."
 }
 
+# TODO: Add generic functions for use by both the agent and main script. (download, backup, rollback, setup venv)
+
 # --- Cloudflare-Utils Functions ---
 update_cfutils() {
     log_info "--- Starting Cloudflare-Utils Update ---"
