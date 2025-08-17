@@ -5,6 +5,13 @@
 set -e
 trap 'log_error "Installer aborted unexpectedly at line $LINENO"' ERR
 
+# --- Logging Setup ---
+LOG_DIR="/var/log/cloudflare-utils"
+mkdir -p "$LOG_DIR"
+INSTALL_LOG_FILE="$LOG_DIR/installer.log"
+exec > >(tee "$INSTALL_LOG_FILE") 2>&1
+echo "--- Starting Cloudflare-Utils Installer Log $(date) ---"
+
 # --- Colors and Logging ---
 C_RESET='\e[0m'
 C_RED='\e[1;31m'
@@ -365,6 +372,10 @@ remove_cfutils() {
         log_info "Removing directory: $CFUTILS_DIR..."
         rm -rf "$CFUTILS_DIR"
         log_success "Cloudflare-Utils removed successfully."
+
+        log_info "Removing installer log file..."
+        rm -f "$INSTALL_LOG_FILE"
+        rmdir --ignore-fail-on-non-empty "$LOG_DIR" || true
     fi
 }
 
@@ -586,6 +597,10 @@ remove_agent() {
         rm -rf "$AGENT_DIR"
         log_success "Agent removed successfully."
     fi
+    
+    log_info "Removing installer log file..."
+    rm -f "$INSTALL_LOG_FILE"
+    rmdir --ignore-fail-on-non-empty "$LOG_DIR" || true
 }
 
 # --- Verification & Rollback Functions ---
