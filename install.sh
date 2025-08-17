@@ -123,7 +123,7 @@ pre_flight_checks() {
         fi
     fi
     log_success "All required base commands are available."
-    [ -t 1 ] && clear
+    if [ -t 1 ]; then clear; fi
 }
 
 # --- Repository Functions ---
@@ -842,7 +842,7 @@ verify_agent_installation() {
 
 # --- Main Menu ---
 main_menu() {
-    [ -t 1 ] && clear
+    if [ -t 1 ]; then clear; fi
     echo -e "${C_MAGENTA}--- Cloudflare-Utils Installer ---${C_RESET}"
     PS3="$(echo -e "${C_YELLOW}\nPlease choose an option: ${C_RESET}")"
     options=(
