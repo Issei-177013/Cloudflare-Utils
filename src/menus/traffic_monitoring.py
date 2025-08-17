@@ -8,6 +8,7 @@ import requests
 
 from ..config import load_config, save_config
 from ..display import display_as_table
+from ..helpers import format_period_date
 from ..input_helper import get_user_input, get_numeric_input
 from ..logger import logger
 from .utils import clear_screen, confirm_action
@@ -205,7 +206,7 @@ def fetch_and_display_periodic_usage(agent, params):
                 return
 
             # Prepare table headers and rows
-            headers = ["Date", "Time", "Received (GB)", "Sent (GB)", "Total (GB)"]
+            headers = ["Date/Time", "Received (GB)", "Sent (GB)", "Total (GB)"]
             rows = []
 
             for entry in data_list:
@@ -213,32 +214,15 @@ def fetch_and_display_periodic_usage(agent, params):
                 tx_gb = bytes_to_gb(entry.get('tx', 0))
                 total_gb = rx_gb + tx_gb
                 
-                # Format date string from date object
-                date_info = entry.get('date', {})
-                date_str = f"{date_info.get('year', 'YYYY')}-{date_info.get('month', 'MM'):02d}-{date_info.get('day', 'DD'):02d}"
-
-                # Format time string if time object exists
-                time_info = entry.get('time', {})
-                time_str = ""
-                if 'hour' in time_info:
-                    time_str = f"{time_info.get('hour'):02d}:{time_info.get('minute'):02d}"
+                # Format date and time using the new helper
+                date_str = format_period_date(entry, params.get('period'))
 
                 rows.append([
                     date_str,
-                    time_str,
                     f"{rx_gb:.3f}",
                     f"{tx_gb:.3f}",
                     f"{total_gb:.3f}"
                 ])
-            
-            # If no entry had a time string, the column is not needed
-            has_time_data = any(row[1] for row in rows)
-            
-            if not has_time_data:
-                # Remove the "Time" header and the corresponding empty column from all rows
-                headers.pop(1)
-                for row in rows:
-                    row.pop(1)
 
             display_as_table(rows, headers)
 
