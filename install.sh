@@ -123,6 +123,7 @@ pre_flight_checks() {
         fi
     fi
     log_success "All required base commands are available."
+    [ -t 1 ] && clear
 }
 
 # --- Repository Functions ---
