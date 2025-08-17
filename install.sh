@@ -439,6 +439,11 @@ update_agent() {
     log_info "Updating Python dependencies for Agent..."
     setup_agent_venv
 
+    log_info "Re-linking global 'cfu-agent' command..."
+    ln -sf "$AGENT_DIR/cfu-agent.py" "/usr/local/bin/cfu-agent"
+    chmod +x "$AGENT_DIR/cfu-agent.py"
+    chmod +x "/usr/local/bin/cfu-agent"
+
     log_info "Reloading systemd and restarting the agent..."
     sed "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "$AGENT_DIR/cloudflare-utils-agent.service" > "/etc/systemd/system/cloudflare-utils-agent.service"
     systemctl daemon-reload
@@ -548,6 +553,11 @@ EOF
     log_info "Setting up systemd service..."
     sed "s|__PYTHON_EXEC_PATH__|$AGENT_DIR/venv/bin/python3|g" "$AGENT_DIR/cloudflare-utils-agent.service" > "/etc/systemd/system/cloudflare-utils-agent.service"
     
+    log_info "Creating global 'cfu-agent' command..."
+    ln -sf "$AGENT_DIR/cfu-agent.py" "/usr/local/bin/cfu-agent"
+    chmod +x "$AGENT_DIR/cfu-agent.py"
+    chmod +x "/usr/local/bin/cfu-agent"
+
     log_info "Reloading systemd, enabling and starting the agent..."
     systemctl daemon-reload
     systemctl enable --now cloudflare-utils-agent.service || die "Failed to enable and start agent service."
@@ -581,6 +591,9 @@ remove_agent() {
         return
     fi
     
+    log_info "Removing global 'cfu-agent' command..."
+    rm -f "/usr/local/bin/cfu-agent"
+
     if [ -f "/etc/systemd/system/cloudflare-utils-agent.service" ]; then
         log_info "Stopping and disabling systemd service..."
         systemctl stop cloudflare-utils-agent.service
