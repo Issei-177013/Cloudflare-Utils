@@ -246,6 +246,10 @@ update_cfutils() {
     log_info "Updating Python dependencies..."
     setup_cfutils_venv
 
+    log_info "Re-linking global command..."
+    ln -sf "$CFUTILS_DIR/cf-utils.py" "/usr/local/bin/cfu"
+    chmod +x "$CFUTILS_DIR/cf-utils.py"
+
     log_info "Verifying update..."
     if ! run_verification_checks_cfutils; then
         log_error "Update verification failed. Rolling back to the previous version."
