@@ -74,6 +74,14 @@ def get_vnstat_data(interface, json_mode=None):
             text=True,
             check=True
         )
+        
+        # If vnstat returns no output, it means there's no data.
+        # Return a valid, empty vnstat-like JSON structure to avoid parsing errors.
+        if not result.stdout.strip():
+            # This structure mimics a valid vnstat response with no traffic data,
+            # allowing the calling function to handle it gracefully.
+            return {"interfaces": [{"name": interface, "traffic": {}}]}, None
+
         data = json.loads(result.stdout)
         return data, None
     except FileNotFoundError:
