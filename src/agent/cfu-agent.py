@@ -245,7 +245,7 @@ def main():
         description="A CLI for managing the Cloudflare-Utils-Agent.",
         prog="cfu-agent"
     )
-    subparsers = parser.add_subparsers(dest='command', required=True, help='Available commands')
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
 
     # Token management
     parser_token = subparsers.add_parser('token', help='Manage agent API token')
@@ -295,11 +295,18 @@ def main():
     parser_config_display = config_subparsers.add_parser('show', help='Display the current configuration file')
     parser_config_display.set_defaults(func=handle_config_display)
 
-    # Help is built-in, but we can add a specific help command if needed
-    # parser_help = subparsers.add_parser('help', help='Show help')
-    # parser_help.set_defaults(func=lambda args: parser.print_help())
+    # Help command
+    parser_help = subparsers.add_parser('help', help='Show help for a specific command')
+    parser_help.add_argument('help_command', nargs='?', help='The command to get help for')
+    parser_help.set_defaults(func=lambda args: parser.parse_args([args.help_command, '--help'] if args.help_command else ['--help']))
+
 
     args = parser.parse_args()
+
+    if not hasattr(args, 'command') or args.command is None:
+        parser.print_help()
+        sys.exit(0)
+
     if hasattr(args, 'func'):
         args.func(args)
     else:
@@ -309,6 +316,7 @@ def main():
             # e.g. user typed 'cfu-agent token'
             parser.parse_args(sys.argv[1:] + ['--help'])
         else:
+            # This case is now handled above
             parser.print_help()
 
 if __name__ == '__main__':
