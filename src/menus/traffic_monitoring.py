@@ -5,13 +5,17 @@ This module provides the user interface for managing monitoring agents,
 viewing their status, and checking traffic usage.
 """
 import requests
+from urllib.parse import urlsplit, urlunsplit
 
 from ..config import load_config, save_config
-from ..display import display_as_table, print_slow, OPTION_SEPARATOR
+from ..display import (
+    display_as_table, print_slow, print_fast,
+    OPTION_SEPARATOR, COLOR_WARNING, RESET_COLOR,
+    COLOR_ERROR, COLOR_SUCCESS, COLOR_TITLE, COLOR_SEPARATOR
+)
 from ..helpers import format_period_date
 from ..input_helper import get_user_input, get_numeric_input
 from ..logger import logger
-from ..display import *
 from .utils import clear_screen, confirm_action
 
 def _get_latest_usage_gb(agent, period):
@@ -165,6 +169,64 @@ def remove_agent():
     input("\nPress Enter to continue...")
 
 
+def edit_agent():
+    """Edits an existing agent's details."""
+    config = load_config()
+    agents = config.get("agents", [])
+
+    if not agents:
+        print_fast(f"{COLOR_WARNING}No agents to edit.{RESET_COLOR}")
+        input("\nPress Enter to return...")
+        return
+
+    clear_screen()
+    print_fast(f"{COLOR_TITLE}--- Edit Agent ---{RESET_COLOR}")
+    headers = ["#", "Name", "URL"]
+    rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
+    display_as_table(rows, headers)
+    
+    choice = get_numeric_input("\nEnter the # of the agent to edit (or 0 to cancel):", int, min_val=0, max_val=len(agents))
+
+    if choice == 0:
+        print_fast("Cancelled.")
+        return
+
+    agent_index = choice - 1
+    agent = agents[agent_index]
+    
+    # Deconstruct URL to get host and port
+    split_url = urlsplit(agent.get("url", ""))
+    current_host = split_url.hostname or ""
+    current_port = split_url.port or 15728
+
+    print_fast(f"\n--- Editing Agent: {agent.get('name', 'N/A')} ---")
+    print_fast("Press Enter to keep the current value.")
+
+    new_name = get_user_input(f"Enter new name [{agent.get('name', '')}]:", default=agent.get('name', ''))
+    
+    new_host = get_user_input(f"Enter new host (IP/domain) [{current_host}]:", default=current_host)
+    new_port = get_numeric_input(f"Enter new port [{current_port}]:", int, default=current_port)
+    
+    new_api_key = get_user_input(f"Enter new API Key [{agent.get('api_key', '')}]:", default=agent.get('api_key', ''))
+    new_threshold_gb = get_numeric_input(f"Enter new monthly threshold in GB [{agent.get('threshold_gb', 0)}]:", float, default=agent.get('threshold_gb', 0))
+
+    # Reconstruct the URL, assuming http
+    new_url = f"http://{new_host}:{new_port}"
+
+    # Update agent details in the list
+    config["agents"][agent_index] = {
+        "name": new_name,
+        "url": new_url,
+        "api_key": new_api_key,
+        "threshold_gb": new_threshold_gb
+    }
+
+    save_config(config)
+    logger.info(f"Edited agent: {new_name}")
+    print_fast(f"\n{COLOR_SUCCESS}✅ Agent '{new_name}' updated successfully.{RESET_COLOR}")
+    input("\nPress Enter to continue...")
+
+
 def view_agent_usage():
     """Views detailed traffic usage for a specific agent, with selectable time periods."""
     config = load_config()
@@ -285,7 +347,8 @@ def traffic_monitoring_menu():
         print_fast(f"\n{COLOR_TITLE}--- Menu ---{RESET_COLOR}")
         print_slow("1. Add New Agent")
         print_slow("2. Remove Agent")
-        print_slow("3. View Agent Usage Details")
+        print_slow("3. Edit Agent")
+        print_slow("4. View Agent Usage Details")
         print_slow("0. Back to Main Menu")
         print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
@@ -296,6 +359,8 @@ def traffic_monitoring_menu():
         elif choice == '2':
             remove_agent()
         elif choice == '3':
+            edit_agent()
+        elif choice == '4':
             view_agent_usage()
         elif choice == '0':
             break
