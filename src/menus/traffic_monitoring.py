@@ -14,49 +14,87 @@ from ..logger import logger
 from ..display import *
 from .utils import clear_screen, confirm_action
 
+def _get_latest_usage_gb(agent, period):
+    """
+    Fetches the latest usage for an agent for a given period and returns it in GB.
+    Returns None if usage can't be fetched.
+    """
+    try:
+        response = requests.get(
+            f"{agent['url']}/usage_by_period",
+            headers={"X-API-Key": agent["api_key"]},
+            params={'period': period},
+            timeout=3
+        )
+        if response.status_code == 200:
+            data = response.json().get('data', [])
+            if data:
+                latest_entry = data[-1]
+                total_bytes = latest_entry.get('rx', 0) + latest_entry.get('tx', 0)
+                return total_bytes / (1024**3)
+    except requests.RequestException:
+        return None
+    return None
+
 def list_agents():
-    """Lists all configured agents and their status."""
+    """
+    Lists all configured agents, their status, and a summary of recent usage.
+    This function is designed to be displayed as part of the main traffic monitoring menu.
+    """
     config = load_config()
     agents = config.get("agents", [])
     
     if not agents:
-        print_fast(f"{COLOR_WARNING}No agents configured.{RESET_COLOR}")
-        input("\nPress Enter to return to the menu...")
+        print_fast(f"{COLOR_WARNING}No agents configured.{RESET_COLOR}\n")
         return
 
-    headers = ["#", "Name", "URL", "Threshold (GB)", "Status", "Version", "Hostname"]
+    headers = ["#", "Name", "Status", "Day Usage (GB)", "Month Usage (GB)", "Threshold (GB)", "Version", "Hostname"]
     rows = []
     
     for i, agent in enumerate(agents):
-        status = "Offline"
+        status = f"{COLOR_ERROR}Offline{RESET_COLOR}"
         version = "N/A"
         hostname = "N/A"
+        day_usage_str = "N/A"
+        month_usage_str = "N/A"
+
+        is_online = False
         try:
             response = requests.get(f"{agent['url']}/status", headers={"X-API-Key": agent["api_key"]}, timeout=3)
             if response.status_code == 200:
                 data = response.json()
-                status = f"{COLOR_SUCCESS}Online ({data.get('status', 'ok')}){RESET_COLOR}"
+                status = f"{COLOR_SUCCESS}Online{RESET_COLOR}"
                 version = data.get('agent_version', 'N/A')
                 hostname = data.get('hostname', 'N/A')
+                is_online = True
             else:
                 status = f"{COLOR_ERROR}Error ({response.status_code}){RESET_COLOR}"
         except requests.RequestException:
             pass # Keep status as Offline
-        
+
+        if is_online:
+            # Fetch usage only if the agent is online
+            day_usage_gb = _get_latest_usage_gb(agent, 'd')
+            month_usage_gb = _get_latest_usage_gb(agent, 'm')
+
+            if day_usage_gb is not None:
+                day_usage_str = f"{day_usage_gb:.3f}"
+            if month_usage_gb is not None:
+                month_usage_str = f"{month_usage_gb:.3f}"
+
         rows.append([
             i + 1,
             agent["name"],
-            agent["url"],
-            agent["threshold_gb"],
             status,
+            day_usage_str,
+            month_usage_str,
+            agent["threshold_gb"],
             version,
             hostname
         ])
         
-    clear_screen()
-    print_fast(f"{COLOR_TITLE}--- Configured Agents ---{RESET_COLOR}")
+    print_fast(f"{COLOR_TITLE}--- Agents Overview ---{RESET_COLOR}")
     display_as_table(rows, headers)
-    input("\nPress Enter to return to the menu...")
 
 
 def add_agent():
@@ -239,23 +277,25 @@ def traffic_monitoring_menu():
     """Main menu for traffic monitoring."""
     while True:
         clear_screen()
-        print_fast(f"{COLOR_TITLE}--- Traffic Monitoring Menu ---{RESET_COLOR}")
-        print_slow("1. List Agents & Status")
-        print_slow("2. Add New Agent")
-        print_slow("3. Remove Agent")
-        print_slow("4. View Agent Usage")
+        print_fast(f"{COLOR_TITLE}--- Traffic Monitoring ---{RESET_COLOR}")
+        
+        # Display the agent overview table at the top of the menu
+        list_agents()
+
+        print_fast(f"\n{COLOR_TITLE}--- Menu ---{RESET_COLOR}")
+        print_slow("1. Add New Agent")
+        print_slow("2. Remove Agent")
+        print_slow("3. View Agent Usage Details")
         print_slow("0. Back to Main Menu")
         print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == '1':
-            list_agents()
-        elif choice == '2':
             add_agent()
-        elif choice == '3':
+        elif choice == '2':
             remove_agent()
-        elif choice == '4':
+        elif choice == '3':
             view_agent_usage()
         elif choice == '0':
             break
