@@ -4,42 +4,57 @@ import time
 from tabulate import tabulate
 from .config import load_config
 
-# --- Configuration for Dynamic Display ---
+# --- UI Configuration ---
+def get_config_setting(key, default):
+    """Helper to get a setting from the config file."""
+    config = load_config()
+    return config.get("settings", {}).get(key, default)
+
 def get_fast_mode_status():
     """
-    Determines if FAST_MODE should be enabled.
-    The setting from config.json is used, but can be overridden by an environment variable.
-    Defaults to True (on).
+    Determines if FAST_MODE should be enabled. Defaults to False (slow mode on).
     """
-    config = load_config()
-    # Get setting from config, default to True (on)
-    fast_mode_in_config = config.get("settings", {}).get("fast_mode", True)
-    
-    # Environment variable FAST_MODE overrides the config file setting
+    default_fast_mode = get_config_setting("fast_mode", False)
     env_var = os.environ.get("FAST_MODE")
     if env_var is not None:
         return env_var.lower() in ['true', '1', 't']
-        
-    return fast_mode_in_config
+    return default_fast_mode
+
+def get_slow_mode_delay():
+    """Gets the slow mode delay from config, defaulting to 0.01."""
+    return get_config_setting("slow_mode_delay", 0.01)
 
 FAST_MODE = get_fast_mode_status()
-DEFAULT_DELAY = 0.03
+
+# --- Color Constants ---
+COLOR_SUCCESS = '\033[92m'
+COLOR_ERROR = '\033[91m'
+COLOR_WARNING = '\033[93m'
+COLOR_INFO = '\033[94m'
+COLOR_TITLE = '\033[96m'
+COLOR_SEPARATOR = '\033[93m'
+RESET_COLOR = '\033[0m'
 
 # --- Separator Styles ---
 HEADER_LINE = "──────────────────────────────────────────────────"
 FOOTER_LINE = "──────────────────────────────────────────────────"
 OPTION_SEPARATOR = "• • • • •"
 
-# --- Dynamic Display Function ---
-def print_slow(text, delay=DEFAULT_DELAY, end='\n'):
+# --- Display Functions ---
+def print_fast(text, end='\n'):
+    """Prints text instantly. Alias for print()."""
+    print(text, end=end)
+
+def print_slow(text, end='\n'):
     """
     Prints text with a gradual 'typewriter' effect.
     Skips the effect if FAST_MODE is enabled.
     """
-    if FAST_MODE:
+    if get_fast_mode_status():
         print(text, end=end)
         return
-
+        
+    delay = get_slow_mode_delay()
     # Buffer to handle ANSI escape codes
     ansi_buffer = ""
     in_ansi = False
@@ -60,7 +75,6 @@ def print_slow(text, delay=DEFAULT_DELAY, end='\n'):
     
     # Print the newline character
     print(end=end)
-
 
 def truncate_text(text, max_length=30):
     """Truncates text to a certain length, adding '...' if truncated."""
@@ -89,21 +103,21 @@ def display_as_table(data, headers):
     :param headers: A list of keys to display as columns.
     """
     if not data:
-        print_slow("No data to display.")
+        print_fast("No data to display.")
         return
 
     # The tabulate function can directly take a list of dictionaries and headers.
-    print_slow(tabulate(data, headers=headers, tablefmt="grid"))
+    print_fast(tabulate(data, headers=headers, tablefmt="grid"))
 
 def display_token_guidance():
     """
     Displays guidance for creating a Cloudflare API token, including required permissions.
     """
-    print_slow("\n🔐 How to create a valid Cloudflare API Token:")
-    print_slow("Go to: https://dash.cloudflare.com/profile/api-tokens")
-    print_slow('1. Click "Create Token"')
-    print_slow('2. Select "Custom Token"')
-    print_slow("3. Add the following permissions:")
+    print_fast("\n🔐 How to create a valid Cloudflare API Token:")
+    print_fast("Go to: https://dash.cloudflare.com/profile/api-tokens")
+    print_fast('1. Click "Create Token"')
+    print_fast('2. Select "Custom Token"')
+    print_fast("3. Add the following permissions:")
 
     # Prepare data for the table
     permissions_list = []
@@ -114,8 +128,8 @@ def display_token_guidance():
         })
 
     # Display the table
-    headers = ["Permission", "Access"]
+    headers = {'Permission': 'Permission', 'Access': 'Access'}
     display_as_table(permissions_list, headers)
 
-    print_slow("\n4. Apply to all zones")
-    print_slow("5. Create and copy the token")
+    print_fast("\n4. Apply to all zones")
+    print_fast("5. Create and copy the token")

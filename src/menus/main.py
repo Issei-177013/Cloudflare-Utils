@@ -19,25 +19,14 @@ from .dns import dns_management_menu
 from .rotator_main import rotator_tools_menu
 from .settings import settings_menu
 from .traffic_monitoring import traffic_monitoring_menu
-from ..display import print_slow, HEADER_LINE, FOOTER_LINE, OPTION_SEPARATOR
+from ..display import *
 
 def main_menu():
     """
     Displays and handles the main menu of the application.
-
-    This function runs in a loop, presenting the user with a list of
-    options to navigate to different parts of the application. It handles
-    user input and calls the appropriate menu function based on the user's
-    choice. The loop continues until the user chooses to exit.
     """
-    # Define ANSI escape codes for colors
-    YELLOW = '\033[93m'
-    CYAN = '\033[96m'
-    RESET = '\033[0m'
-    
     author_str = "Author: https://github.com/Issei-177013"
 
-    # Embed ASCII art
     art = """
 
  ██████╗███████╗    ██╗   ██╗████████╗██╗██╗     ███████╗
@@ -51,13 +40,13 @@ def main_menu():
     
     while True:
         clear_screen()
-        print_slow(f"{YELLOW}{art}{RESET}")
-        print_slow(f"{CYAN}{author_str}{RESET}")
-        print_slow(f"{CYAN}{version_str}{RESET}")
+        print_fast(f"{COLOR_INFO}{art}{RESET_COLOR}")
+        print_fast(f"{COLOR_INFO}{author_str}{RESET_COLOR}")
+        print_fast(f"{COLOR_INFO}{version_str}{RESET_COLOR}")
         
-        print_slow(f"{CYAN}{HEADER_LINE}{RESET}")
+        print_fast(f"{COLOR_SEPARATOR}{HEADER_LINE}{RESET_COLOR}")
 
-        print_slow("\n--- Main Menu ---")
+        print_fast(f"\n{COLOR_TITLE}--- Main Menu ---{RESET_COLOR}")
         print_slow("1. 👤 Manage Cloudflare Accounts")
         print_slow("2. 🌐 Manage Zones")
         print_slow("3. 📜 Manage DNS Records")
@@ -66,7 +55,7 @@ def main_menu():
         print_slow("6. 📄 View Application Logs")
         print_slow("7. ⚙️ Settings")
         print_slow("0. 🚪 Exit")
-        print_slow(f"{CYAN}{OPTION_SEPARATOR}{RESET}")
+        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
         
@@ -90,4 +79,4 @@ def main_menu():
                 break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print_slow("❌ Invalid choice. Please select a valid option.")
+            print_fast(f"{COLOR_WARNING}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")

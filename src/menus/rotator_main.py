@@ -11,23 +11,23 @@ from .utils import clear_screen
 from .rotator_single_record import rotate_based_on_list_of_ips_single_record_menu
 from .rotator_multi_record import rotate_based_on_list_of_ips_multi_record_menu
 from .rotator_record_group import rotate_ips_between_records_management_menu
-from ..display import print_slow, OPTION_SEPARATOR
+from ..display import (
+    display_as_table, display_token_guidance, print_slow, print_fast,
+    HEADER_LINE, OPTION_SEPARATOR, COLOR_SUCCESS, COLOR_ERROR, COLOR_WARNING, COLOR_INFO, RESET_COLOR, COLOR_TITLE, COLOR_SEPARATOR
+)
 
 def rotator_tools_menu():
     """
     Displays and handles the main menu for IP Rotator Tools.
-
-    This function presents the user with the different IP rotation options
-    available and calls the corresponding function based on the user's choice.
     """
     clear_screen()
     while True:
-        print_slow("\n--- IP Rotator Tools ---")
+        print_fast(f"\n{COLOR_TITLE}--- IP Rotator Tools ---{RESET_COLOR}")
         print_slow("1. 🔄 Rotate Based on a List of IPs (Single-Record)")
         print_slow("2. 🌍 Rotate Based on a List of IPs (Multi-Records)")
         print_slow("3. 🔀 Rotate IPs Between Records")
         print_slow("0. ⬅️ Return to Main Menu")
-        print_slow(OPTION_SEPARATOR)
+        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -41,4 +41,4 @@ def rotator_tools_menu():
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print_slow("❌ Invalid choice. Please select a valid option.")
+            print_fast(f"{COLOR_ERROR}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")

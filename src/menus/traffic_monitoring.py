@@ -11,6 +11,7 @@ from ..display import display_as_table, print_slow, OPTION_SEPARATOR
 from ..helpers import format_period_date
 from ..input_helper import get_user_input, get_numeric_input
 from ..logger import logger
+from ..display import *
 from .utils import clear_screen, confirm_action
 
 def list_agents():
@@ -19,7 +20,7 @@ def list_agents():
     agents = config.get("agents", [])
     
     if not agents:
-        print_slow("No agents configured.")
+        print_fast(f"{COLOR_WARNING}No agents configured.{RESET_COLOR}")
         input("\nPress Enter to return to the menu...")
         return
 
@@ -34,11 +35,11 @@ def list_agents():
             response = requests.get(f"{agent['url']}/status", headers={"X-API-Key": agent["api_key"]}, timeout=3)
             if response.status_code == 200:
                 data = response.json()
-                status = f"Online ({data.get('status', 'ok')})"
+                status = f"{COLOR_SUCCESS}Online ({data.get('status', 'ok')}){RESET_COLOR}"
                 version = data.get('agent_version', 'N/A')
                 hostname = data.get('hostname', 'N/A')
             else:
-                status = f"Error ({response.status_code})"
+                status = f"{COLOR_ERROR}Error ({response.status_code}){RESET_COLOR}"
         except requests.RequestException:
             pass # Keep status as Offline
         
@@ -53,7 +54,7 @@ def list_agents():
         ])
         
     clear_screen()
-    print_slow("--- Configured Agents ---")
+    print_fast(f"{COLOR_TITLE}--- Configured Agents ---{RESET_COLOR}")
     display_as_table(rows, headers)
     input("\nPress Enter to return to the menu...")
 
@@ -63,7 +64,7 @@ def add_agent():
     config = load_config()
     
     clear_screen()
-    print_slow("--- Add New Agent ---")
+    print_fast(f"{COLOR_TITLE}--- Add New Agent ---{RESET_COLOR}")
     
     name = get_user_input("Enter a name for this agent (e.g., 'Server A'):")
     host = get_user_input("Enter the agent's IP address or hostname:")
@@ -72,7 +73,7 @@ def add_agent():
     # Construct the URL, assuming http. A more advanced version could ask for the scheme.
     url = f"http://{host}:{port}"
     
-    print_slow(f"Agent URL will be: {url}")
+    print_fast(f"Agent URL will be: {url}")
 
     api_key = get_user_input("Enter the agent's API Key:")
     threshold_gb = get_numeric_input("Enter the monthly traffic threshold in GB:", float)
@@ -84,10 +85,12 @@ def add_agent():
         "threshold_gb": threshold_gb
     }
     
+    if "agents" not in config:
+        config["agents"] = []
     config["agents"].append(new_agent)
     save_config(config)
     logger.info(f"Added new agent: {name} at {url}")
-    print_slow(f"\n✅ Agent '{name}' added successfully.")
+    print_fast(f"\n{COLOR_SUCCESS}✅ Agent '{name}' added successfully.{RESET_COLOR}")
     input("Press Enter to continue...")
 
 def remove_agent():
@@ -96,12 +99,12 @@ def remove_agent():
     agents = config.get("agents", [])
 
     if not agents:
-        print_slow("No agents to remove.")
+        print_fast(f"{COLOR_WARNING}No agents to remove.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
     clear_screen()
-    print_slow("--- Remove Agent ---")
+    print_fast(f"{COLOR_TITLE}--- Remove Agent ---{RESET_COLOR}")
     headers = ["#", "Name", "URL"]
     rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
     display_as_table(rows, headers)
@@ -109,7 +112,7 @@ def remove_agent():
     choice = get_numeric_input("\nEnter the # of the agent to remove (or 0 to cancel):", int, min_val=0, max_val=len(agents))
 
     if choice == 0:
-        print_slow("Cancelled.")
+        print_fast("Cancelled.")
         return
 
     agent_to_remove = agents[choice - 1]
@@ -117,9 +120,9 @@ def remove_agent():
         config["agents"].pop(choice - 1)
         save_config(config)
         logger.info(f"Removed agent: {agent_to_remove['name']}")
-        print_slow(f"✅ Agent '{agent_to_remove['name']}' removed.")
+        print_fast(f"{COLOR_SUCCESS}✅ Agent '{agent_to_remove['name']}' removed.{RESET_COLOR}")
     else:
-        print_slow("Removal cancelled.")
+        print_fast("Removal cancelled.")
         
     input("\nPress Enter to continue...")
 
@@ -130,12 +133,12 @@ def view_agent_usage():
     agents = config.get("agents", [])
 
     if not agents:
-        print_slow("No agents configured.")
+        print_fast(f"{COLOR_WARNING}No agents configured.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
     clear_screen()
-    print_slow("--- Select Agent to View Usage ---")
+    print_fast(f"{COLOR_TITLE}--- Select Agent to View Usage ---{RESET_COLOR}")
     headers = ["#", "Name", "URL"]
     rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
     display_as_table(rows, headers)
@@ -148,8 +151,8 @@ def view_agent_usage():
 
     while True:
         clear_screen()
-        print_slow(f"--- Usage for {agent['name']} ---")
-        print_slow("Select a time period:")
+        print_fast(f"{COLOR_TITLE}--- Usage for {agent['name']} ---{RESET_COLOR}")
+        print_fast("Select a time period:")
         print_slow("1. Five Minutes")
         print_slow("2. Hourly")
         print_slow("3. Daily")
@@ -157,7 +160,7 @@ def view_agent_usage():
         print_slow("5. Yearly")
         print_slow("6. Top Days")
         print_slow("0. Back to Agent Selection")
-        print_slow(OPTION_SEPARATOR)
+        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
         
         period_choice = input("👉 Enter your choice: ").strip()
 
@@ -179,7 +182,7 @@ def view_agent_usage():
             params = {'period': period}
             fetch_and_display_periodic_usage(agent, params)
         else:
-            print_slow("❌ Invalid choice. Please select a valid option.")
+            print_fast(f"{COLOR_ERROR}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")
         
         input("\nPress Enter to continue...")
 
@@ -199,10 +202,10 @@ def fetch_and_display_periodic_usage(agent, params):
                 # Ensure input is a number, default to 0 if not
                 return (b / (1024**3)) if isinstance(b, (int, float)) else 0
 
-            print_slow(f"\n--- {title} ---")
+            print_fast(f"\n{COLOR_TITLE}--- {title} ---{RESET_COLOR}")
 
             if not data_list:
-                print_slow("No data returned for this period.")
+                print_fast(f"{COLOR_WARNING}No data returned for this period.{RESET_COLOR}")
                 return
 
             # Prepare table headers and rows
@@ -227,22 +230,22 @@ def fetch_and_display_periodic_usage(agent, params):
             display_as_table(rows, headers)
 
         else:
-            print_slow(f"\n❌ Error fetching usage: {response.status_code} - {response.text}")
+            print_fast(f"\n{COLOR_ERROR}❌ Error fetching usage: {response.status_code} - {response.text}{RESET_COLOR}")
     except requests.RequestException as e:
-        print_slow(f"\n❌ Could not connect to agent. Details: {e}")
+        print_fast(f"\n{COLOR_ERROR}❌ Could not connect to agent. Details: {e}{RESET_COLOR}")
 
 
 def traffic_monitoring_menu():
     """Main menu for traffic monitoring."""
     while True:
         clear_screen()
-        print_slow("--- Traffic Monitoring Menu ---")
+        print_fast(f"{COLOR_TITLE}--- Traffic Monitoring Menu ---{RESET_COLOR}")
         print_slow("1. List Agents & Status")
         print_slow("2. Add New Agent")
         print_slow("3. Remove Agent")
         print_slow("4. View Agent Usage")
         print_slow("0. Back to Main Menu")
-        print_slow(OPTION_SEPARATOR)
+        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -258,5 +261,5 @@ def traffic_monitoring_menu():
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print_slow("❌ Invalid choice. Please select a valid option.")
+            print_fast(f"{COLOR_ERROR}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")
             input("\nPress Enter to continue...")

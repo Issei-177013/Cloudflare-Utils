@@ -13,7 +13,7 @@ from ..cloudflare_api import CloudflareAPI
 from ..state_manager import load_state, save_state
 from ..input_helper import get_validated_input, get_ip_list, get_rotation_interval
 from ..logger import logger
-from ..display import display_as_table, summarize_list, print_slow, OPTION_SEPARATOR
+from ..display import *
 from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
 
@@ -22,11 +22,11 @@ def add_global_rotation_menu():
     Guides the user through creating a new multi-record rotation configuration.
     """
     clear_screen()
-    print_slow("\n--- Add New Global Rotation Configuration ---")
+    print_fast(f"\n{COLOR_TITLE}--- Add New Global Rotation Configuration ---{RESET_COLOR}")
 
     data = load_config()
     if not data["accounts"]:
-        print_slow("❌ No accounts available. Please add an account first.")
+        print_fast(f"{COLOR_ERROR}❌ No accounts available. Please add an account first.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
@@ -38,7 +38,7 @@ def add_global_rotation_menu():
         cf_api = CloudflareAPI(acc["api_token"])
         zones_from_cf = list(cf_api.list_zones())
         if not zones_from_cf:
-            print_slow("❌ No zones found for this account in Cloudflare.")
+            print_fast(f"{COLOR_ERROR}❌ No zones found for this account in Cloudflare.{RESET_COLOR}")
             input("\nPress Enter to return...")
             return
 
@@ -52,13 +52,13 @@ def add_global_rotation_menu():
         records_from_cf = [r for r in cf_api.list_dns_records(zone_id) if r.type in ['A', 'AAAA']]
 
         if len(records_from_cf) < 1:
-            print_slow("❌ You need at least one A or AAAA record in this zone.")
+            print_fast(f"{COLOR_ERROR}❌ You need at least one A or AAAA record in this zone.{RESET_COLOR}")
             input("\nPress Enter to return...")
             return
 
-        print_slow("\n--- Select Records for Global Rotation ---")
+        print_fast(f"\n{COLOR_TITLE}--- Select Records for Global Rotation ---{RESET_COLOR}")
         for i, record in enumerate(records_from_cf):
-            print_slow(f"{i+1}. {record.name} ({record.type}: {record.content})")
+            print_fast(f"{i+1}. {record.name} ({record.type}: {record.content})")
 
         selected_records = []
         while True:
@@ -67,21 +67,21 @@ def add_global_rotation_menu():
                 selected_indices = [int(i.strip()) - 1 for i in choices_str.split(',')]
 
                 if any(i < 0 or i >= len(records_from_cf) for i in selected_indices):
-                    print_slow("❌ Invalid selection. Please enter numbers from the list.")
+                    print_fast(f"{COLOR_ERROR}❌ Invalid selection. Please enter numbers from the list.{RESET_COLOR}")
                     continue
 
                 selected_records = [records_from_cf[i] for i in selected_indices]
                 break
             except ValueError:
-                print_slow("❌ Invalid input. Please enter numbers separated by commas.")
+                print_fast(f"{COLOR_ERROR}❌ Invalid input. Please enter numbers separated by commas.{RESET_COLOR}")
         
         record_names = [r.name for r in selected_records]
 
-        print_slow("\n--- Enter Shared IP Pool ---")
+        print_fast(f"\n{COLOR_TITLE}--- Enter Shared IP Pool ---{RESET_COLOR}")
         ip_pool = get_ip_list('A')
 
         if not ip_pool:
-            print_slow("❌ IP pool cannot be empty.")
+            print_fast(f"{COLOR_ERROR}❌ IP pool cannot be empty.{RESET_COLOR}")
             input("\nPress Enter to return...")
             return
             
@@ -105,14 +105,14 @@ def add_global_rotation_menu():
         }
         
         save_state(state)
-        print_slow(f"\n✅ Global rotation configuration '{config_name}' saved.")
+        print_fast(f"\n{COLOR_SUCCESS}✅ Global rotation configuration '{config_name}' saved.{RESET_COLOR}")
 
     except APIError as e:
         logger.error(f"Cloudflare API Error: {e}")
-        print_slow(f"❌ Cloudflare API Error: {e}")
+        print_fast(f"{COLOR_ERROR}❌ Cloudflare API Error: {e}{RESET_COLOR}")
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}", exc_info=True)
-        print_slow(f"❌ An unexpected error occurred: {e}")
+        print_fast(f"{COLOR_ERROR}❌ An unexpected error occurred: {e}{RESET_COLOR}")
 
 def list_global_rotations():
     """
@@ -120,7 +120,7 @@ def list_global_rotations():
     """
     state = load_state()
     if "global_rotations" not in state or not state["global_rotations"]:
-        print_slow("No global rotations configured.")
+        print_fast("No global rotations configured.")
         return
 
     rotations_data = []
@@ -134,14 +134,14 @@ def list_global_rotations():
             "Interval (min)": config["rotation_interval_minutes"]
         })
     
-    headers = [
-        "Name",
-        "Account",
-        "Zone",
-        "Records",
-        "IP Pool",
-        "Interval (min)"
-    ]
+    headers = {
+        "Name": "Name",
+        "Account": "Account",
+        "Zone": "Zone",
+        "Records": "Records",
+        "IP Pool": "IP Pool",
+        "Interval (min)": "Interval (min)"
+    }
     display_as_table(rotations_data, headers)
 
 def edit_global_rotation_menu():
@@ -149,17 +149,17 @@ def edit_global_rotation_menu():
     Guides the user through editing an existing multi-record rotation config.
     """
     clear_screen()
-    print_slow("\n--- Edit Global Rotation Configuration ---")
+    print_fast(f"\n{COLOR_TITLE}--- Edit Global Rotation Configuration ---{RESET_COLOR}")
 
     state = load_state()
     if "global_rotations" not in state or not state["global_rotations"]:
-        print_slow("No global rotations configured to edit.")
+        print_fast(f"{COLOR_WARNING}No global rotations configured to edit.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
     rotations = list(state["global_rotations"].keys())
     
-    print_slow("Select a configuration to edit:")
+    print_fast("Select a configuration to edit:")
     for i, name in enumerate(rotations):
         print_slow(f"{i+1}. {name}")
 
@@ -170,48 +170,48 @@ def edit_global_rotation_menu():
                 config_name = rotations[choice-1]
                 break
             else:
-                print_slow("Invalid choice. Please enter a number from the list.")
+                print_fast(f"{COLOR_ERROR}Invalid choice. Please enter a number from the list.{RESET_COLOR}")
         except ValueError:
-            print_slow("Invalid input. Please enter a number.")
+            print_fast(f"{COLOR_ERROR}Invalid input. Please enter a number.{RESET_COLOR}")
             
     config = state["global_rotations"][config_name]
     
-    print_slow(f"\n--- Editing '{config_name}' ---")
+    print_fast(f"\n--- Editing '{config_name}' ---")
     
-    print_slow(f"Current records: {', '.join(config['records'])}")
+    print_fast(f"Current records: {', '.join(config['records'])}")
     new_records_str = input("Enter new record names (comma separated) or press Enter to keep current: ").strip()
     if new_records_str:
         config['records'] = [name.strip() for name in new_records_str.split(',')]
         
-    print_slow(f"Current IP pool: {', '.join(config['ip_pool'])}")
+    print_fast(f"Current IP pool: {', '.join(config['ip_pool'])}")
     new_ip_pool_str = input("Enter new IP pool (comma separated) or press Enter to keep current: ").strip()
     if new_ip_pool_str:
         config['ip_pool'] = [ip.strip() for ip in new_ip_pool_str.split(',')]
         
-    print_slow(f"Current rotation interval: {config['rotation_interval_minutes']} minutes")
+    print_fast(f"Current rotation interval: {config['rotation_interval_minutes']} minutes")
     new_interval = get_rotation_interval(optional=True)
     if new_interval is not None:
         config['rotation_interval_minutes'] = new_interval
         
     save_state(state)
-    print_slow(f"\n✅ Global rotation configuration '{config_name}' updated.")
+    print_fast(f"\n{COLOR_SUCCESS}✅ Global rotation configuration '{config_name}' updated.{RESET_COLOR}")
 
 def delete_global_rotation_menu():
     """
     Guides the user through deleting a multi-record rotation configuration.
     """
     clear_screen()
-    print_slow("\n--- Delete Global Rotation Configuration ---")
+    print_fast(f"\n{COLOR_TITLE}--- Delete Global Rotation Configuration ---{RESET_COLOR}")
 
     state = load_state()
     if "global_rotations" not in state or not state["global_rotations"]:
-        print_slow("No global rotations configured to delete.")
+        print_fast(f"{COLOR_WARNING}No global rotations configured to delete.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
     rotations = list(state["global_rotations"].keys())
     
-    print_slow("Select a configuration to delete:")
+    print_fast("Select a configuration to delete:")
     for i, name in enumerate(rotations):
         print_slow(f"{i+1}. {name}")
 
@@ -222,33 +222,33 @@ def delete_global_rotation_menu():
                 config_name = rotations[choice-1]
                 break
             else:
-                print_slow("Invalid choice. Please enter a number from the list.")
+                print_fast(f"{COLOR_ERROR}Invalid choice. Please enter a number from the list.{RESET_COLOR}")
         except ValueError:
-            print_slow("Invalid input. Please enter a number.")
+            print_fast(f"{COLOR_ERROR}Invalid input. Please enter a number.{RESET_COLOR}")
             
     if confirm_action(f"Are you sure you want to delete the global rotation configuration '{config_name}'?"):
         del state["global_rotations"][config_name]
         save_state(state)
-        print_slow(f"✅ Global rotation configuration '{config_name}' deleted.")
+        print_fast(f"{COLOR_SUCCESS}✅ Global rotation configuration '{config_name}' deleted.{RESET_COLOR}")
     else:
-        print_slow("Deletion cancelled.")
+        print_fast("Deletion cancelled.")
 
 def view_global_rotation_logs_menu():
     """
     Guides the user through selecting a multi-record rotation config to view its logs.
     """
     clear_screen()
-    print_slow("\n--- View Global Rotation Logs ---")
+    print_fast(f"\n{COLOR_TITLE}--- View Global Rotation Logs ---{RESET_COLOR}")
 
     state = load_state()
     if "global_rotations" not in state or not state["global_rotations"]:
-        print_slow("No global rotations configured to view logs for.")
+        print_fast(f"{COLOR_WARNING}No global rotations configured to view logs for.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
     rotations = list(state["global_rotations"].keys())
     
-    print_slow("Select a configuration to view logs for:")
+    print_fast("Select a configuration to view logs for:")
     for i, name in enumerate(rotations):
         print_slow(f"{i+1}. {name}")
 
@@ -259,9 +259,9 @@ def view_global_rotation_logs_menu():
                 config_name = rotations[choice-1]
                 break
             else:
-                print_slow("Invalid choice. Please enter a number from the list.")
+                print_fast(f"{COLOR_ERROR}Invalid choice. Please enter a number from the list.{RESET_COLOR}")
         except ValueError:
-            print_slow("Invalid input. Please enter a number.")
+            print_fast(f"{COLOR_ERROR}Invalid input. Please enter a number.{RESET_COLOR}")
             
     view_live_logs(record_name=config_name)
 
@@ -271,14 +271,14 @@ def rotate_based_on_list_of_ips_multi_record_menu():
     """
     while True:
         clear_screen()
-        print_slow("\n--- Rotate Based on a List of IPs (Multi-Records) ---")
+        print_fast(f"\n{COLOR_TITLE}--- Rotate Based on a List of IPs (Multi-Records) ---{RESET_COLOR}")
         list_global_rotations()
         print_slow("\n1. ➕ Add New Global Rotation")
         print_slow("2. ✏️ Edit a Global Rotation")
         print_slow("3. 🗑️ Delete a Global Rotation")
         print_slow("4. 📄 View Logs")
         print_slow("0. ⬅️ Return to previous menu")
-        print_slow(OPTION_SEPARATOR)
+        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -294,7 +294,7 @@ def rotate_based_on_list_of_ips_multi_record_menu():
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print_slow("❌ Invalid choice. Please select a valid option.")
+            print_fast(f"{COLOR_ERROR}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")
         
         if choice in ["1", "2", "3"]:
             input("\nPress Enter to return...")

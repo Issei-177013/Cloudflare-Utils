@@ -12,7 +12,7 @@ from ..dns_manager import add_record as add_record_to_config, delete_record as d
 from ..input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
 from ..validator import is_valid_record_name
 from ..logger import logger
-from ..display import display_as_table, summarize_list, print_slow, OPTION_SEPARATOR
+from ..display import *
 from ..error_handler import MissingPermissionError
 from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
@@ -20,14 +20,11 @@ from .utils import clear_screen, select_from_list, confirm_action, view_live_log
 def add_record():
     """
     Guides the user through adding a new single-record rotation configuration.
-
-    This process involves selecting an account and zone, choosing or creating
-    a DNS record, and providing a list of IPs and a rotation interval.
     """
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
-        print_slow("❌ No accounts available. Please add an account first.")
+        print_fast(f"{COLOR_ERROR}❌ No accounts available. Please add an account first.{RESET_COLOR}")
         return
 
     acc = select_from_list(data["accounts"], "Select an account:")
@@ -42,7 +39,7 @@ def add_record():
 
         if not zones_for_selection:
             logger.warning(f"No zones found for account '{acc['name']}' in Cloudflare.")
-            print_slow("❌ No zones available in this account. Please add a zone in your Cloudflare account first.")
+            print_fast(f"{COLOR_ERROR}❌ No zones available in this account. Please add a zone in your Cloudflare account first.{RESET_COLOR}")
             return
 
         selected_zone_info = select_from_list(zones_for_selection, "Select a zone from Cloudflare:")
@@ -64,7 +61,7 @@ def add_record():
 
     except APIError as e:
         logger.error(f"Cloudflare API Error fetching zones: {e}")
-        print_slow("❌ Could not fetch zones from Cloudflare.")
+        print_fast(f"{COLOR_ERROR}❌ Could not fetch zones from Cloudflare.{RESET_COLOR}")
         return
 
     record_name = None
@@ -75,11 +72,11 @@ def add_record():
         records_from_cf = list(cf_api.list_dns_records(zone_id))
         
         if records_from_cf:
-            print_slow("\n--- Existing Records ---")
+            print_fast(f"\n{COLOR_TITLE}--- Existing Records ---{RESET_COLOR}")
             for i, cf_record in enumerate(records_from_cf):
-                print_slow(f"{i+1}. {cf_record.name} (Type: {cf_record.type}, Content: {cf_record.content})")
-            print_slow(f"{len(records_from_cf)+1}. Enter a new record name manually")
-            print_slow("-------------------------")
+                print_fast(f"{i+1}. {cf_record.name} (Type: {cf_record.type}, Content: {cf_record.content})")
+            print_fast(f"{len(records_from_cf)+1}. Enter a new record name manually")
+            print_fast("-------------------------")
             
             while True:
                 try:
@@ -92,18 +89,18 @@ def add_record():
                         logger.info("Manual record name entry selected.")
                         break
                     else:
-                        print_slow("❌ Invalid choice.")
+                        print_fast(f"{COLOR_ERROR}❌ Invalid choice.{RESET_COLOR}")
                 except ValueError:
-                    print_slow("❌ Invalid input. Please enter a number.")
+                    print_fast(f"{COLOR_ERROR}❌ Invalid input. Please enter a number.{RESET_COLOR}")
         else:
             logger.info(f"No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
 
     except APIError as e:
         logger.error(f"Cloudflare API Error fetching records: {e}")
-        print_slow("⚠️ Proceeding with manual record name entry.")
+        print_fast(f"{COLOR_WARNING}⚠️ Proceeding with manual record name entry.{RESET_COLOR}")
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
-        print_slow("⚠️ Proceeding with manual record name entry.")
+        print_fast(f"{COLOR_WARNING}⚠️ Proceeding with manual record name entry.{RESET_COLOR}")
 
     if not record_name:
         record_name = get_validated_input(
@@ -114,7 +111,7 @@ def add_record():
 
     if find_record(zone, record_name):
         logger.warning(f"Record '{record_name}' already exists locally.")
-        print_slow("ℹ️ To update, please delete and re-add it.")
+        print_fast(f"{COLOR_INFO}ℹ️ To update, please delete and re-add it.{RESET_COLOR}")
         return
 
     rec_type = get_record_type()
@@ -131,10 +128,10 @@ def list_records_from_config():
     data = load_config()
     if not any(acc.get("zones") for acc in data["accounts"]):
         logger.info("No records to display.")
-        print_slow("No records configured for rotation. Please add a record first.")
+        print_fast("No records configured for rotation. Please add a record first.")
         return
 
-    print_slow("\n--- Records Configured for Rotation ---")
+    print_fast(f"\n{COLOR_TITLE}--- Records Configured for Rotation ---{RESET_COLOR}")
     
     all_records_data = []
     for acc in data["accounts"]:
@@ -150,17 +147,17 @@ def list_records_from_config():
                 })
 
     if all_records_data:
-        headers = [
-            "Account",
-            "Zone",
-            "Record",
-            "Type",
-            "IPs",
-            "Interval (min)"
-        ]
+        headers = {
+            "Account": "Account",
+            "Zone": "Zone",
+            "Record": "Record",
+            "Type": "Type",
+            "IPs": "IPs",
+            "Interval (min)": "Interval (min)"
+        }
         display_as_table(all_records_data, headers)
     else:
-        print_slow("No records configured for rotation.")
+        print_fast("No records configured for rotation.")
 
 
 def delete_record():
@@ -170,7 +167,7 @@ def delete_record():
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
-        print_slow("❌ No accounts available.")
+        print_fast(f"{COLOR_ERROR}❌ No accounts available.{RESET_COLOR}")
         return
 
     acc = select_from_list(data["accounts"], "Select an account to delete a record from:")
@@ -179,7 +176,7 @@ def delete_record():
 
     if not acc["zones"]:
         logger.warning(f"No zones available in account '{acc['name']}'.")
-        print_slow(f"❌ No zones available in account '{acc['name']}'.")
+        print_fast(f"{COLOR_ERROR}❌ No zones available in account '{acc['name']}'.{RESET_COLOR}")
         return
 
     zone = select_from_list(acc["zones"], f"Select a zone in '{acc['name']}' to delete a record from:")
@@ -188,7 +185,7 @@ def delete_record():
 
     if not zone["records"]:
         logger.warning(f"No records available in zone '{zone['domain']}'.")
-        print_slow(f"❌ No records available in zone '{zone['domain']}'.")
+        print_fast(f"{COLOR_ERROR}❌ No records available in zone '{zone['domain']}'.{RESET_COLOR}")
         return
 
     record_to_delete = select_from_list(zone["records"], f"Select a record in '{zone['domain']}' to delete:")
@@ -208,7 +205,7 @@ def edit_record():
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
-        print_slow("❌ No accounts available.")
+        print_fast(f"{COLOR_ERROR}❌ No accounts available.{RESET_COLOR}")
         return
 
     acc = select_from_list(data["accounts"], "Select an account to edit a record in:")
@@ -217,7 +214,7 @@ def edit_record():
 
     if not acc["zones"]:
         logger.warning(f"No zones available in account '{acc['name']}'.")
-        print_slow(f"❌ No zones available in account '{acc['name']}'.")
+        print_fast(f"{COLOR_ERROR}❌ No zones available in account '{acc['name']}'.{RESET_COLOR}")
         return
 
     zone = select_from_list(acc["zones"], f"Select a zone in '{acc['name']}' to edit a record in:")
@@ -226,23 +223,23 @@ def edit_record():
 
     if not zone["records"]:
         logger.warning(f"No records available in zone '{zone['domain']}'.")
-        print_slow(f"❌ No records available in zone '{zone['domain']}'.")
+        print_fast(f"{COLOR_ERROR}❌ No records available in zone '{zone['domain']}'.{RESET_COLOR}")
         return
 
     record_to_edit = select_from_list(zone["records"], f"Select a record in '{zone['domain']}' to edit:")
     if not record_to_edit:
         return
 
-    print_slow(f"\n--- Editing Record: {record_to_edit['name']} ---")
-    print_slow(f"Current IPs: {', '.join(record_to_edit['ips'])}")
+    print_fast(f"\n{COLOR_TITLE}--- Editing Record: {record_to_edit['name']} ---{RESET_COLOR}")
+    print_fast(f"Current IPs: {', '.join(record_to_edit['ips'])}")
     new_ips_str = input(f"Enter new IPs (comma separated) or press Enter to keep current: ").strip()
     new_ips = [ip.strip() for ip in new_ips_str.split(',')] if new_ips_str else None
 
-    print_slow(f"Current Type: {record_to_edit['type']}")
+    print_fast(f"Current Type: {record_to_edit['type']}")
     new_type = input(f"Enter new type (A/CNAME) or press Enter to keep current: ").strip().upper() or None
 
     current_interval = record_to_edit.get('rotation_interval_minutes', 'Default (30)')
-    print_slow(f"Current Rotation Interval (minutes): {current_interval}")
+    print_fast(f"Current Rotation Interval (minutes): {current_interval}")
     new_interval_str = input(f"Enter new interval (minutes, min 5, or 'none' to use default) or press Enter to keep current: ").strip()
     
     edit_record_in_config(acc['name'], zone['domain'], record_to_edit['name'], new_ips, new_type, new_interval_str)
@@ -252,21 +249,17 @@ def edit_record():
 def rotate_based_on_list_of_ips_single_record_menu():
     """
     Displays the submenu for managing single-record IP rotations.
-
-    This menu provides options to create, edit, delete, and view logs for
-    rotation configurations that are based on a dedicated list of IPs for
-    a single DNS record.
     """
     while True:
         clear_screen()
-        print_slow("\n--- Rotate Based on a List of IPs (Single-Record) ---")
+        print_fast(f"\n{COLOR_TITLE}--- Rotate Based on a List of IPs (Single-Record) ---{RESET_COLOR}")
         list_records_from_config()
         print_slow("\n1. 📝 Create DNS Rotation")
         print_slow("2. ✏️ Edit an Existing DNS Rotation")
         print_slow("3. 🗑️ Delete a DNS Rotation")
         print_slow("4. 📄 View logs")
         print_slow("0. ⬅️ Return to previous menu")
-        print_slow(OPTION_SEPARATOR)
+        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -279,7 +272,7 @@ def rotate_based_on_list_of_ips_single_record_menu():
         elif choice == "4":
             data = load_config()
             if not any(acc.get("zones") for acc in data["accounts"]):
-                print_slow("No records configured for rotation. Please add a record first.")
+                print_fast(f"{COLOR_WARNING}No records configured for rotation. Please add a record first.{RESET_COLOR}")
                 input("\nPress Enter to return...")
                 continue
             
@@ -290,7 +283,7 @@ def rotate_based_on_list_of_ips_single_record_menu():
                         records.append(record)
 
             if not records:
-                print_slow("No records configured for rotation. Please add a record first.")
+                print_fast(f"{COLOR_WARNING}No records configured for rotation. Please add a record first.{RESET_COLOR}")
                 input("\nPress Enter to return...")
                 continue
 
@@ -301,4 +294,4 @@ def rotate_based_on_list_of_ips_single_record_menu():
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print_slow("❌ Invalid choice. Please select a valid option.")
+            print_fast(f"{COLOR_ERROR}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")
