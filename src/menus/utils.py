@@ -12,17 +12,19 @@ def clear_screen():
         _ = os.system('clear')
 
 
+from ..display import print_slow
+
 def select_from_list(items, prompt):
     """Displays a numbered list of items and returns the selected item."""
     if not items:
-        print("No items to select.")
+        print_slow("No items to select.")
         return None
 
-    print(prompt)
+    print_slow(prompt)
     for i, item in enumerate(items):
         # Assuming item is a dictionary and has a 'name' or 'domain' key
         name = item.get('name', item.get('domain', 'Unknown Item'))
-        print(f"{i+1}. {name}")
+        print_slow(f"{i+1}. {name}")
 
     while True:
         try:
@@ -30,9 +32,9 @@ def select_from_list(items, prompt):
             if 1 <= choice <= len(items):
                 return items[choice-1]
             else:
-                print("Invalid choice. Please enter a number from the list.")
+                print_slow("Invalid choice. Please enter a number from the list.")
         except ValueError:
-            print("Invalid input. Please enter a number.")
+            print_slow("Invalid input. Please enter a number.")
 
 
 def confirm_action(prompt="Are you sure you want to proceed?"):
@@ -44,7 +46,7 @@ def confirm_action(prompt="Are you sure you want to proceed?"):
         elif response in ["no", "n"]:
             return False
         else:
-            print("❌ Invalid input. Please enter 'yes' or 'no'.")
+            print_slow("❌ Invalid input. Please enter 'yes' or 'no'.")
 
 
 def view_live_logs(record_name=None):
@@ -54,10 +56,10 @@ def view_live_logs(record_name=None):
     """
     clear_screen()
     if record_name:
-        print(f"\n--- Live Logs for: {record_name} ---")
+        print_slow(f"\n--- Live Logs for: {record_name} ---")
     else:
-        print("\n--- Live Application Logs ---")
-    print("Press Ctrl+C to stop viewing.")
+        print_slow("\n--- Live Application Logs ---")
+    print_slow("Press Ctrl+C to stop viewing.")
 
     log_file_path = os.path.join(LOGS_DIR, "app.log")
     
@@ -66,10 +68,10 @@ def view_live_logs(record_name=None):
             # --- Display historical logs ---
             for line in f:
                 if not record_name or record_name in line:
-                    print(line, end='')
+                    print_slow(line, end='')
             
             # --- Wait for new logs ---
-            print("\n--- Waiting for new logs... ---")
+            print_slow("\n--- Waiting for new logs... ---")
             while True:
                 line = f.readline()
                 if not line:
@@ -77,16 +79,16 @@ def view_live_logs(record_name=None):
                     continue
                 
                 if not record_name or record_name in line:
-                    print(line, end='')
+                    print_slow(line, end='')
 
     except FileNotFoundError:
-        print("Log file not found. Logging may not be configured yet.")
+        print_slow("Log file not found. Logging may not be configured yet.")
         input("\nPress Enter to return...")
     except KeyboardInterrupt:
-        print("\n--- Stopped viewing logs. ---")
+        print_slow("\n--- Stopped viewing logs. ---")
     except Exception as e:
         logger.error(f"Error reading log file: {e}")
-        print(f"An error occurred while trying to read the log file: {e}")
+        print_slow(f"An error occurred while trying to read the log file: {e}")
         input("\nPress Enter to return...")
 
 

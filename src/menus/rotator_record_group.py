@@ -12,7 +12,7 @@ from ..cloudflare_api import CloudflareAPI
 from ..dns_manager import add_rotation_group, edit_rotation_group, delete_rotation_group
 from ..input_helper import get_validated_input, get_rotation_interval
 from ..logger import logger
-from ..display import display_as_table, summarize_list
+from ..display import display_as_table, summarize_list, print_slow, OPTION_SEPARATOR
 from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
 
@@ -34,16 +34,16 @@ def list_rotation_groups():
                 })
     
     if not groups_data:
-        print("No rotation groups configured.")
+        print_slow("No rotation groups configured.")
         return
 
-    headers = {
-        "Account": "Account",
-        "Zone": "Zone",
-        "Group Name": "Group Name",
-        "Records": "Records",
-        "Interval (min)": "Interval (min)"
-    }
+    headers = [
+        "Account",
+        "Zone",
+        "Group Name",
+        "Records",
+        "Interval (min)"
+    ]
     display_as_table(groups_data, headers)
 
 def add_rotation_group_menu():
@@ -52,7 +52,7 @@ def add_rotation_group_menu():
     """
     data = load_config()
     if not data["accounts"]:
-        print("❌ No accounts available. Please add an account first.")
+        print_slow("❌ No accounts available. Please add an account first.")
         return
 
     acc = select_from_list(data["accounts"], "Select an account:")
@@ -63,7 +63,7 @@ def add_rotation_group_menu():
         cf_api = CloudflareAPI(acc["api_token"])
         zones_from_cf = list(cf_api.list_zones())
         if not zones_from_cf:
-            print("❌ No zones found for this account in Cloudflare.")
+            print_slow("❌ No zones found for this account in Cloudflare.")
             return
         
         zones_for_selection = [{"id": zone.id, "name": zone.name} for zone in zones_from_cf]
@@ -85,12 +85,12 @@ def add_rotation_group_menu():
 
         records_from_cf = [r for r in cf_api.list_dns_records(zone_id) if r.type in ['A', 'AAAA']]
         if len(records_from_cf) < 2:
-            print("❌ You need at least two A or AAAA records in this zone to create a rotation group.")
+            print_slow("❌ You need at least two A or AAAA records in this zone to create a rotation group.")
             return
 
-        print("\n--- Select Records for the Group (at least 2) ---")
+        print_slow("\n--- Select Records for the Group (at least 2) ---")
         for i, record in enumerate(records_from_cf):
-            print(f"{i+1}. {record.name} ({record.type}: {record.content})")
+            print_slow(f"{i+1}. {record.name} ({record.type}: {record.content})")
         
         selected_records = []
         while True:
@@ -99,17 +99,17 @@ def add_rotation_group_menu():
                 selected_indices = [int(i.strip()) - 1 for i in choices_str.split(',')]
                 
                 if any(i < 0 or i >= len(records_from_cf) for i in selected_indices):
-                    print("❌ Invalid selection. Please enter numbers from the list.")
+                    print_slow("❌ Invalid selection. Please enter numbers from the list.")
                     continue
                 
                 if len(set(selected_indices)) < 2:
-                    print("❌ Please select at least two different records.")
+                    print_slow("❌ Please select at least two different records.")
                     continue
 
                 selected_records = [records_from_cf[i] for i in selected_indices]
                 break
             except ValueError:
-                print("❌ Invalid input. Please enter numbers separated by commas.")
+                print_slow("❌ Invalid input. Please enter numbers separated by commas.")
 
         record_names = [r.name for r in selected_records]
         group_name = get_validated_input("Enter a name for this rotation group: ", lambda s: s.strip(), "Group name cannot be empty.")
@@ -119,10 +119,10 @@ def add_rotation_group_menu():
 
     except APIError as e:
         logger.error(f"Cloudflare API Error: {e}")
-        print(f"❌ Cloudflare API Error: {e}")
+        print_slow(f"❌ Cloudflare API Error: {e}")
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
-        print(f"❌ An unexpected error occurred: {e}")
+        print_slow(f"❌ An unexpected error occurred: {e}")
 
 def edit_rotation_group_menu():
     """
@@ -141,17 +141,17 @@ def edit_rotation_group_menu():
                 })
 
     if not all_groups:
-        print("No rotation groups to edit.")
+        print_slow("No rotation groups to edit.")
         return
 
     group_to_edit = select_from_list(all_groups, "Select a rotation group to edit:")
     if not group_to_edit:
         return
 
-    print(f"\n--- Editing Group: {group_to_edit['name']} ---")
-    print(f"Current records: {', '.join(group_to_edit['records'])}")
+    print_slow(f"\n--- Editing Group: {group_to_edit['name']} ---")
+    print_slow(f"Current records: {', '.join(group_to_edit['records'])}")
     
-    print("You will need to re-select all records for the group.")
+    print_slow("You will need to re-select all records for the group.")
     
     try:
         cf_api = CloudflareAPI(find_account(data, group_to_edit['account_name'])['api_token'])
@@ -159,12 +159,12 @@ def edit_rotation_group_menu():
         records_from_cf = [r for r in cf_api.list_dns_records(zone_id) if r.type in ['A', 'AAAA']]
 
         if len(records_from_cf) < 2:
-            print("❌ Not enough A/AAAA records in the zone to form a group.")
+            print_slow("❌ Not enough A/AAAA records in the zone to form a group.")
             return
 
-        print("\n--- Select New Records for the Group (at least 2) ---")
+        print_slow("\n--- Select New Records for the Group (at least 2) ---")
         for i, record in enumerate(records_from_cf):
-            print(f"{i+1}. {record.name} ({record.type}: {record.content})")
+            print_slow(f"{i+1}. {record.name} ({record.type}: {record.content})")
         
         new_selected_records = []
         while True:
@@ -177,15 +177,15 @@ def edit_rotation_group_menu():
                 selected_indices = [int(i.strip()) - 1 for i in choices_str.split(',')]
                 
                 if any(i < 0 or i >= len(records_from_cf) for i in selected_indices):
-                    print("❌ Invalid selection.")
+                    print_slow("❌ Invalid selection.")
                     continue
                 if len(set(selected_indices)) < 2:
-                    print("❌ Please select at least two different records.")
+                    print_slow("❌ Please select at least two different records.")
                     continue
                 new_selected_records = [records_from_cf[i].name for i in selected_indices]
                 break
             except ValueError:
-                print("❌ Invalid input.")
+                print_slow("❌ Invalid input.")
 
         new_interval_str = input(f"Enter new interval (minutes, min 5, or 'none') or press Enter to keep current: ").strip()
 
@@ -199,10 +199,10 @@ def edit_rotation_group_menu():
 
     except APIError as e:
         logger.error(f"Cloudflare API Error: {e}")
-        print(f"❌ Cloudflare API Error: {e}")
+        print_slow(f"❌ Cloudflare API Error: {e}")
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
-        print(f"❌ An unexpected error occurred: {e}")
+        print_slow(f"❌ An unexpected error occurred: {e}")
 
 
 def delete_rotation_group_menu():
@@ -221,7 +221,7 @@ def delete_rotation_group_menu():
                 })
 
     if not all_groups:
-        print("No rotation groups to delete.")
+        print_slow("No rotation groups to delete.")
         return
 
     group_to_delete = select_from_list(all_groups, "Select a rotation group to delete:")
@@ -241,14 +241,14 @@ def rotate_ips_between_records_management_menu():
     """
     while True:
         clear_screen()
-        print("\n--- Rotate IPs Between Records (Scheduled) ---")
+        print_slow("\n--- Rotate IPs Between Records (Scheduled) ---")
         list_rotation_groups()
-        print("\n1. ➕ Create Scheduled Rotation Group")
-        print("2. ✏️ Edit a Scheduled Rotation Group")
-        print("3. 🗑️ Delete a Scheduled Rotation Group")
-        print("4. 📄 View logs")
-        print("0. ⬅️ Return to previous menu")
-        print("-----------------------------------------")
+        print_slow("\n1. ➕ Create Scheduled Rotation Group")
+        print_slow("2. ✏️ Edit a Scheduled Rotation Group")
+        print_slow("3. 🗑️ Delete a Scheduled Rotation Group")
+        print_slow("4. 📄 View logs")
+        print_slow("0. ⬅️ Return to previous menu")
+        print_slow(OPTION_SEPARATOR)
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -267,7 +267,7 @@ def rotate_ips_between_records_management_menu():
                         all_groups.append(group)
             
             if not all_groups:
-                print("No rotation groups configured to view logs for.")
+                print_slow("No rotation groups configured to view logs for.")
                 input("\nPress Enter to return...")
                 continue
             
@@ -279,7 +279,7 @@ def rotate_ips_between_records_management_menu():
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print("❌ Invalid choice. Please select a valid option.")
+            print_slow("❌ Invalid choice. Please select a valid option.")
         
         if choice in ["1", "2", "3"]:
             input("\nPress Enter to return...")

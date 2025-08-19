@@ -19,6 +19,7 @@ from .dns import dns_management_menu
 from .rotator_main import rotator_tools_menu
 from .settings import settings_menu
 from .traffic_monitoring import traffic_monitoring_menu
+from ..display import print_slow, HEADER_LINE, FOOTER_LINE, OPTION_SEPARATOR
 
 def main_menu():
     """
@@ -50,22 +51,22 @@ def main_menu():
     
     while True:
         clear_screen()
-        print(f"{YELLOW}{art}{RESET}")
-        print(f"{CYAN}{author_str}{RESET}")
-        print(f"{CYAN}{version_str}{RESET}")
+        print_slow(f"{YELLOW}{art}{RESET}")
+        print_slow(f"{CYAN}{author_str}{RESET}")
+        print_slow(f"{CYAN}{version_str}{RESET}")
         
-        print("===================================")
+        print_slow(f"{CYAN}{HEADER_LINE}{RESET}")
 
-        print("\n--- Main Menu ---")
-        print("1. 👤 Manage Cloudflare Accounts")
-        print("2. 🌐 Manage Zones")
-        print("3. 📜 Manage DNS Records")
-        print("4. 🔄 IP Rotator Tools")
-        print("5. 📡 Traffic Monitoring")
-        print("6. 📄 View Application Logs")
-        print("7. ⚙️ Settings")
-        print("0. 🚪 Exit")
-        print("-----------------")
+        print_slow("\n--- Main Menu ---")
+        print_slow("1. 👤 Manage Cloudflare Accounts")
+        print_slow("2. 🌐 Manage Zones")
+        print_slow("3. 📜 Manage DNS Records")
+        print_slow("4. 🔄 IP Rotator Tools")
+        print_slow("5. 📡 Traffic Monitoring")
+        print_slow("6. 📄 View Application Logs")
+        print_slow("7. ⚙️ Settings")
+        print_slow("0. 🚪 Exit")
+        print_slow(f"{CYAN}{OPTION_SEPARATOR}{RESET}")
 
         choice = input("👉 Enter your choice: ").strip()
         
@@ -89,4 +90,4 @@ def main_menu():
                 break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print("❌ Invalid choice. Please select a valid option.")
+            print_slow("❌ Invalid choice. Please select a valid option.")

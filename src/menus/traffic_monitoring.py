@@ -7,7 +7,7 @@ viewing their status, and checking traffic usage.
 import requests
 
 from ..config import load_config, save_config
-from ..display import display_as_table
+from ..display import display_as_table, print_slow, OPTION_SEPARATOR
 from ..helpers import format_period_date
 from ..input_helper import get_user_input, get_numeric_input
 from ..logger import logger
@@ -19,7 +19,7 @@ def list_agents():
     agents = config.get("agents", [])
     
     if not agents:
-        print("No agents configured.")
+        print_slow("No agents configured.")
         input("\nPress Enter to return to the menu...")
         return
 
@@ -53,7 +53,7 @@ def list_agents():
         ])
         
     clear_screen()
-    print("--- Configured Agents ---")
+    print_slow("--- Configured Agents ---")
     display_as_table(rows, headers)
     input("\nPress Enter to return to the menu...")
 
@@ -63,7 +63,7 @@ def add_agent():
     config = load_config()
     
     clear_screen()
-    print("--- Add New Agent ---")
+    print_slow("--- Add New Agent ---")
     
     name = get_user_input("Enter a name for this agent (e.g., 'Server A'):")
     host = get_user_input("Enter the agent's IP address or hostname:")
@@ -72,7 +72,7 @@ def add_agent():
     # Construct the URL, assuming http. A more advanced version could ask for the scheme.
     url = f"http://{host}:{port}"
     
-    print(f"Agent URL will be: {url}")
+    print_slow(f"Agent URL will be: {url}")
 
     api_key = get_user_input("Enter the agent's API Key:")
     threshold_gb = get_numeric_input("Enter the monthly traffic threshold in GB:", float)
@@ -87,7 +87,7 @@ def add_agent():
     config["agents"].append(new_agent)
     save_config(config)
     logger.info(f"Added new agent: {name} at {url}")
-    print(f"\n✅ Agent '{name}' added successfully.")
+    print_slow(f"\n✅ Agent '{name}' added successfully.")
     input("Press Enter to continue...")
 
 def remove_agent():
@@ -96,12 +96,12 @@ def remove_agent():
     agents = config.get("agents", [])
 
     if not agents:
-        print("No agents to remove.")
+        print_slow("No agents to remove.")
         input("\nPress Enter to return...")
         return
 
     clear_screen()
-    print("--- Remove Agent ---")
+    print_slow("--- Remove Agent ---")
     headers = ["#", "Name", "URL"]
     rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
     display_as_table(rows, headers)
@@ -109,7 +109,7 @@ def remove_agent():
     choice = get_numeric_input("\nEnter the # of the agent to remove (or 0 to cancel):", int, min_val=0, max_val=len(agents))
 
     if choice == 0:
-        print("Cancelled.")
+        print_slow("Cancelled.")
         return
 
     agent_to_remove = agents[choice - 1]
@@ -117,9 +117,9 @@ def remove_agent():
         config["agents"].pop(choice - 1)
         save_config(config)
         logger.info(f"Removed agent: {agent_to_remove['name']}")
-        print(f"✅ Agent '{agent_to_remove['name']}' removed.")
+        print_slow(f"✅ Agent '{agent_to_remove['name']}' removed.")
     else:
-        print("Removal cancelled.")
+        print_slow("Removal cancelled.")
         
     input("\nPress Enter to continue...")
 
@@ -130,12 +130,12 @@ def view_agent_usage():
     agents = config.get("agents", [])
 
     if not agents:
-        print("No agents configured.")
+        print_slow("No agents configured.")
         input("\nPress Enter to return...")
         return
 
     clear_screen()
-    print("--- Select Agent to View Usage ---")
+    print_slow("--- Select Agent to View Usage ---")
     headers = ["#", "Name", "URL"]
     rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
     display_as_table(rows, headers)
@@ -148,16 +148,16 @@ def view_agent_usage():
 
     while True:
         clear_screen()
-        print(f"--- Usage for {agent['name']} ---")
-        print("Select a time period:")
-        print("1. Five Minutes")
-        print("2. Hourly")
-        print("3. Daily")
-        print("4. Monthly")
-        print("5. Yearly")
-        print("6. Top Days")
-        print("0. Back to Agent Selection")
-        print("--------------------------------")
+        print_slow(f"--- Usage for {agent['name']} ---")
+        print_slow("Select a time period:")
+        print_slow("1. Five Minutes")
+        print_slow("2. Hourly")
+        print_slow("3. Daily")
+        print_slow("4. Monthly")
+        print_slow("5. Yearly")
+        print_slow("6. Top Days")
+        print_slow("0. Back to Agent Selection")
+        print_slow(OPTION_SEPARATOR)
         
         period_choice = input("👉 Enter your choice: ").strip()
 
@@ -179,7 +179,7 @@ def view_agent_usage():
             params = {'period': period}
             fetch_and_display_periodic_usage(agent, params)
         else:
-            print("❌ Invalid choice. Please select a valid option.")
+            print_slow("❌ Invalid choice. Please select a valid option.")
         
         input("\nPress Enter to continue...")
 
@@ -199,10 +199,10 @@ def fetch_and_display_periodic_usage(agent, params):
                 # Ensure input is a number, default to 0 if not
                 return (b / (1024**3)) if isinstance(b, (int, float)) else 0
 
-            print(f"\n--- {title} ---")
+            print_slow(f"\n--- {title} ---")
 
             if not data_list:
-                print("No data returned for this period.")
+                print_slow("No data returned for this period.")
                 return
 
             # Prepare table headers and rows
@@ -227,22 +227,22 @@ def fetch_and_display_periodic_usage(agent, params):
             display_as_table(rows, headers)
 
         else:
-            print(f"\n❌ Error fetching usage: {response.status_code} - {response.text}")
+            print_slow(f"\n❌ Error fetching usage: {response.status_code} - {response.text}")
     except requests.RequestException as e:
-        print(f"\n❌ Could not connect to agent. Details: {e}")
+        print_slow(f"\n❌ Could not connect to agent. Details: {e}")
 
 
 def traffic_monitoring_menu():
     """Main menu for traffic monitoring."""
     while True:
         clear_screen()
-        print("--- Traffic Monitoring Menu ---")
-        print("1. List Agents & Status")
-        print("2. Add New Agent")
-        print("3. Remove Agent")
-        print("4. View Agent Usage")
-        print("0. Back to Main Menu")
-        print("-----------------------------")
+        print_slow("--- Traffic Monitoring Menu ---")
+        print_slow("1. List Agents & Status")
+        print_slow("2. Add New Agent")
+        print_slow("3. Remove Agent")
+        print_slow("4. View Agent Usage")
+        print_slow("0. Back to Main Menu")
+        print_slow(OPTION_SEPARATOR)
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -258,5 +258,5 @@ def traffic_monitoring_menu():
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print("❌ Invalid choice. Please select a valid option.")
+            print_slow("❌ Invalid choice. Please select a valid option.")
             input("\nPress Enter to continue...")

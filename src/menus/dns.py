@@ -11,7 +11,7 @@ from ..cloudflare_api import CloudflareAPI
 from ..input_helper import get_validated_input
 from ..validator import is_valid_dns_record_type
 from ..logger import logger
-from ..display import display_as_table
+from ..display import display_as_table, print_slow, OPTION_SEPARATOR
 from ..error_handler import MissingPermissionError
 from cloudflare import APIError
 from .utils import clear_screen, select_from_list, confirm_action, parse_selection
@@ -26,7 +26,7 @@ def dns_management_menu():
     data = load_config()
     if not data["accounts"]:
         logger.warning("No accounts available.")
-        print("❌ No accounts available. Please add an account first.")
+        print_slow("❌ No accounts available. Please add an account first.")
         input("\nPress Enter to return...")
         return
 
@@ -43,16 +43,16 @@ def dns_management_menu():
     cf_api = CloudflareAPI(acc["api_token"])
 
     try:
-        print("Fetching zones...")
+        print_slow("Fetching zones...")
         zones_from_cf = list(cf_api.list_zones())
     except APIError as e:
         logger.error(f"Cloudflare API Error fetching zones for account '{acc['name']}': {e}")
-        print(f"❌ Error fetching zones: {e}")
+        print_slow(f"❌ Error fetching zones: {e}")
         input("\nPress Enter to return...")
         return
 
     if not zones_from_cf:
-        print("\nNo zones found for this account in Cloudflare.")
+        print_slow("\nNo zones found for this account in Cloudflare.")
         input("\nPress Enter to return...")
         return
 
@@ -60,8 +60,8 @@ def dns_management_menu():
     
     while True:
         clear_screen()
-        print(f"--- (DNS Management) for Account: {acc['name']} ---")
-        print("\n--- Available Zones ---")
+        print_slow(f"--- (DNS Management) for Account: {acc['name']} ---")
+        print_slow("\n--- Available Zones ---")
         display_as_table(zones_for_display, headers="keys")
         
         try:
@@ -74,10 +74,10 @@ def dns_management_menu():
                 selected_zone = zones_from_cf[selection - 1]
                 manage_zone_records(cf_api, selected_zone.id, selected_zone.name)
             else:
-                print("❌ Invalid selection.")
+                print_slow("❌ Invalid selection.")
                 input("\nPress Enter to continue...")
         except ValueError:
-            print("❌ Invalid input. Please enter a number.")
+            print_slow("❌ Invalid input. Please enter a number.")
             input("\nPress Enter to continue...")
 
 def manage_zone_records(cf_api, zone_id, zone_name):
@@ -94,11 +94,11 @@ def manage_zone_records(cf_api, zone_id, zone_name):
     """
     while True:
         clear_screen()
-        print(f"--- DNS Records for {zone_name} ---")
+        print_slow(f"--- DNS Records for {zone_name} ---")
         try:
             records = list(cf_api.list_dns_records(zone_id))
             if not records:
-                print("\nNo DNS records found for this zone.")
+                print_slow("\nNo DNS records found for this zone.")
             else:
                 records_for_display = []
                 for i, record in enumerate(records):
@@ -112,12 +112,12 @@ def manage_zone_records(cf_api, zone_id, zone_name):
                     })
                 display_as_table(records_for_display, headers="keys")
 
-            print("\nChoose an option:")
-            print("1) Add a new DNS record")
-            print("2) Edit an existing DNS record")
-            print("3) Delete a DNS record")
-            print("0) Back to zone selection")
-            print("--------------------")
+            print_slow("\nChoose an option:")
+            print_slow("1) Add a new DNS record")
+            print_slow("2) Edit an existing DNS record")
+            print_slow("3) Delete a DNS record")
+            print_slow("0) Back to zone selection")
+            print_slow(OPTION_SEPARATOR)
 
             choice = input("👉 Enter your choice: ").strip()
 
@@ -127,28 +127,28 @@ def manage_zone_records(cf_api, zone_id, zone_name):
                 if records:
                     edit_dns_record(cf_api, zone_id, zone_name, records)
                 else:
-                    print("No records to edit.")
+                    print_slow("No records to edit.")
                     input("\nPress Enter to continue...")
             elif choice == "3":
                 if records:
                     delete_dns_record(cf_api, zone_id, zone_name, records)
                 else:
-                    print("No records to delete.")
+                    print_slow("No records to delete.")
                     input("\nPress Enter to continue...")
             elif choice == "0":
                 break
             else:
-                print("❌ Invalid choice. Please select a valid option.")
+                print_slow("❌ Invalid choice. Please select a valid option.")
                 input("\nPress Enter to continue...")
 
         except APIError as e:
             logger.error(f"Error fetching DNS records for zone {zone_name}: {e}")
-            print(f"❌ An API error occurred: {e}")
+            print_slow(f"❌ An API error occurred: {e}")
             input("\nPress Enter to return...")
             return
         except Exception as e:
             logger.error(f"An unexpected error occurred in manage_zone_records: {e}", exc_info=True)
-            print(f"❌ An unexpected error occurred: {e}")
+            print_slow(f"❌ An unexpected error occurred: {e}")
             input("\nPress Enter to return...")
             return
 
@@ -161,7 +161,7 @@ def add_dns_record(cf_api, zone_id, zone_name):
         zone_id (str): The ID of the zone where the record will be added.
         zone_name (str): The name of the zone (for logging purposes).
     """
-    print("\n--- Add New DNS Record ---")
+    print_slow("\n--- Add New DNS Record ---")
     
     record_type = get_validated_input(
         "Enter record type (A, AAAA, CNAME, TXT, MX, etc.): ",
@@ -192,12 +192,12 @@ def add_dns_record(cf_api, zone_id, zone_name):
     proxied = proxied_str == 'yes'
 
     try:
-        print("Creating DNS record...")
+        print_slow("Creating DNS record...")
         cf_api.create_dns_record(zone_id, name, record_type, content, proxied, ttl)
-        print("✅ DNS record created successfully!")
+        print_slow("✅ DNS record created successfully!")
     except APIError as e:
         logger.error(f"Failed to create DNS record in zone {zone_name}: {e}")
-        print(f"❌ Error creating DNS record: {e}")
+        print_slow(f"❌ Error creating DNS record: {e}")
     
     input("\nPress Enter to continue...")
 
@@ -211,18 +211,18 @@ def edit_dns_record(cf_api, zone_id, zone_name, records):
         zone_name (str): The name of the zone (for logging purposes).
         records (list): The list of current DNS records in the zone.
     """
-    print("\n--- Edit DNS Record ---")
+    print_slow("\n--- Edit DNS Record ---")
     try:
         selection = int(input("Enter the # of the record to edit: "))
         if not (1 <= selection <= len(records)):
-            print("❌ Invalid selection.")
+            print_slow("❌ Invalid selection.")
             return
 
         record_to_edit = records[selection - 1]
 
-        print(f"\nEditing record: {record_to_edit.name} ({record_to_edit.type})")
-        print(f"Current content: {record_to_edit.content}")
-        print("Leave fields blank to keep existing values.")
+        print_slow(f"\nEditing record: {record_to_edit.name} ({record_to_edit.type})")
+        print_slow(f"Current content: {record_to_edit.content}")
+        print_slow("Leave fields blank to keep existing values.")
 
         new_name = input(f"New name (current: {record_to_edit.name}): ").strip() or record_to_edit.name
         new_type = get_validated_input(
@@ -243,7 +243,7 @@ def edit_dns_record(cf_api, zone_id, zone_name, records):
         ).lower()
         new_proxied = {'yes': True, 'no': False, '': record_to_edit.proxied}[new_proxied_str]
 
-        print("Updating DNS record...")
+        print_slow("Updating DNS record...")
         cf_api.update_dns_record(
             zone_id,
             record_to_edit.id,
@@ -253,13 +253,13 @@ def edit_dns_record(cf_api, zone_id, zone_name, records):
             new_proxied,
             new_ttl
         )
-        print("✅ DNS record updated successfully!")
+        print_slow("✅ DNS record updated successfully!")
 
     except ValueError:
-        print("❌ Invalid input. Please enter a number.")
+        print_slow("❌ Invalid input. Please enter a number.")
     except APIError as e:
         logger.error(f"Failed to update DNS record in zone {zone_name}: {e}")
-        print(f"❌ Error updating DNS record: {e}")
+        print_slow(f"❌ Error updating DNS record: {e}")
     
     input("\nPress Enter to continue...")
 
@@ -273,13 +273,13 @@ def delete_dns_record(cf_api, zone_id, zone_name, records):
         zone_name (str): The name of the zone (for logging purposes).
         records (list): The list of current DNS records in the zone.
     """
-    print("\n--- Delete DNS Records ---")
+    print_slow("\n--- Delete DNS Records ---")
     selection_str = input("Enter the # of the record(s) to delete (e.g., 1, 2-4, 5): ")
 
     try:
         indices_to_delete = parse_selection(selection_str, len(records))
         if not indices_to_delete:
-            print("No valid records selected.")
+            print_slow("No valid records selected.")
             input("\nPress Enter to continue...")
             return
 
@@ -287,44 +287,44 @@ def delete_dns_record(cf_api, zone_id, zone_name, records):
         
         if len(records_to_delete) == 1:
             record_to_delete = records_to_delete[0]
-            print(f"\n⚠️  You are about to delete the record: {record_to_delete.name} ({record_to_delete.type})")
+            print_slow(f"\n⚠️  You are about to delete the record: {record_to_delete.name} ({record_to_delete.type})")
             confirmation = input(f"To confirm, please type the record name '{record_to_delete.name}': ")
             if confirmation.strip().lower() != record_to_delete.name.lower():
-                print("❌ Deletion cancelled. The entered name did not match.")
+                print_slow("❌ Deletion cancelled. The entered name did not match.")
                 input("\nPress Enter to continue...")
                 return
         else:
-            print("\n⚠️  You are about to delete the following records:")
+            print_slow("\n⚠️  You are about to delete the following records:")
             for i, record in enumerate(records_to_delete):
-                 print(f"{i+1}. {record.name} ({record.type}) - {record.content}")
+                 print_slow(f"{i+1}. {record.name} ({record.type}) - {record.content}")
             
             confirmation = input("To confirm, please type 'delete': ")
             if confirmation.strip().lower() != 'delete':
-                print("❌ Deletion cancelled.")
+                print_slow("❌ Deletion cancelled.")
                 input("\nPress Enter to continue...")
                 return
 
         deleted_count = 0
         failed_count = 0
-        print("")
+        print_slow("")
         for record in records_to_delete:
             try:
-                print(f"Deleting record {record.name}...")
+                print_slow(f"Deleting record {record.name}...")
                 cf_api.delete_dns_record(zone_id, record.id)
                 logger.info(f"DNS record '{record.name}' deleted successfully from zone '{zone_name}'.")
                 deleted_count += 1
             except APIError as e:
                 logger.error(f"Failed to delete DNS record {record.name} in zone {zone_name}: {e}")
-                print(f"❌ Error deleting record {record.name}: {e}")
+                print_slow(f"❌ Error deleting record {record.name}: {e}")
                 failed_count += 1
         
-        print("\n--- Deletion Summary ---")
+        print_slow("\n--- Deletion Summary ---")
         if deleted_count > 0:
-            print(f"✅ Successfully deleted {deleted_count} record(s).")
+            print_slow(f"✅ Successfully deleted {deleted_count} record(s).")
         if failed_count > 0:
-            print(f"❌ Failed to delete {failed_count} record(s).")
+            print_slow(f"❌ Failed to delete {failed_count} record(s).")
 
     except ValueError as e:
-        print(f"❌ Invalid input: {e}")
+        print_slow(f"❌ Invalid input: {e}")
     
     input("\nPress Enter to continue...")

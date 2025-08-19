@@ -11,6 +11,7 @@ from .utils import clear_screen
 from .rotator_single_record import rotate_based_on_list_of_ips_single_record_menu
 from .rotator_multi_record import rotate_based_on_list_of_ips_multi_record_menu
 from .rotator_record_group import rotate_ips_between_records_management_menu
+from ..display import print_slow, OPTION_SEPARATOR
 
 def rotator_tools_menu():
     """
@@ -21,12 +22,12 @@ def rotator_tools_menu():
     """
     clear_screen()
     while True:
-        print("\n--- IP Rotator Tools ---")
-        print("1. 🔄 Rotate Based on a List of IPs (Single-Record)")
-        print("2. 🌍 Rotate Based on a List of IPs (Multi-Records)")
-        print("3. 🔀 Rotate IPs Between Records")
-        print("0. ⬅️ Return to Main Menu")
-        print("---------------------")
+        print_slow("\n--- IP Rotator Tools ---")
+        print_slow("1. 🔄 Rotate Based on a List of IPs (Single-Record)")
+        print_slow("2. 🌍 Rotate Based on a List of IPs (Multi-Records)")
+        print_slow("3. 🔀 Rotate IPs Between Records")
+        print_slow("0. ⬅️ Return to Main Menu")
+        print_slow(OPTION_SEPARATOR)
 
         choice = input("👉 Enter your choice: ").strip()
 
@@ -40,4 +41,4 @@ def rotator_tools_menu():
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print("❌ Invalid choice. Please select a valid option.")
+            print_slow("❌ Invalid choice. Please select a valid option.")
