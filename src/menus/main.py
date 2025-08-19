@@ -27,20 +27,21 @@ def main_menu():
     """
     author_str = "Author: https://github.com/Issei-177013"
 
-    art = """
-
- ██████╗███████╗    ██╗   ██╗████████╗██╗██╗     ███████╗
-██╔════╝██╔════╝    ██║   ██║╚══██╔══╝██║██║     ██╔════╝
-██║     █████╗█████╗██║   ██║   ██║   ██║██║     ███████╗
-██║     ██╔══╝╚════╝██║   ██║   ██║   ██║██║     ╚════██║
-╚██████╗██║         ╚██████╔╝   ██║   ██║███████╗███████║
- ╚═════╝╚═╝          ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝
-                                                              
-"""
+    art_lines = [
+        f" {COLOR_CF_ORANGE} ██████╗███████╗{RESET_COLOR}    {COLOR_CF_YELLOW}██╗   ██╗████████╗██╗██╗     ███████╗{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}██╔════╝██╔════╝{RESET_COLOR}    {COLOR_CF_YELLOW}██║   ██║╚══██╔══╝██║██║     ██╔════╝{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}██║     █████╗{RESET_COLOR}█████╗{COLOR_CF_YELLOW}██║   ██║   ██║   ██║██║     ███████╗{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}██║     ██╔══╝{RESET_COLOR}╚════╝{COLOR_CF_YELLOW}██║   ██║   ██║   ██║██║     ╚════██║{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}╚██████╗██║{RESET_COLOR}         {COLOR_CF_YELLOW}╚██████╔╝   ██║   ██║███████╗███████║{RESET_COLOR}",
+        f"  {COLOR_CF_ORANGE}╚═════╝╚═╝{RESET_COLOR}          {COLOR_CF_YELLOW}╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝{RESET_COLOR}"
+    ]
     
     while True:
         clear_screen()
-        print_fast(f"{COLOR_INFO}{art}{RESET_COLOR}")
+        print_fast("\n")
+        for line in art_lines:
+            print_fast(line)
+        print_fast("\n")
         print_fast(f"{COLOR_INFO}{author_str}{RESET_COLOR}")
         print_fast(f"{COLOR_INFO}{version_str}{RESET_COLOR}")
         
