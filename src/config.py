@@ -33,9 +33,24 @@ def load_config():
     Returns:
         dict: The configuration data.
     """
+    default_self_monitor_config = {
+        "enabled": False,
+        "name": "Master",
+        "threshold_gb": 1000,
+        "interval": 5,
+        "targets": [],
+        "alarms": [],
+        "vnstat_interface": "eth0"
+    }
+
     if not os.path.exists(CONFIG_PATH):
         logger.info(f"Config file not found at {CONFIG_PATH}. Creating a new one.")
-        default_config = {"accounts": [], "agents": [], "settings": {"console_logging": True}}
+        default_config = {
+            "accounts": [],
+            "agents": [],
+            "settings": {"console_logging": True},
+            "self_monitor": default_self_monitor_config
+        }
         save_config(default_config)
         return default_config
     try:
@@ -50,10 +65,18 @@ def load_config():
             if "agents" not in config:
                 config["agents"] = []
 
+            if "self_monitor" not in config:
+                config["self_monitor"] = default_self_monitor_config
+
             return config
     except json.JSONDecodeError:
         logger.error(f"Could not decode JSON from {CONFIG_PATH}. Returning default config.")
-        return {"accounts": [], "agents": [], "settings": {"console_logging": True}}
+        return {
+            "accounts": [],
+            "agents": [],
+            "settings": {"console_logging": True},
+            "self_monitor": default_self_monitor_config
+        }
 
 def validate_and_save_config(data):
     """

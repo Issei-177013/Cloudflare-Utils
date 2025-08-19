@@ -19,44 +19,24 @@ from ..helpers import format_period_date
 from ..input_helper import get_user_input, get_numeric_input
 from ..logger import logger
 from .utils import clear_screen, confirm_action
-
-# Define constants for the local agent
-LOCAL_AGENT_CONFIG_PATH = "/opt/Cloudflare-Utils-Agent/config.json"
-LOCAL_AGENT_URL = "http://127.0.0.1:15728"
-
-def _get_local_agent():
-    """
-    Checks for a local agent installation and returns its config if found.
-    Returns None if not found or on error.
-    """
-    if os.path.exists(LOCAL_AGENT_CONFIG_PATH):
-        try:
-            with open(LOCAL_AGENT_CONFIG_PATH, "r") as f:
-                agent_config = json.load(f)
-                api_key = agent_config.get("api_key")
-                if api_key:
-                    return {
-                        "name": "Master (Local)",
-                        "url": LOCAL_AGENT_URL,
-                        "api_key": api_key,
-                        "threshold_gb": "N/A",
-                        "is_local": True
-                    }
-        except (IOError, json.JSONDecodeError) as e:
-            logger.error(f"Could not read or parse local agent config at {LOCAL_AGENT_CONFIG_PATH}: {e}")
-    return None
+from .. import self_monitor
 
 def get_all_agents():
     """
-    Loads configured agents from configs.json and prepends the local agent if it exists.
+    Loads configured agents from configs.json and prepends the self-monitor if enabled.
     """
     config = load_config()
     agents = config.get("agents", [])
     
-    local_agent = _get_local_agent()
-    if local_agent:
-        # Prepend local agent to a copy of the list
-        return [local_agent] + list(agents)
+    self_monitor_config = config.get("self_monitor", {})
+    if self_monitor_config.get("enabled"):
+        self_monitor_agent = {
+            "name": self_monitor_config.get("name", "Self-Monitor"),
+            "type": "self",
+            "threshold_gb": self_monitor_config.get("threshold_gb", "N/A"),
+            "is_local": True  # Treat it as local to prevent removal/editing via old methods
+        }
+        return [self_monitor_agent] + list(agents)
         
     return list(agents)
 
@@ -65,21 +45,31 @@ def _get_latest_usage_gb(agent, period):
     Fetches the latest usage for an agent for a given period and returns it in GB.
     Returns None if usage can't be fetched.
     """
-    try:
-        response = requests.get(
-            f"{agent['url']}/usage_by_period",
-            headers={"X-API-Key": agent["api_key"]},
-            params={'period': period},
-            timeout=3
-        )
-        if response.status_code == 200:
-            data = response.json().get('data', [])
-            if data:
-                latest_entry = data[-1]
-                total_bytes = latest_entry.get('rx', 0) + latest_entry.get('tx', 0)
-                return total_bytes / (1024**3)
-    except requests.RequestException:
-        return None
+    data = []
+    if agent.get("type") == "self":
+        config = load_config()
+        interface = config.get("self_monitor", {}).get("vnstat_interface")
+        result = self_monitor.get_usage_by_period(interface, period)
+        if "error" not in result:
+            data = result.get('data', [])
+    else:
+        try:
+            response = requests.get(
+                f"{agent['url']}/usage_by_period",
+                headers={"X-API-Key": agent["api_key"]},
+                params={'period': period},
+                timeout=3
+            )
+            if response.status_code == 200:
+                data = response.json().get('data', [])
+        except requests.RequestException:
+            return None
+
+    if data:
+        latest_entry = data[-1]
+        total_bytes = latest_entry.get('rx', 0) + latest_entry.get('tx', 0)
+        return total_bytes / (1024**3)
+
     return None
 
 def list_agents(agents):
@@ -101,18 +91,28 @@ def list_agents(agents):
         month_usage_str = "N/A"
 
         is_online = False
-        try:
-            response = requests.get(f"{agent['url']}/status", headers={"X-API-Key": agent["api_key"]}, timeout=3)
-            if response.status_code == 200:
-                data = response.json()
+        if agent.get("type") == "self":
+            data = self_monitor.get_status()
+            if data.get("status") == "ok":
                 status = f"{COLOR_SUCCESS}Online{RESET_COLOR}"
                 version = data.get('agent_version', 'N/A')
                 hostname = data.get('hostname', 'N/A')
                 is_online = True
             else:
-                status = f"{COLOR_ERROR}Error ({response.status_code}){RESET_COLOR}"
-        except requests.RequestException:
-            pass # Keep status as Offline
+                status = f"{COLOR_ERROR}Error{RESET_COLOR}"
+        else:
+            try:
+                response = requests.get(f"{agent['url']}/status", headers={"X-API-Key": agent["api_key"]}, timeout=3)
+                if response.status_code == 200:
+                    data = response.json()
+                    status = f"{COLOR_SUCCESS}Online{RESET_COLOR}"
+                    version = data.get('agent_version', 'N/A')
+                    hostname = data.get('hostname', 'N/A')
+                    is_online = True
+                else:
+                    status = f"{COLOR_ERROR}Error ({response.status_code}){RESET_COLOR}"
+            except requests.RequestException:
+                pass # Keep status as Offline
 
         if is_online:
             day_usage_gb = _get_latest_usage_gb(agent, 'd')
@@ -219,34 +219,9 @@ def remove_agent(agents):
         
     input("\nPress Enter to continue...")
 
-def edit_agent(agents):
-    """Edits an existing agent's details, preventing edits to the local agent."""
+def edit_single_agent(agent_to_edit):
+    """Edits the details of a single agent."""
     config = load_config()
-    
-    editable_agents = [agent for agent in agents if not agent.get("is_local")]
-    if not editable_agents:
-        print_fast(f"{COLOR_WARNING}No configurable agents to edit.{RESET_COLOR}")
-        input("\nPress Enter to return...")
-        return
-
-    clear_screen()
-    print_fast(f"{COLOR_TITLE}--- Edit Agent ---{RESET_COLOR}")
-    headers = ["#", "Name", "URL"]
-    rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
-    display_as_table(rows, headers)
-    
-    choice = get_numeric_input("\nEnter the # of the agent to edit (or 0 to cancel):", int, min_val=0, max_val=len(agents))
-
-    if choice == 0:
-        print_fast("Cancelled.")
-        return
-
-    agent_to_edit = agents[choice - 1]
-
-    if agent_to_edit.get("is_local"):
-        print_fast(f"\n{COLOR_WARNING}The Master (Local) agent cannot be edited.{RESET_COLOR}")
-        input("Press Enter to continue...")
-        return
 
     config_agents = config.get("agents", [])
     agent_index_in_config = -1
@@ -343,44 +318,154 @@ def fetch_and_display_periodic_usage(agent, params):
     """
     Fetches and displays usage for a specified period from the agent.
     """
-    try:
-        response = requests.get(f"{agent['url']}/usage_by_period", headers={"X-API-Key": agent['api_key']}, params=params, timeout=10)
-        if response.status_code == 200:
-            result = response.json()
-            title = result.get('period_title', 'Usage Data')
-            data_list = result.get('data', [])
-
-            def bytes_to_gb(b):
-                return (b / (1024**3)) if isinstance(b, (int, float)) else 0
-
-            print_fast(f"\n{COLOR_TITLE}--- {title} ---{RESET_COLOR}")
-
-            if not data_list:
-                print_fast(f"{COLOR_WARNING}No data returned for this period.{RESET_COLOR}")
+    result = None
+    if agent.get("type") == "self":
+        config = load_config()
+        interface = config.get("self_monitor", {}).get("vnstat_interface")
+        result = self_monitor.get_usage_by_period(interface, params.get("period"))
+    else:
+        try:
+            response = requests.get(f"{agent['url']}/usage_by_period", headers={"X-API-Key": agent['api_key']}, params=params, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+            else:
+                print_fast(f"\n{COLOR_ERROR}❌ Error fetching usage: {response.status_code} - {response.text}{RESET_COLOR}")
                 return
+        except requests.RequestException as e:
+            print_fast(f"\n{COLOR_ERROR}❌ Could not connect to agent. Details: {e}{RESET_COLOR}")
+            return
 
-            headers = ["Date/Time", "Received (GB)", "Sent (GB)", "Total (GB)"]
-            rows = []
+    if result:
+        if "error" in result:
+            print_fast(f"\n{COLOR_ERROR}❌ Error fetching usage: {result['error']}{RESET_COLOR}")
+            return
 
-            for entry in data_list:
-                rx_gb = bytes_to_gb(entry.get('rx', 0))
-                tx_gb = bytes_to_gb(entry.get('tx', 0))
-                total_gb = rx_gb + tx_gb
-                date_str = format_period_date(entry, params.get('period'))
+        title = result.get('period_title', 'Usage Data')
+        data_list = result.get('data', [])
 
-                rows.append([
-                    date_str,
-                    f"{rx_gb:.3f}",
-                    f"{tx_gb:.3f}",
-                    f"{total_gb:.3f}"
-                ])
+        def bytes_to_gb(b):
+            return (b / (1024**3)) if isinstance(b, (int, float)) else 0
 
-            display_as_table(rows, headers)
+        print_fast(f"\n{COLOR_TITLE}--- {title} ---{RESET_COLOR}")
 
+        if not data_list:
+            print_fast(f"{COLOR_WARNING}No data returned for this period.{RESET_COLOR}")
+            return
+
+        headers = ["Date/Time", "Received (GB)", "Sent (GB)", "Total (GB)"]
+        rows = []
+
+        for entry in data_list:
+            rx_gb = bytes_to_gb(entry.get('rx', 0))
+            tx_gb = bytes_to_gb(entry.get('tx', 0))
+            total_gb = rx_gb + tx_gb
+            date_str = format_period_date(entry, params.get('period'))
+
+            rows.append([
+                date_str,
+                f"{rx_gb:.3f}",
+                f"{tx_gb:.3f}",
+                f"{total_gb:.3f}"
+            ])
+
+        display_as_table(rows, headers)
+
+def edit_self_monitor_config():
+    """Edits the Self-Monitor's configuration."""
+    config = load_config()
+    self_monitor_config = config.get("self_monitor", {})
+
+    # It's better to allow editing even when disabled.
+    # if not self_monitor_config.get("enabled"):
+    #     print_fast(f"\n{COLOR_WARNING}The Self-Monitor is not enabled. Please enable it first to edit its configuration.{RESET_COLOR}")
+    #     input("Press Enter to continue...")
+    #     return
+
+    clear_screen()
+    print_fast(f"{COLOR_TITLE}--- Edit Self-Monitor Configuration ---{RESET_COLOR}")
+    print_fast("Press Enter to keep the current value.")
+
+    current_name = self_monitor_config.get('name', 'Self-Monitor')
+    current_threshold = self_monitor_config.get('threshold_gb', 1000)
+    current_interface = self_monitor_config.get('vnstat_interface', 'eth0')
+
+    new_name = get_user_input(f"Enter new name [{current_name}]:", default=current_name)
+    new_threshold_gb = get_numeric_input(f"Enter new monthly threshold in GB [{current_threshold}]:", float, default=current_threshold)
+    new_interface = get_user_input(f"Enter new vnstat interface [{current_interface}]:", default=current_interface)
+
+    config["self_monitor"]["name"] = new_name
+    config["self_monitor"]["threshold_gb"] = new_threshold_gb
+    config["self_monitor"]["vnstat_interface"] = new_interface
+
+    save_config(config)
+    logger.info(f"Edited Self-Monitor configuration.")
+    print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor configuration updated successfully.{RESET_COLOR}")
+    input("\nPress Enter to continue...")
+
+def edit_monitor_menu():
+    """Menu for selecting a monitor to edit."""
+    all_agents = get_all_agents()
+
+    if not all_agents:
+        print_fast(f"{COLOR_WARNING}No monitors configured or enabled to edit.{RESET_COLOR}")
+        input("\nPress Enter to return...")
+        return
+
+    clear_screen()
+    print_fast(f"{COLOR_TITLE}--- Edit Monitor ---{RESET_COLOR}")
+    
+    headers = ["#", "Name", "Type", "URL/Interface"]
+    rows = []
+    for i, agent in enumerate(all_agents):
+        if agent.get("type") == "self":
+            config = load_config()
+            interface = config.get("self_monitor", {}).get("vnstat_interface", "N/A")
+            rows.append([i + 1, agent["name"], "Self-Monitor", interface])
         else:
-            print_fast(f"\n{COLOR_ERROR}❌ Error fetching usage: {response.status_code} - {response.text}{RESET_COLOR}")
-    except requests.RequestException as e:
-        print_fast(f"\n{COLOR_ERROR}❌ Could not connect to agent. Details: {e}{RESET_COLOR}")
+            rows.append([i + 1, agent["name"], "Remote Agent", agent.get("url", "N/A")])
+
+    display_as_table(rows, headers)
+    
+    choice = get_numeric_input("\nEnter the # of the monitor to edit (or 0 to cancel):", int, min_val=0, max_val=len(all_agents))
+
+    if choice == 0:
+        print_fast("Cancelled.")
+        input("\nPress Enter to continue...")
+        return
+
+    agent_to_edit = all_agents[choice - 1]
+
+    if agent_to_edit.get("type") == "self":
+        edit_self_monitor_config()
+    else:
+        # The edit_single_agent function needs to be called within the context of the menu
+        # It performs its own screen clearing and input prompts.
+        edit_single_agent(agent_to_edit)
+
+def toggle_self_monitor():
+    """Toggles the self-monitor on or off."""
+    config = load_config()
+    self_monitor_config = config.get("self_monitor", {})
+    is_enabled = self_monitor_config.get("enabled", False)
+
+    if is_enabled:
+        if confirm_action("The Self-Monitor is currently enabled. Do you want to disable it?"):
+            config["self_monitor"]["enabled"] = False
+            save_config(config)
+            logger.info("Self-Monitor disabled.")
+            print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor has been disabled.{RESET_COLOR}")
+        else:
+            print_fast("Operation cancelled.")
+    else:
+        if confirm_action("The Self-Monitor is currently disabled. Do you want to enable it?"):
+            config["self_monitor"]["enabled"] = True
+            save_config(config)
+            logger.info("Self-Monitor enabled.")
+            print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor has been enabled.{RESET_COLOR}")
+        else:
+            print_fast("Operation cancelled.")
+    
+    input("\nPress Enter to continue...")
 
 def traffic_monitoring_menu():
     """Main menu for traffic monitoring."""
@@ -388,27 +473,37 @@ def traffic_monitoring_menu():
         clear_screen()
         
         all_agents = get_all_agents()
+        config = load_config()
+        self_monitor_enabled = config.get("self_monitor", {}).get("enabled", False)
 
         print_fast(f"{COLOR_TITLE}--- Traffic Monitoring ---{RESET_COLOR}")
         list_agents(all_agents)
 
         print_fast(f"\n{COLOR_TITLE}--- Menu ---{RESET_COLOR}")
-        print_slow("1. Add New Agent")
-        print_slow("2. Remove Agent")
-        print_slow("3. Edit Agent")
-        print_slow("4. View Agent Usage Details")
+        
+        if self_monitor_enabled:
+            print_slow("1. Disable Self-Monitor")
+        else:
+            print_slow("1. Enable Self-Monitor")
+
+        print_slow("2. Add New Agent")
+        print_slow("3. Remove Agent")
+        print_slow("4. Edit Monitor")
+        print_slow("5. View Monitor Usage Details")
         print_slow("0. Back to Main Menu")
         print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == '1':
-            add_agent()
+            toggle_self_monitor()
         elif choice == '2':
-            remove_agent(all_agents)
+            add_agent()
         elif choice == '3':
-            edit_agent(all_agents)
+            remove_agent(all_agents)
         elif choice == '4':
+            edit_monitor_menu()
+        elif choice == '5':
             view_agent_usage(all_agents)
         elif choice == '0':
             break
