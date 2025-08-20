@@ -14,8 +14,9 @@ from ..validator import is_valid_record_name
 from ..logger import logger
 from ..display import *
 from ..error_handler import MissingPermissionError
+from ..triggers import select_trigger
 from cloudflare import APIError
-from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
+from .utils import clear_screen, select_from_list, confirm_action, view_live_logs, get_schedule_config
 
 def add_record():
     """
@@ -116,9 +117,14 @@ def add_record():
 
     rec_type = get_record_type()
     ip_list = get_ip_list(rec_type)
-    rotation_interval_minutes = get_rotation_interval()
+    
+    schedule = get_schedule_config()
+    if not schedule:
+        print_fast(f"{COLOR_WARNING}Rotation schedule setup cancelled. Record not added.{RESET_COLOR}")
+        return
 
-    add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, rotation_interval_minutes)
+    # The last argument is now the schedule object
+    add_record_to_config(acc['name'], zone['domain'], record_name, rec_type, ip_list, schedule)
     logger.info(f"Record '{record_name}' added to zone '{zone['domain']}'.")
 
 def list_records_from_config():
@@ -134,16 +140,33 @@ def list_records_from_config():
     print_fast(f"\n{COLOR_TITLE}--- Records Configured for Rotation ---{RESET_COLOR}")
     
     all_records_data = []
+    triggers = data.get("triggers", [])
+    
+    def get_trigger_name(trigger_id):
+        for t in triggers:
+            if t["id"] == trigger_id:
+                return t["name"]
+        return "Unknown Trigger"
+
     for acc in data["accounts"]:
         for zone in acc.get("zones", []):
             for record in zone.get("records", []):
+                schedule_info = "Not Set"
+                schedule = record.get("schedule")
+                if schedule:
+                    if schedule.get("type") == "time":
+                        schedule_info = f"Time: {schedule.get('interval_minutes', 'N/A')} min"
+                    elif schedule.get("type") == "trigger":
+                        trigger_name = get_trigger_name(schedule.get("trigger_id"))
+                        schedule_info = f"Trigger: {trigger_name}"
+
                 all_records_data.append({
                     "Account": acc["name"],
                     "Zone": zone["domain"],
                     "Record": record["name"],
                     "Type": record["type"],
                     "IPs": summarize_list(record.get("ips", [])),
-                    "Interval (min)": record.get('rotation_interval_minutes', 'Default (30)')
+                    "Schedule": schedule_info
                 })
 
     if all_records_data:
@@ -153,7 +176,7 @@ def list_records_from_config():
             "Record": "Record",
             "Type": "Type",
             "IPs": "IPs",
-            "Interval (min)": "Interval (min)"
+            "Schedule": "Schedule"
         }
         display_as_table(all_records_data, headers)
     else:

@@ -16,9 +16,10 @@ from ..display import (
     COLOR_ERROR, COLOR_SUCCESS, COLOR_TITLE, COLOR_SEPARATOR
 )
 from ..helpers import format_period_date
-from ..input_helper import get_user_input, get_numeric_input, get_validated_input
+from ..input_helper import get_user_input, get_numeric_input
 from ..logger import logger
 from .utils import clear_screen, confirm_action
+from .consumption_alarms import consumption_alarms_menu
 from .. import self_monitor
 
 def get_all_agents():
@@ -33,7 +34,7 @@ def get_all_agents():
         self_monitor_agent = {
             "name": self_monitor_config.get("name", "Self-Monitor"),
             "type": "self",
-            "triggers": self_monitor_config.get("triggers", []),
+            "threshold_gb": self_monitor_config.get("threshold_gb", "N/A"),
             "is_local": True  # Treat it as local to prevent removal/editing via old methods
         }
         return [self_monitor_agent] + list(agents)
@@ -80,7 +81,7 @@ def list_agents(agents):
         print_fast(f"{COLOR_WARNING}No agents configured.{RESET_COLOR}\n")
         return
 
-    headers = ["#", "Name", "Status", "Day Usage (GB)", "Month Usage (GB)", "Triggers", "Version", "Hostname"]
+    headers = ["#", "Name", "Status", "Day Usage (GB)", "Month Usage (GB)", "Threshold (GB)", "Version", "Hostname"]
     rows = []
     
     for i, agent in enumerate(agents):
@@ -123,16 +124,13 @@ def list_agents(agents):
             if month_usage_gb is not None:
                 month_usage_str = f"{month_usage_gb:.3f}"
 
-        trigger_count = len(agent.get("triggers", []))
-        trigger_str = f"{trigger_count} triggers" if trigger_count > 0 else "None"
-
         rows.append([
             i + 1,
             agent["name"],
             status,
             day_usage_str,
             month_usage_str,
-            trigger_str,
+            agent["threshold_gb"],
             version,
             hostname
         ])
@@ -155,27 +153,22 @@ def add_agent():
     print_fast(f"Agent URL will be: {url}")
 
     api_key = get_user_input("Enter the agent's API Key:")
+    threshold_gb = get_numeric_input("Enter the monthly traffic threshold in GB:", float)
 
     new_agent = {
         "name": name,
         "url": url,
         "api_key": api_key,
-        "triggers": []
+        "threshold_gb": threshold_gb
     }
     
     if "agents" not in config:
         config["agents"] = []
     config["agents"].append(new_agent)
-    # Move save_config to after the trigger menu
+    save_config(config)
     logger.info(f"Added new agent: {name} at {url}")
     print_fast(f"\n{COLOR_SUCCESS}✅ Agent '{name}' added successfully.{RESET_COLOR}")
-
-    if confirm_action("Do you want to add a trigger for this agent now?"):
-        manage_agent_triggers_menu(new_agent, config)
-    
-    save_config(config)
-    logger.info(f"Configuration saved for agent {name}.")
-    input("\nPress Enter to continue...")
+    input("Press Enter to continue...")
 
 def remove_agent(agents):
     """Removes an existing agent from the configuration."""
@@ -257,30 +250,21 @@ def edit_single_agent(agent_to_edit):
     new_host = get_user_input(f"Enter new host (IP/domain) [{current_host}]:", default=current_host)
     new_port = get_numeric_input(f"Enter new port [{current_port}]:", int, default=current_port)
     new_api_key = get_user_input(f"Enter new API Key [{agent.get('api_key', '')}]:", default=agent.get('api_key', ''))
+    new_threshold_gb = get_numeric_input(f"Enter new monthly threshold in GB [{agent.get('threshold_gb', 0)}]:", float, default=agent.get('threshold_gb', 0))
 
     new_url = f"http://{new_host}:{new_port}"
-
-    # Preserve existing triggers
-    existing_triggers = agent.get("triggers", [])
 
     config["agents"][agent_index_in_config] = {
         "name": new_name,
         "url": new_url,
         "api_key": new_api_key,
-        "triggers": existing_triggers
+        "threshold_gb": new_threshold_gb
     }
 
     save_config(config)
     logger.info(f"Edited agent: {new_name}")
-    print_fast(f"\n{COLOR_SUCCESS}✅ Agent '{new_name}' core details updated successfully.{RESET_COLOR}")
-
-    # After saving core details, offer to manage triggers
-    if confirm_action("Do you want to manage triggers for this agent now?"):
-        # We need to pass the updated agent object to the menu
-        updated_agent = config["agents"][agent_index_in_config]
-        manage_agent_triggers_menu(updated_agent, config)
-    else:
-        input("\nPress Enter to continue...")
+    print_fast(f"\n{COLOR_SUCCESS}✅ Agent '{new_name}' updated successfully.{RESET_COLOR}")
+    input("\nPress Enter to continue...")
 
 def view_agent_usage(agents):
     """Views detailed traffic usage for a specific agent."""
@@ -417,26 +401,21 @@ def edit_self_monitor_config():
     print_fast("Press Enter to keep the current value.")
 
     current_name = self_monitor_config.get('name', 'Self-Monitor')
+    current_threshold = self_monitor_config.get('threshold_gb', 1000)
     current_interface = self_monitor_config.get('vnstat_interface', 'eth0')
 
     new_name = get_user_input(f"Enter new name [{current_name}]:", default=current_name)
+    new_threshold_gb = get_numeric_input(f"Enter new monthly threshold in GB [{current_threshold}]:", float, default=current_threshold)
     new_interface = get_user_input(f"Enter new vnstat interface [{current_interface}]:", default=current_interface)
 
     config["self_monitor"]["name"] = new_name
+    config["self_monitor"]["threshold_gb"] = new_threshold_gb
     config["self_monitor"]["vnstat_interface"] = new_interface
 
     save_config(config)
     logger.info(f"Edited Self-Monitor configuration.")
     print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor configuration updated successfully.{RESET_COLOR}")
-
-    if confirm_action("Do you want to manage triggers for the Self-Monitor now?"):
-        # We need to get the updated self-monitor agent object to pass to the menu
-        all_agents = get_all_agents()
-        self_monitor_agent = next((agent for agent in all_agents if agent.get("type") == "self"), None)
-        if self_monitor_agent:
-            manage_agent_triggers_menu(self_monitor_agent, config)
-    else:
-        input("\nPress Enter to continue...")
+    input("\nPress Enter to continue...")
 
 def edit_monitor_menu():
     """Menu for selecting a monitor to edit."""
@@ -511,119 +490,6 @@ def toggle_self_monitor():
     
     input("\nPress Enter to continue...")
 
-def manage_agent_triggers_menu(agent, config):
-    """
-    Displays a menu to manage triggers for a specific agent.
-    The config object is passed in to avoid multiple loads/saves.
-    """
-    while True:
-        clear_screen()
-        print_fast(f"{COLOR_TITLE}--- Manage Triggers for {agent['name']} ---{RESET_COLOR}")
-
-        triggers = agent.get("triggers", [])
-        if not triggers:
-            print_fast(f"{COLOR_WARNING}No triggers configured for this agent.{RESET_COLOR}")
-        else:
-            headers = ["#", "Name", "Period", "Volume", "Type", "Action"]
-            rows = []
-            for i, trigger in enumerate(triggers):
-                rows.append([
-                    i + 1,
-                    trigger.get('name'),
-                    trigger.get('period'),
-                    f"{trigger.get('volume_gb')} GB",
-                    trigger.get('volume_type'),
-                    trigger.get('action')
-                ])
-            display_as_table(rows, headers)
-
-        print_fast(f"\n{COLOR_TITLE}--- Trigger Menu ---{RESET_COLOR}")
-        print_slow("1. Add New Trigger")
-        print_slow("2. Edit Trigger")
-        print_slow("3. Remove Trigger")
-        print_slow("0. Back to Main Menu")
-        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
-
-        choice = input("👉 Enter your choice: ").strip()
-
-        if choice == '1':
-            add_trigger(agent, config)
-        elif choice == '0':
-            break
-        else:
-            print_fast(f"{COLOR_ERROR}❌ Invalid choice or not yet implemented.{RESET_COLOR}")
-            input("\nPress Enter to continue...")
-
-
-def add_trigger(agent, config):
-    """
-    Adds a new trigger to an agent's configuration.
-    Does not save the config; expects the caller to handle it.
-    """
-    print_fast(f"\n{COLOR_TITLE}--- Add New Trigger ---{RESET_COLOR}")
-    
-    name = get_user_input("Enter a name for this trigger (e.g., 'Daily Download Limit'):")
-    
-    # --- Period Selection ---
-    print_fast("Select the trigger period:")
-    period_options = {'1': 'd', '2': 'w', '3': 'm'}
-    print_slow("1. Daily (d)")
-    print_slow("2. Weekly (w)")
-    print_slow("3. Monthly (m)")
-    period_choice = get_validated_input(
-        "Enter choice: ",
-        lambda x: x in period_options,
-        "Invalid choice. Please select a valid option."
-    )
-    period = period_options[period_choice]
-
-    # --- Volume GB ---
-    volume_gb = get_numeric_input("Enter the traffic volume in GB:", float)
-
-    # --- Volume Type ---
-    print_fast("Select the volume type to monitor:")
-    type_options = {'1': 'rx', '2': 'tx', '3': 'total'}
-    print_slow("1. RX (Download)")
-    print_slow("2. TX (Upload)")
-    print_slow("3. Total (RX + TX)")
-    type_choice = get_validated_input(
-        "Enter choice: ",
-        lambda x: x in type_options,
-        "Invalid choice. Please select a valid option."
-    )
-    volume_type = type_options[type_choice]
-
-    # --- Action ---
-    print_fast("Select the action to perform:")
-    action_options = {'1': 'alarm', '2': 'ip_rotate'}
-    print_slow("1. Send Alarm")
-    print_slow("2. Rotate IP")
-    action_choice = get_validated_input(
-        "Enter choice: ",
-        lambda x: x in action_options,
-        "Invalid choice. Please select a valid option."
-    )
-    action = action_options[action_choice]
-
-    new_trigger = {
-        "name": name,
-        "period": period,
-        "volume_gb": volume_gb,
-        "volume_type": volume_type,
-        "action": action
-    }
-
-    # The agent object is modified directly, which will be reflected in the config
-    # object that was passed by reference.
-    if "triggers" not in agent:
-        agent["triggers"] = []
-    agent["triggers"].append(new_trigger)
-            
-    logger.info(f"Staged new trigger '{name}' for agent '{agent['name']}'")
-    print_fast(f"\n{COLOR_SUCCESS}✅ Trigger '{name}' added. It will be saved with the configuration.{RESET_COLOR}")
-    input("Press Enter to continue...")
-
-
 def traffic_monitoring_menu():
     """Main menu for traffic monitoring."""
     while True:
@@ -647,6 +513,7 @@ def traffic_monitoring_menu():
         print_slow("3. Remove Agent")
         print_slow("4. Edit Monitor")
         print_slow("5. View Monitor Usage Details")
+        print_slow("6. Manage Consumption Alarms")
         print_slow("0. Back to Main Menu")
         print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
@@ -662,6 +529,8 @@ def traffic_monitoring_menu():
             edit_monitor_menu()
         elif choice == '5':
             view_agent_usage(all_agents)
+        elif choice == '6':
+            consumption_alarms_menu()
         elif choice == '0':
             break
         else:

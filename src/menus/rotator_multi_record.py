@@ -15,7 +15,7 @@ from ..input_helper import get_validated_input, get_ip_list, get_rotation_interv
 from ..logger import logger
 from ..display import *
 from cloudflare import APIError
-from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
+from .utils import clear_screen, select_from_list, confirm_action, view_live_logs, get_schedule_config
 
 def add_global_rotation_menu():
     """
@@ -85,8 +85,11 @@ def add_global_rotation_menu():
             input("\nPress Enter to return...")
             return
             
-        rotation_interval = get_rotation_interval()
-        
+        schedule = get_schedule_config()
+        if not schedule:
+            print_fast(f"{COLOR_WARNING}Rotation schedule setup cancelled. Configuration not added.{RESET_COLOR}")
+            return
+            
         config_name = get_validated_input("Enter a name for this configuration: ", lambda s: s.strip(), "Configuration name cannot be empty.")
 
         state = load_state()
@@ -99,7 +102,7 @@ def add_global_rotation_menu():
             "zone_name": zone_name,
             "records": record_names,
             "ip_pool": ip_pool,
-            "rotation_interval_minutes": rotation_interval,
+            "schedule": schedule,
             "rotation_index": 0,
             "last_rotated_at": 0
         }
@@ -123,15 +126,33 @@ def list_global_rotations():
         print_fast("No global rotations configured.")
         return
 
+    config_data = load_config()
+    triggers = config_data.get("triggers", [])
+    
+    def get_trigger_name(trigger_id):
+        for t in triggers:
+            if t["id"] == trigger_id:
+                return t["name"]
+        return "Unknown Trigger"
+
     rotations_data = []
     for name, config in state["global_rotations"].items():
+        schedule_info = "Not Set"
+        schedule = config.get("schedule")
+        if schedule:
+            if schedule.get("type") == "time":
+                schedule_info = f"Time: {schedule.get('interval_minutes', 'N/A')} min"
+            elif schedule.get("type") == "trigger":
+                trigger_name = get_trigger_name(schedule.get("trigger_id"))
+                schedule_info = f"Trigger: {trigger_name}"
+
         rotations_data.append({
             "Name": name,
             "Account": config["account_name"],
             "Zone": config["zone_name"],
             "Records": summarize_list(config["records"]),
             "IP Pool": summarize_list(config["ip_pool"]),
-            "Interval (min)": config["rotation_interval_minutes"]
+            "Schedule": schedule_info
         })
     
     headers = {
@@ -140,7 +161,7 @@ def list_global_rotations():
         "Zone": "Zone",
         "Records": "Records",
         "IP Pool": "IP Pool",
-        "Interval (min)": "Interval (min)"
+        "Schedule": "Schedule"
     }
     display_as_table(rotations_data, headers)
 

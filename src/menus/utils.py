@@ -2,6 +2,32 @@ import os
 import time
 from ..logger import logger, LOGS_DIR
 from ..display import *
+from ..input_helper import get_user_input, get_rotation_interval
+
+def get_schedule_config():
+    """
+    Asks the user to configure a rotation schedule (time-based or trigger-based).
+    Returns a schedule dictionary or None if cancelled.
+    """
+    print_fast("\n--- Configure Rotation Schedule ---")
+    print_slow("1. Time-based (e.g., every 30 minutes)")
+    print_slow("2. Trigger-based (e.g., when traffic exceeds a limit)")
+    print_slow("0. Cancel")
+    
+    choice = get_user_input("Enter your choice: ")
+
+    if choice == '1':
+        interval = get_rotation_interval()
+        return {"type": "time", "interval_minutes": interval}
+    elif choice == '2':
+        from ..triggers import select_trigger
+        trigger_id = select_trigger()
+        if trigger_id:
+            return {"type": "trigger", "trigger_id": trigger_id}
+        else:
+            return None # User cancelled trigger selection
+    else:
+        return None
 
 def clear_screen():
     """Clears the terminal screen."""

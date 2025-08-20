@@ -14,23 +14,39 @@ from ..input_helper import get_validated_input, get_rotation_interval
 from ..logger import logger
 from ..display import *
 from cloudflare import APIError
-from .utils import clear_screen, select_from_list, confirm_action, view_live_logs
+from .utils import clear_screen, select_from_list, confirm_action, view_live_logs, get_schedule_config
 
 def list_rotation_groups():
     """
     Lists all configured rotation groups in a table.
     """
     data = load_config()
+    triggers = data.get("triggers", [])
+    def get_trigger_name(trigger_id):
+        for t in triggers:
+            if t["id"] == trigger_id:
+                return t["name"]
+        return "Unknown Trigger"
+
     groups_data = []
     for acc in data.get("accounts", []):
         for zone in acc.get("zones", []):
             for group in zone.get("rotation_groups", []):
+                schedule_info = "Not Set"
+                schedule = group.get("schedule")
+                if schedule:
+                    if schedule.get("type") == "time":
+                        schedule_info = f"Time: {schedule.get('interval_minutes', 'N/A')} min"
+                    elif schedule.get("type") == "trigger":
+                        trigger_name = get_trigger_name(schedule.get("trigger_id"))
+                        schedule_info = f"Trigger: {trigger_name}"
+
                 groups_data.append({
                     "Account": acc["name"],
                     "Zone": zone["domain"],
                     "Group Name": group["name"],
                     "Records": summarize_list(group["records"]),
-                    "Interval (min)": group.get("rotation_interval_minutes", "Default")
+                    "Schedule": schedule_info
                 })
     
     if not groups_data:
@@ -42,7 +58,7 @@ def list_rotation_groups():
         "Zone": "Zone",
         "Group Name": "Group Name",
         "Records": "Records",
-        "Interval (min)": "Interval (min)"
+        "Schedule": "Schedule"
     }
     display_as_table(groups_data, headers)
 
@@ -113,9 +129,13 @@ def add_rotation_group_menu():
 
         record_names = [r.name for r in selected_records]
         group_name = get_validated_input("Enter a name for this rotation group: ", lambda s: s.strip(), "Group name cannot be empty.")
-        rotation_interval = get_rotation_interval()
+        
+        schedule = get_schedule_config()
+        if not schedule:
+            print_fast(f"{COLOR_WARNING}Rotation schedule setup cancelled. Group not added.{RESET_COLOR}")
+            return
 
-        add_rotation_group(acc['name'], zone_domain, group_name, record_names, rotation_interval)
+        add_rotation_group(acc['name'], zone_domain, group_name, record_names, schedule)
 
     except APIError as e:
         logger.error(f"Cloudflare API Error: {e}")
