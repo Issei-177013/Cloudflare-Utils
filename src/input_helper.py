@@ -95,14 +95,18 @@ def get_zone_type():
             logger.warning(f"Invalid zone type entered: {zone_type}")
             print(f"❌ {error_message}")
 
-def get_user_input(prompt):
+def get_user_input(prompt, default=None):
     """
-    Prompts the user for input and ensures it is not empty.
+    Prompts the user for input. If a default is provided, it returns the default
+    when the user enters empty input. Otherwise, it ensures the input is not empty.
     """
     while True:
         user_input = input(prompt).strip()
         if user_input:
             return user_input
+        if default is not None:
+            return default
+        
         print("❌ Input cannot be empty.")
 
 def get_numeric_input(prompt, num_type, default=None, min_val=None, max_val=None):

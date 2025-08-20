@@ -274,8 +274,22 @@ def view_agent_usage(agents):
 
     clear_screen()
     print_fast(f"{COLOR_TITLE}--- Select Agent to View Usage ---{RESET_COLOR}")
-    headers = ["#", "Name", "URL"]
-    rows = [[i + 1, agent["name"], agent["url"]] for i, agent in enumerate(agents)]
+    
+    headers = ["#", "Name", "Endpoint/Interface"]
+    rows = []
+    config = None 
+
+    for i, agent in enumerate(agents):
+        endpoint = ""
+        if agent.get("type") == "self":
+            if not config:
+                config = load_config()
+            endpoint = config.get("self_monitor", {}).get("vnstat_interface", "N/A")
+        else:
+            endpoint = agent.get("url", "N/A")
+        
+        rows.append([i + 1, agent["name"], endpoint])
+
     display_as_table(rows, headers)
     
     agent_choice = get_numeric_input("\nEnter the # of the agent to view (or 0 to cancel):", int, min_val=0, max_val=len(agents))
