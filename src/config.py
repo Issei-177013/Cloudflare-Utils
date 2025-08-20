@@ -10,8 +10,8 @@ The module also defines constants for configuration paths and default values.
 """
 import json
 import os
-from validator import validate_config
-from logger import logger
+from .validator import validate_config
+from .logger import logger
 
 # Determine the absolute path to the directory where this script is located.
 # This ensures that config files are found relative to the script's location,

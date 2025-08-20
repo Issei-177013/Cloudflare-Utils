@@ -278,7 +278,7 @@ def edit_single_agent(agent_to_edit):
     if confirm_action("Do you want to manage triggers for this agent now?"):
         # We need to pass the updated agent object to the menu
         updated_agent = config["agents"][agent_index_in_config]
-        manage_agent_triggers_menu(updated_agent)
+        manage_agent_triggers_menu(updated_agent, config)
     else:
         input("\nPress Enter to continue...")
 
@@ -434,7 +434,7 @@ def edit_self_monitor_config():
         all_agents = get_all_agents()
         self_monitor_agent = next((agent for agent in all_agents if agent.get("type") == "self"), None)
         if self_monitor_agent:
-            manage_agent_triggers_menu(self_monitor_agent)
+            manage_agent_triggers_menu(self_monitor_agent, config)
     else:
         input("\nPress Enter to continue...")
 

@@ -2,7 +2,7 @@ import os
 import sys
 import time
 from tabulate import tabulate
-from config import load_config
+from .config import load_config
 
 # --- UI Configuration ---
 def get_config_setting(key, default):
@@ -97,7 +97,7 @@ def summarize_list(items, max_items=2):
         return f"{items[0]}, ..., {items[-1]}"
     return ", ".join(items)
 
-from config import REQUIRED_PERMISSIONS
+from .config import REQUIRED_PERMISSIONS
 
 def display_as_table(data, headers):
     """

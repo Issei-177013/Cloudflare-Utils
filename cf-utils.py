@@ -45,6 +45,11 @@ if __name__ == "__main__":
     # Ensure root privileges before importing and running the main application.
     ensure_root()
     
+    # Get the absolute path of the script's directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Add the script's directory to the Python path
+    sys.path.insert(0, script_dir)
+
     # Import the necessary components
     from src.app import main
     from src.background_service import run_background_service
