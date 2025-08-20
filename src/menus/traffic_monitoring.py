@@ -472,10 +472,18 @@ def toggle_self_monitor():
             print_fast("Operation cancelled.")
     else:
         if confirm_action("The Self-Monitor is currently disabled. Do you want to enable it?"):
+            current_interface = self_monitor_config.get('vnstat_interface', 'eth0')
+            new_interface = get_user_input(f"Enter vnstat interface to monitor [{current_interface}]:", default=current_interface)
+            
+            # Ensure the self_monitor section exists
+            if "self_monitor" not in config:
+                config["self_monitor"] = {}
+
+            config["self_monitor"]["vnstat_interface"] = new_interface
             config["self_monitor"]["enabled"] = True
             save_config(config)
-            logger.info("Self-Monitor enabled.")
-            print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor has been enabled.{RESET_COLOR}")
+            logger.info(f"Self-Monitor enabled on interface {new_interface}.")
+            print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor has been enabled on interface '{new_interface}'.{RESET_COLOR}")
         else:
             print_fast("Operation cancelled.")
     
