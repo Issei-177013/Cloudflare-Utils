@@ -220,12 +220,61 @@ setup_repo_files() {
 # TODO: Add generic functions for use by both the agent and main script. (download, backup, rollback, setup venv)
 
 # --- Cloudflare-Utils Functions ---
+update_cfutils_from_local() {
+    log_info "--- Starting Cloudflare-Utils Update from Local Path ---"
+
+    if [ ! -d "$LOCAL_DEV_PATH" ]; then
+        die "Local development path not found: $LOCAL_DEV_PATH"
+    fi
+
+    log_info "Backing up configuration files..."
+    mkdir -p /tmp/cfutils_backup
+    if [ -f "$CFUTILS_DIR/src/configs.json" ]; then
+        cp "$CFUTILS_DIR/src/configs.json" "/tmp/cfutils_backup/configs.json"
+        log_info "Backed up configs.json."
+    fi
+    if [ -f "$CFUTILS_DIR/src/rotation_status.json" ]; then
+        cp "$CFUTILS_DIR/src/rotation_status.json" "/tmp/cfutils_backup/rotation_status.json"
+        log_info "Backed up rotation_status.json."
+    fi
+
+    log_info "Copying application files from '$LOCAL_DEV_PATH'..."
+    cp -a "$LOCAL_DEV_PATH/." "$CFUTILS_DIR/" || die "Failed to copy from local path."
+
+    log_info "Restoring configuration files..."
+    if [ -f "/tmp/cfutils_backup/configs.json" ]; then
+        mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/src/configs.json"
+        log_info "Restored configs.json."
+    fi
+    if [ -f "/tmp/cfutils_backup/rotation_status.json" ]; then
+        mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/src/rotation_status.json"
+        log_info "Restored rotation_status.json."
+    fi
+    rm -rf /tmp/cfutils_backup
+
+    log_info "Updating Python dependencies..."
+    setup_cfutils_venv
+
+    log_info "Re-linking global command..."
+    ln -sf "$CFUTILS_DIR/cf-utils.py" "/usr/local/bin/cfu"
+    chmod +x "$CFUTILS_DIR/cf-utils.py"
+
+    log_info "Verifying update..."
+    if ! run_verification_checks_cfutils; then
+        log_error "Update verification failed. The installation might be in an inconsistent state."
+        die "Update from local path failed during verification."
+    fi
+
+    VERSION_TAG="local"
+    log_success "Cloudflare-Utils updated successfully from local path (Version: $VERSION_TAG)."
+}
+
 update_cfutils() {
     log_info "--- Starting Cloudflare-Utils Update ---"
 
     if [ -n "$LOCAL_DEV_PATH" ]; then
-        log_info "Updating from local path by re-installing..."
-        install_cfutils
+        log_info "Updating from local path..."
+        update_cfutils_from_local
         log_success "Update from local path completed."
         return
     fi
