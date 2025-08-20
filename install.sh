@@ -27,18 +27,39 @@ log_warning() { echo -e "${C_YELLOW}⚠️ WARNING: ${1}${C_RESET}"; }
 log_error() { echo -e "${C_RED}❌ ERROR: ${1}${C_RESET}"; }
 die() { log_error "$1"; exit 1; }
 
-# --- Configuration ---
+# --- Configuration & Argument Defaults ---
 CFUTILS_PROGRAM_NAME="Cloudflare-Utils"
 AGENT_PROGRAM_NAME="Cloudflare-Utils-Agent"
-DEFAULT_BRANCH="main"
-# Allow branch to be specified as an argument, e.g., ./install.sh dev
-BRANCH="${1:-$DEFAULT_BRANCH}"
 CFUTILS_DIR="/opt/$CFUTILS_PROGRAM_NAME"
 AGENT_DIR="/opt/$AGENT_PROGRAM_NAME"
 REPO_URL="https://github.com/Issei-177013/Cloudflare-Utils.git"
 VERSION_TAG=""
 
+# Flags & Defaults
+INTERACTIVE_MODE=true
+BRANCH="main"
+LOCAL_DEV_PATH=""
+UNINSTALL_MODE=false
+AGENT_MODE=false
+IP_WHITELIST=""
+IFACE=""
+
 # --- Helper Functions ---
+usage() {
+    echo "Usage: $0 [options]"
+    echo "  Run without options for interactive mode."
+    echo ""
+    echo "Options:"
+    echo "  -b <branch>              Specify the branch to install from (default: main)."
+    echo "  -p <path>                Use a local development path."
+    echo "  -u                       Uninstall the application."
+    echo "  --agent                  Install or uninstall the agent instead of the main utility."
+    echo "  --ip-whitelist <ips>     Comma-separated IPs to whitelist for the agent."
+    echo "  --iface <interface>      Network interface for the agent to monitor."
+    echo "  -h, --help               Display this help and exit."
+    exit 0
+}
+
 ensure_root() {
     if [ "$EUID" -ne 0 ]; then
         die "This script must be run as root. Please use 'sudo'."
@@ -71,35 +92,6 @@ check_command() {
     fi
 }
 
-select_branch() {
-    log_info "Please select the branch for installation/update."
-    PS3="$(echo -e "${C_YELLOW}Choose a branch: ${C_RESET}")"
-    local options=("main" "dev" "Custom")
-    select opt in "${options[@]}"; do
-        case $opt in
-            "main")
-                BRANCH="main"
-                break
-                ;;
-            "dev")
-                BRANCH="dev"
-                break
-                ;;
-            "Custom")
-                read -rp "Enter the custom branch name: " custom_branch
-                if [ -z "$custom_branch" ]; then
-                    log_warning "Branch name cannot be empty. Please try again."
-                else
-                    BRANCH="$custom_branch"
-                    break
-                fi
-                ;;
-            *) log_warning "Invalid option '$REPLY'";;
-        esac
-    done
-    log_success "Selected branch: $BRANCH"
-}
-
 # --- Pre-flight Checks ---
 pre_flight_checks() {
     log_info "Running pre-flight checks..."
@@ -127,14 +119,27 @@ pre_flight_checks() {
 }
 
 # --- Repository Functions ---
-verify_branch_and_agent_dir() {
-    log_info "Verifying branch '$BRANCH' and presence of 'src/agent' directory..."
-
-    # Check if branch exists on the remote repository
+verify_branch_exists() {
+    log_info "Verifying branch '$BRANCH' exists on remote..."
     if ! git ls-remote --exit-code --heads "$REPO_URL" "$BRANCH" &>/dev/null; then
         die "Branch '$BRANCH' does not exist on the remote repository."
     fi
-    log_info "Branch '$BRANCH' found on remote."
+    log_success "Branch '$BRANCH' found on remote."
+}
+
+verify_branch_and_agent_dir() {
+    if [ -n "$LOCAL_DEV_PATH" ]; then
+        log_info "Verifying 'src/agent' directory in local path..."
+        if [ ! -d "$LOCAL_DEV_PATH/src/agent" ]; then
+            die "Agent source directory 'src/agent' not found in '$LOCAL_DEV_PATH'."
+        fi
+        log_success "'src/agent' directory found in local path."
+        return
+    fi
+
+    log_info "Verifying branch '$BRANCH' and presence of 'src/agent' directory..."
+
+    verify_branch_exists
 
     # Use GitHub API to check for the 'src/agent' directory. This is a non-critical check.
     # It provides an early failure warning but falls back to local check if the API fails.
@@ -158,6 +163,13 @@ verify_branch_and_agent_dir() {
 }
 
 download_agent_files() {
+    if [ -n "$LOCAL_DEV_PATH" ]; then
+        log_info "Copying agent files from '$LOCAL_DEV_PATH/src/agent'..."
+        cp -a "$LOCAL_DEV_PATH/src/agent/." "$AGENT_DIR/" || die "Failed to copy agent files from local path."
+        log_success "Agent files copied successfully from local path."
+        return
+    fi
+
     log_info "Downloading agent files from branch '$BRANCH'..."
     local github_repo_path
     github_repo_path=$(echo "$REPO_URL" | sed -n 's|https://github.com/||p' | sed 's/\.git$//')
@@ -181,15 +193,28 @@ download_agent_files() {
     log_success "All agent files downloaded successfully."
 }
 
-clone_repo() {
-    log_info "Cloning new repository from branch '$BRANCH'..."
-    rm -rf "$CFUTILS_DIR" # Ensure directory is empty before cloning
-    git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository."
+setup_repo_files() {
+    if [ -n "$LOCAL_DEV_PATH" ]; then
+        log_info "Setting up from local path: $LOCAL_DEV_PATH..."
+        if [ ! -d "$LOCAL_DEV_PATH" ]; then
+            die "Local development path not found: $LOCAL_DEV_PATH"
+        fi
+        rm -rf "$CFUTILS_DIR"
+        mkdir -p "$CFUTILS_DIR"
+        cp -a "$LOCAL_DEV_PATH/." "$CFUTILS_DIR/" || die "Failed to copy from local path."
+        VERSION_TAG="local"
+        log_success "Repository files copied from local path."
+    else
+        verify_branch_exists
+        log_info "Cloning new repository from branch '$BRANCH'..."
+        rm -rf "$CFUTILS_DIR" # Ensure directory is empty before cloning
+        git clone --branch "$BRANCH" "$REPO_URL" "$CFUTILS_DIR" || die "Failed to clone repository."
 
-    cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR' after clone."
-    VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
-    cd - > /dev/null
-    log_success "Repository is ready (Version: $VERSION_TAG)."
+        cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR' after clone."
+        VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
+        cd - > /dev/null
+        log_success "Repository is ready (Version: $VERSION_TAG)."
+    fi
 }
 
 # TODO: Add generic functions for use by both the agent and main script. (download, backup, rollback, setup venv)
@@ -197,11 +222,15 @@ clone_repo() {
 # --- Cloudflare-Utils Functions ---
 update_cfutils() {
     log_info "--- Starting Cloudflare-Utils Update ---"
-    if [ ! -d "$CFUTILS_DIR" ]; then
-        log_warning "Cloudflare-Utils is not installed. Running installer instead..."
+
+    if [ -n "$LOCAL_DEV_PATH" ]; then
+        log_info "Updating from local path by re-installing..."
         install_cfutils
+        log_success "Update from local path completed."
         return
     fi
+
+    verify_branch_exists
 
     cd "$CFUTILS_DIR" || die "Could not navigate to '$CFUTILS_DIR'"
     local old_commit_hash
@@ -333,7 +362,7 @@ EOF
 
 install_cfutils() {
     log_info "--- Starting Cloudflare-Utils Installation ---"
-    clone_repo
+    setup_repo_files
     setup_cfutils_venv
 
     log_info "Creating required directories and files..."
@@ -359,13 +388,6 @@ install_cfutils() {
 
 remove_cfutils() {
     log_info "--- Starting Cloudflare-Utils Removal ---"
-    local answer
-    read -rp "$(echo -e "${C_YELLOW}Are you sure you want to remove the Cloudflare-Utils? [y/N]: ${C_RESET}")" answer
-    if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
-        log_info "Removal cancelled."
-        return
-    fi
-
     if [ ! -d "$CFUTILS_DIR" ]; then
         log_warning "Cloudflare-Utils directory not found. Nothing to remove."
     else
@@ -407,12 +429,6 @@ setup_agent_venv() {
 
 update_agent() {
     log_info "--- Starting Monitoring Agent Update ---"
-    if [ ! -d "$AGENT_DIR" ]; then
-        log_warning "Agent is not installed. Running installer instead..."
-        install_agent
-        return
-    fi
-
     log_info "Stopping agent service to begin update..."
     systemctl stop cloudflare-utils-agent.service
 
@@ -474,6 +490,9 @@ update_agent() {
 }
 
 install_agent() {
+    local p_iface="$1"
+    local p_whitelist_csv="$2"
+
     log_info "--- Starting Monitoring Agent Installation ---"
     verify_branch_and_agent_dir
 
@@ -481,24 +500,20 @@ install_agent() {
     mkdir -p "$AGENT_DIR"
     
     download_agent_files
-
     setup_agent_venv
 
-    # TODO: Use generate_api_key func for key creation.
     echo -e "\n${C_CYAN}--- Agent Configuration ---${C_RESET}"
     local api_key
     api_key=$(openssl rand -base64 32)
     
-    local whitelist_input
-    read -rp "Enter comma-separated IPs to whitelist (e.g., 1.1.1.1,8.8.8.8) [optional, press Enter to skip]: " whitelist_input
+    # Process whitelist from parameter
     local whitelist_json=""
-    if [ -n "$whitelist_input" ]; then
+    if [ -n "$p_whitelist_csv" ]; then
         local processed_ips=()
         local ips
-        IFS=',' read -ra ips <<< "$whitelist_input"
+        IFS=',' read -ra ips <<< "$p_whitelist_csv"
         for ip in "${ips[@]}"; do
-            # Trim whitespace
-            ip=$(echo "$ip" | sed 's/ //g')
+            ip=$(echo "$ip" | sed 's/ //g') # Trim whitespace
             if [ -n "$ip" ]; then
                 processed_ips+=("\"$ip\"")
             fi
@@ -508,36 +523,13 @@ install_agent() {
         log_warning "Whitelist is empty. The agent will accept connections from any IP."
     fi
 
-    local interfaces=()
-    for iface_path in /sys/class/net/*; do
-        if [ -d "$iface_path" ]; then
-            local iface_name
-            iface_name=$(basename "$iface_path")
-            if [ "$iface_name" != "lo" ]; then
-                interfaces+=("$iface_name")
-            fi
-        fi
-    done
-    local iface
-    PS3="$(echo -e "${C_YELLOW}Please select the network interface to monitor: ${C_RESET}")"
-    select iface in "${interfaces[@]}"; do
-        if [[ -n "$iface" ]]; then
-            break
-        else
-            log_warning "Invalid selection. Please try again."
-        fi
-    done
-    log_info "Selected interface: $iface"
-    log_info "Validating interface '$iface' with vnstat..."
-    if ! vnstat --json d 1 -i "$iface" | jq -e '.interfaces[0].traffic.day[0]' > /dev/null 2>&1; then
-        log_warning "vnstat does not appear to have any data for '$iface'."
-        local answer
-        read -rp "$(echo -e "${C_YELLOW}Continue anyway? [y/N]: ${C_RESET}")" answer
-        if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
-            die "Installation cancelled by user."
-        fi
+    # Use interface from parameter
+    log_info "Validating interface '$p_iface' with vnstat..."
+    if ! vnstat --json d 1 -i "$p_iface" | jq -e '.interfaces[0].traffic.day[0]' > /dev/null 2>&1; then
+        log_warning "vnstat does not appear to have any data for '$p_iface'."
+        # In non-interactive mode, we proceed. In interactive mode, the prompt is handled by the caller.
     else
-        log_success "vnstat validation passed for interface '$iface'."
+        log_success "vnstat validation passed for interface '$p_iface'."
     fi
 
     log_info "Creating Agent log directory..."
@@ -549,7 +541,7 @@ install_agent() {
 {
   "api_key": "$api_key",
   "whitelist": [$whitelist_json],
-  "vnstat_interface": "$iface"
+  "vnstat_interface": "$p_iface"
 }
 EOF
     chmod 600 "$AGENT_DIR/config.json"
@@ -570,7 +562,6 @@ EOF
     if ! systemctl is-active --quiet cloudflare-utils-agent.service; then
         log_error "Agent service failed to start. Please check the logs for errors."
         local log_file="$AGENT_DIR/logs/startup.log"
-        # The directory is already created, so no need for mkdir -p here.
         journalctl -u cloudflare-utils-agent.service --no-pager > "$log_file"
         log_error "Logs saved to $log_file"
         log_error "You can also run: journalctl -u cloudflare-utils-agent.service"
@@ -589,13 +580,6 @@ EOF
 
 remove_agent() {
     log_info "--- Starting Monitoring Agent Removal ---"
-    local answer
-    read -rp "$(echo -e "${C_YELLOW}Are you sure you want to remove the Agent? [y/N]: ${C_RESET}")" answer
-    if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
-        log_info "Removal cancelled."
-        return
-    fi
-    
     log_info "Removing global 'cfu-agent' command..."
     rm -f "/usr/local/bin/cfu-agent"
 
@@ -845,46 +829,121 @@ verify_agent_installation() {
     fi
 }
 
-# --- Main Menu ---
-main_menu() {
+# --- Main Execution Logic ---
+run_non_interactive_mode() {
+    log_info "Running in non-interactive mode..."
+
+    if $AGENT_MODE; then
+        if $UNINSTALL_MODE; then
+            log_info "Action: Uninstall Agent"
+            remove_agent
+        else
+            log_info "Action: Install/Update Agent"
+            if [ -d "$AGENT_DIR" ]; then
+                update_agent
+            else
+                install_agent "$IFACE" "$IP_WHITELIST"
+            fi
+        fi
+    else
+        if $UNINSTALL_MODE; then
+            log_info "Action: Uninstall Cloudflare-Utils"
+            remove_cfutils
+        else
+            log_info "Action: Install/Update Cloudflare-Utils"
+            if [ -d "$CFUTILS_DIR" ]; then
+                update_cfutils
+            else
+                install_cfutils
+            fi
+        fi
+    fi
+}
+
+run_interactive_mode() {
+    # Enforce default branch and path for interactive mode, as they are non-interactive flags
+    BRANCH="main"
+    LOCAL_DEV_PATH=""
+
     if [ -t 1 ]; then clear; fi
     echo -e "${C_MAGENTA}--- Cloudflare-Utils Installer ---${C_RESET}"
+    log_info "Branch selection and local install are only supported in non-interactive mode (using -b or -p flags)."
+    log_info "This interactive installer will use the default 'main' branch."
+    
     PS3="$(echo -e "${C_YELLOW}\nPlease choose an option: ${C_RESET}")"
     options=(
         "Install/Update Cloudflare-Utils"
         "Install/Update Agent"
-        "Remove Cloudflare-Utils"
-        "Remove Agent"
+        "Uninstall Cloudflare-Utils"
+        "Uninstall Agent"
         "Exit"
     )
     select opt in "${options[@]}"; do
         case $opt in
             "Install/Update Cloudflare-Utils")
-                select_branch
-                if [ -d "$CFUTILS_DIR" ]; then
-                    update_cfutils
-                else
-                    install_cfutils
-                    verify_cfutils_installation
-                fi
+                if [ -d "$CFUTILS_DIR" ]; then update_cfutils; else install_cfutils; fi
                 break
                 ;;
             "Install/Update Agent")
-                select_branch
                 if [ -d "$AGENT_DIR" ]; then
                     update_agent
                 else
-                    install_agent
-                    verify_agent_installation
+                    # --- Interactive Agent Setup ---
+                    local whitelist_input
+                    read -rp "Enter comma-separated IPs to whitelist (e.g., 1.1.1.1,8.8.8.8) [optional, press Enter to skip]: " whitelist_input
+
+                    local interfaces=()
+                    for iface_path in /sys/class/net/*; do
+                        if [ -d "$iface_path" ]; then
+                            local iface_name
+                            iface_name=$(basename "$iface_path")
+                            if [ "$iface_name" != "lo" ]; then
+                                interfaces+=("$iface_name")
+                            fi
+                        fi
+                    done
+                    
+                    if [ ${#interfaces[@]} -eq 0 ]; then
+                        die "No network interfaces found (excluding 'lo')."
+                    fi
+                    
+                    local iface
+                    PS3="$(echo -e "${C_YELLOW}Please select the network interface to monitor: ${C_RESET}")"
+                    select iface in "${interfaces[@]}"; do
+                        if [[ -n "$iface" ]]; then break; else log_warning "Invalid selection."; fi
+                    done
+                    
+                    if ! vnstat --json d 1 -i "$iface" | jq -e '.interfaces[0].traffic.day[0]' > /dev/null 2>&1; then
+                        log_warning "vnstat does not appear to have any data for '$iface'."
+                        local answer
+                        read -rp "$(echo -e "${C_YELLOW}Continue anyway? [y/N]: ${C_RESET}")" answer
+                        if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
+                            die "Installation cancelled by user."
+                        fi
+                    fi
+                    # --- End of Interactive Agent Setup ---
+                    install_agent "$iface" "$whitelist_input"
                 fi
                 break
                 ;;
-            "Remove Cloudflare-Utils")
-                remove_cfutils
+            "Uninstall Cloudflare-Utils")
+                local answer
+                read -rp "$(echo -e "${C_YELLOW}Are you sure you want to remove Cloudflare-Utils? [y/N]: ${C_RESET}")" answer
+                if [[ "$answer" == "y" || "$answer" == "Y" ]]; then
+                    remove_cfutils
+                else
+                    log_info "Removal cancelled."
+                fi
                 break
                 ;;
-            "Remove Agent")
-                remove_agent
+            "Uninstall Agent")
+                local answer
+                read -rp "$(echo -e "${C_YELLOW}Are you sure you want to remove the Agent? [y/N]: ${C_RESET}")" answer
+                if [[ "$answer" == "y" || "$answer" == "Y" ]]; then
+                    remove_agent
+                else
+                    log_info "Removal cancelled."
+                fi
                 break
                 ;;
             "Exit")
@@ -895,6 +954,71 @@ main_menu() {
     done
 }
 
+# --- Argument Parser ---
+parse_args() {
+    if [ "$#" -gt 0 ]; then
+        INTERACTIVE_MODE=false
+    fi
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -b)
+                if [ -z "$2" ]; then die "'-b' requires an argument."; fi
+                BRANCH="$2"
+                shift 2
+                ;;
+            -p)
+                if [ -z "$2" ]; then die "'-p' requires an argument."; fi
+                LOCAL_DEV_PATH="$2"
+                shift 2
+                ;;
+            -u)
+                UNINSTALL_MODE=true
+                shift
+                ;;
+            --agent)
+                AGENT_MODE=true
+                shift
+                ;;
+            --ip-whitelist)
+                if [ -z "$2" ]; then die "'--ip-whitelist' requires an argument."; fi
+                IP_WHITELIST="$2"
+                shift 2
+                ;;
+            --iface)
+                if [ -z "$2" ]; then die "'--iface' requires an argument."; fi
+                IFACE="$2"
+                shift 2
+                ;;
+            -h|--help)
+                usage
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                usage
+                ;;
+        esac
+    done
+
+    # Validation for non-interactive mode
+    if ! $INTERACTIVE_MODE; then
+        if [ -n "$LOCAL_DEV_PATH" ] && [ "$BRANCH" != "main" ]; then
+            log_warning "Both -p (local path) and -b (branch) were specified. Using local path."
+        fi
+        if $AGENT_MODE && ! $UNINSTALL_MODE; then
+            if [ -z "$IFACE" ]; then
+                die "Agent installation in non-interactive mode requires the --iface flag."
+            fi
+        fi
+    fi
+}
+
 # --- Main Execution ---
 pre_flight_checks
-main_menu
+parse_args "$@"
+
+if $INTERACTIVE_MODE; then
+    run_interactive_mode
+else
+    run_non_interactive_mode
+fi
