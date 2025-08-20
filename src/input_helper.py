@@ -1,5 +1,5 @@
-from .validator import is_valid_ipv4, is_valid_ipv6
-from .logger import logger
+from validator import is_valid_ipv4, is_valid_ipv6
+from logger import logger
 
 def get_validated_input(prompt, validation_func, error_message, allow_empty=False):
     """

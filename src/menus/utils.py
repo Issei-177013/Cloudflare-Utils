@@ -1,7 +1,7 @@
 import os
 import time
-from ..logger import logger, LOGS_DIR
-from ..display import *
+from logger import logger, LOGS_DIR
+from display import *
 
 def clear_screen():
     """Clears the terminal screen."""

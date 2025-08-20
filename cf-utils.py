@@ -44,6 +44,15 @@ def ensure_root():
 if __name__ == "__main__":
     # Ensure root privileges before importing and running the main application.
     ensure_root()
-    # Import the main application logic only after root access is confirmed.
+    
+    # Import the necessary components
     from src.app import main
+    from src.background_service import run_background_service
+    import threading
+
+    # Start the background service in a daemon thread
+    service_thread = threading.Thread(target=run_background_service, daemon=True)
+    service_thread.start()
+
+    # Run the main application logic
     main()

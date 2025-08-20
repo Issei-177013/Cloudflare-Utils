@@ -1,6 +1,6 @@
 import json
 import os
-from .logger import logger
+from logger import logger
 
 STATE_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.cfutils-state.json'))
 
