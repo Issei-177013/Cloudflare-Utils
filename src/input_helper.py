@@ -1,13 +1,22 @@
 from .validator import is_valid_ipv4, is_valid_ipv6
 from .logger import logger
 
+def _get_sanitized_input(prompt):
+    """
+    Gets sanitized user input from the console.
+    Strips leading/trailing whitespace.
+    """
+    user_input = input(prompt)
+    # Sanitize the input to remove any invalid characters that might cause encoding errors
+    return user_input.encode('utf-8', 'ignore').decode('utf-8').strip()
+
 def get_validated_input(prompt, validation_func, error_message, allow_empty=False):
     """
     Prompts the user for input and validates it using the provided validation function.
     If validation fails, it prints the error message and retries.
     """
     while True:
-        user_input = input(prompt).strip()
+        user_input = _get_sanitized_input(prompt)
         if allow_empty and user_input == "":
             return user_input
             
@@ -25,7 +34,7 @@ def get_ip_list(record_type):
     error_message = "Invalid IP address found in the list."
     
     while True:
-        ip_list_str = input(prompt).strip()
+        ip_list_str = _get_sanitized_input(prompt)
         ips = [ip.strip() for ip in ip_list_str.split(',')]
         
         is_valid = True
@@ -49,7 +58,7 @@ def get_record_type():
     error_message = "Invalid record type. Please enter 'A' or 'AAAA'."
     
     while True:
-        rec_type = input(prompt).strip().upper()
+        rec_type = _get_sanitized_input(prompt).upper()
         if rec_type in ['A', 'AAAA']:
             return rec_type
         else:
@@ -65,7 +74,7 @@ def get_rotation_interval(optional=False):
         prompt = "Enter new interval (minutes, min 5) or press Enter to keep current: "
         
     while True:
-        interval_str = input(prompt).strip()
+        interval_str = _get_sanitized_input(prompt)
         if not interval_str:
             return 30 if not optional else None
             
@@ -88,7 +97,7 @@ def get_zone_type():
     error_message = "Invalid zone type. Please enter 'full' or 'partial'."
     
     while True:
-        zone_type = input(prompt).strip().lower()
+        zone_type = _get_sanitized_input(prompt).lower()
         if zone_type in ['full', 'partial', '']:
             return zone_type or 'full'
         else:
@@ -101,7 +110,7 @@ def get_user_input(prompt, default=None):
     when the user enters empty input. Otherwise, it ensures the input is not empty.
     """
     while True:
-        user_input = input(prompt).strip()
+        user_input = _get_sanitized_input(prompt)
         if user_input:
             return user_input
         if default is not None:
@@ -114,7 +123,7 @@ def get_numeric_input(prompt, num_type, default=None, min_val=None, max_val=None
     Prompts for a numeric value, with optional default, type, and range validation.
     """
     while True:
-        user_input = input(prompt).strip()
+        user_input = _get_sanitized_input(prompt)
         if not user_input and default is not None:
             return default
         

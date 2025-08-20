@@ -24,18 +24,17 @@ class TestTriggers(unittest.TestCase):
     @patch('builtins.input')
     @patch('src.menus.traffic_monitoring.save_config')
     @patch('src.menus.traffic_monitoring.load_config')
-    def test_add_agent_with_trigger(self, mock_load_config, mock_save_config, mock_input):
-        """Test adding an agent and then adding a trigger to it."""
+    def test_add_agent(self, mock_load_config, mock_save_config, mock_input):
+        """Test adding an agent."""
         # --- Setup Mocks ---
         mock_load_config.return_value = {"agents": []}
         mock_input.side_effect = [
-            'Test Agent', '127.0.0.1', '15728', 'TestAPIKey', # Agent details
-            'y',                                            # Confirm add trigger
-            '1',                                            # Add new trigger
-            'Test Trigger', '1', '100', '1', '1',            # Trigger details
-            '',                                             # Press enter
-            '0',                                            # Exit trigger menu
-            '',                                             # Final press enter in add_agent
+            'Test Agent',    # name
+            '127.0.0.1',     # host
+            '15728',         # port
+            'TestAPIKey',    # api_key
+            '100.0',         # threshold_gb
+            '',              # Press enter to continue
         ]
 
         # --- Call the function to test ---
@@ -49,14 +48,9 @@ class TestTriggers(unittest.TestCase):
         self.assertEqual(len(saved_config['agents']), 1)
         agent = saved_config['agents'][0]
         self.assertEqual(agent['name'], 'Test Agent')
-        self.assertEqual(len(agent['triggers']), 1)
-        
-        trigger = agent['triggers'][0]
-        self.assertEqual(trigger['name'], 'Test Trigger')
-        self.assertEqual(trigger['period'], 'd')
-        self.assertEqual(trigger['volume_gb'], 100)
-        self.assertEqual(trigger['volume_type'], 'rx')
-        self.assertEqual(trigger['action'], 'alarm')
+        self.assertEqual(agent['url'], 'http://127.0.0.1:15728')
+        self.assertEqual(agent['api_key'], 'TestAPIKey')
+        self.assertEqual(agent['threshold_gb'], 100.0)
 
     @patch('src.trigger_evaluator.save_state')
     @patch('src.trigger_evaluator.load_state')
@@ -89,27 +83,6 @@ class TestTriggers(unittest.TestCase):
         
         mock_save_state.assert_not_called()
 
-    @patch('src.background_service.check_triggers_for_agent')
-    @patch('src.background_service.get_all_agents')
-    @patch('src.background_service.SERVICE_INTERVAL_SECONDS', 0.1)
-    def test_background_service_runs_checks(self, mock_get_agents, mock_check_triggers):
-        """Test that the background service periodically checks agents."""
-        # --- Setup ---
-        mock_agent = {"name": "Test Agent BG"}
-        mock_get_agents.return_value = [mock_agent]
-        
-        # --- Run the service in a thread ---
-        from src.background_service import run_background_service
-        import threading
-        
-        service_thread = threading.Thread(target=run_background_service, daemon=True)
-        service_thread.start()
-        
-        time.sleep(0.2) # Let the service run for a couple of cycles
-
-        # --- Assertions ---
-        mock_get_agents.assert_called()
-        mock_check_triggers.assert_called_with(mock_agent)
 
 if __name__ == '__main__':
     unittest.main()

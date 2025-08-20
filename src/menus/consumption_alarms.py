@@ -7,7 +7,7 @@ traffic usage exceeds a certain limit.
 """
 import uuid
 from ..config import load_config, save_config
-from ..display import display_as_table, print_fast, print_slow, COLOR_TITLE, COLOR_SEPARATOR, OPTION_SEPARATOR, RESET_COLOR, COLOR_WARNING, COLOR_ERROR, COLOR_SUCCESS
+from ..display import display_as_table, print_fast, print_slow, COLOR_TITLE, COLOR_SEPARATOR, OPTION_SEPARATOR, RESET_COLOR, COLOR_WARNING, COLOR_ERROR, COLOR_SUCCESS, COLOR_INFO
 from ..input_helper import get_user_input, get_numeric_input, get_validated_input
 from ..logger import logger
 from ..triggers import add_trigger as create_trigger
