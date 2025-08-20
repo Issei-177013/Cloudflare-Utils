@@ -7,6 +7,7 @@ viewing their status, and checking traffic usage.
 import requests
 import os
 import json
+import datetime
 from urllib.parse import urlsplit, urlunsplit
 
 from ..config import load_config, save_config
@@ -34,17 +35,16 @@ def get_all_agents():
         self_monitor_agent = {
             "name": self_monitor_config.get("name", "Self-Monitor"),
             "type": "self",
-            "threshold_gb": self_monitor_config.get("threshold_gb", "N/A"),
             "is_local": True  # Treat it as local to prevent removal/editing via old methods
         }
         return [self_monitor_agent] + list(agents)
         
     return list(agents)
 
-def _get_latest_usage_gb(agent, period):
+def _get_current_usage_gb(agent, period):
     """
-    Fetches the latest usage for an agent for a given period and returns it in GB.
-    Returns None if usage can't be fetched.
+    Fetches the current usage for an agent for a given period and returns rx and tx in GB.
+    Returns (None, None) if usage can't be fetched.
     """
     data = []
     if agent.get("type") == "self":
@@ -64,14 +64,27 @@ def _get_latest_usage_gb(agent, period):
             if response.status_code == 200:
                 data = response.json().get('data', [])
         except requests.RequestException:
-            return None
+            return None, None
 
-    if data:
-        latest_entry = data[-1]
-        total_bytes = latest_entry.get('rx', 0) + latest_entry.get('tx', 0)
-        return total_bytes / (1024**3)
+    if not data:
+        return None, None
 
-    return None
+    now = datetime.datetime.now()
+    current_entry = None
+
+    if period == 'd': # Daily
+        today_date = {"year": now.year, "month": now.month, "day": now.day}
+        current_entry = next((item for item in data if item.get('date') == today_date), None)
+    elif period == 'm': # Monthly
+        today_month = {"year": now.year, "month": now.month}
+        current_entry = next((item for item in data if item.get('date') == today_month), None)
+
+    if current_entry:
+        rx_gb = current_entry.get('rx', 0) / (1024**3)
+        tx_gb = current_entry.get('tx', 0) / (1024**3)
+        return rx_gb, tx_gb
+
+    return None, None
 
 def list_agents(agents):
     """
@@ -81,7 +94,7 @@ def list_agents(agents):
         print_fast(f"{COLOR_WARNING}No agents configured.{RESET_COLOR}\n")
         return
 
-    headers = ["#", "Name", "Status", "Day Usage (GB)", "Month Usage (GB)", "Threshold (GB)", "Version", "Hostname"]
+    headers = ["#", "Name", "Status", "Day (↓/↑ GB)", "Month (↓/↑ GB)", "Version", "Hostname"]
     rows = []
     
     for i, agent in enumerate(agents):
@@ -116,13 +129,13 @@ def list_agents(agents):
                 pass # Keep status as Offline
 
         if is_online:
-            day_usage_gb = _get_latest_usage_gb(agent, 'd')
-            month_usage_gb = _get_latest_usage_gb(agent, 'm')
+            day_rx_gb, day_tx_gb = _get_current_usage_gb(agent, 'd')
+            month_rx_gb, month_tx_gb = _get_current_usage_gb(agent, 'm')
 
-            if day_usage_gb is not None:
-                day_usage_str = f"{day_usage_gb:.3f}"
-            if month_usage_gb is not None:
-                month_usage_str = f"{month_usage_gb:.3f}"
+            if day_rx_gb is not None and day_tx_gb is not None:
+                day_usage_str = f"{day_rx_gb:.3f} / {day_tx_gb:.3f}"
+            if month_rx_gb is not None and month_tx_gb is not None:
+                month_usage_str = f"{month_rx_gb:.3f} / {month_tx_gb:.3f}"
 
         rows.append([
             i + 1,
@@ -130,7 +143,6 @@ def list_agents(agents):
             status,
             day_usage_str,
             month_usage_str,
-            agent["threshold_gb"],
             version,
             hostname
         ])
@@ -153,13 +165,11 @@ def add_agent():
     print_fast(f"Agent URL will be: {url}")
 
     api_key = get_user_input("Enter the agent's API Key:")
-    threshold_gb = get_numeric_input("Enter the monthly traffic threshold in GB:", float)
 
     new_agent = {
         "name": name,
         "url": url,
-        "api_key": api_key,
-        "threshold_gb": threshold_gb
+        "api_key": api_key
     }
     
     if "agents" not in config:
@@ -250,15 +260,13 @@ def edit_single_agent(agent_to_edit):
     new_host = get_user_input(f"Enter new host (IP/domain) [{current_host}]:", default=current_host)
     new_port = get_numeric_input(f"Enter new port [{current_port}]:", int, default=current_port)
     new_api_key = get_user_input(f"Enter new API Key [{agent.get('api_key', '')}]:", default=agent.get('api_key', ''))
-    new_threshold_gb = get_numeric_input(f"Enter new monthly threshold in GB [{agent.get('threshold_gb', 0)}]:", float, default=agent.get('threshold_gb', 0))
 
     new_url = f"http://{new_host}:{new_port}"
 
     config["agents"][agent_index_in_config] = {
         "name": new_name,
         "url": new_url,
-        "api_key": new_api_key,
-        "threshold_gb": new_threshold_gb
+        "api_key": new_api_key
     }
 
     save_config(config)
@@ -401,15 +409,12 @@ def edit_self_monitor_config():
     print_fast("Press Enter to keep the current value.")
 
     current_name = self_monitor_config.get('name', 'Self-Monitor')
-    current_threshold = self_monitor_config.get('threshold_gb', 1000)
     current_interface = self_monitor_config.get('vnstat_interface', 'eth0')
 
     new_name = get_user_input(f"Enter new name [{current_name}]:", default=current_name)
-    new_threshold_gb = get_numeric_input(f"Enter new monthly threshold in GB [{current_threshold}]:", float, default=current_threshold)
     new_interface = get_user_input(f"Enter new vnstat interface [{current_interface}]:", default=current_interface)
 
     config["self_monitor"]["name"] = new_name
-    config["self_monitor"]["threshold_gb"] = new_threshold_gb
     config["self_monitor"]["vnstat_interface"] = new_interface
 
     save_config(config)

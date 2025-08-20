@@ -33,7 +33,6 @@ class TestTriggers(unittest.TestCase):
             '127.0.0.1',     # host
             '15728',         # port
             'TestAPIKey',    # api_key
-            '100.0',         # threshold_gb
             '',              # Press enter to continue
         ]
 
@@ -50,7 +49,6 @@ class TestTriggers(unittest.TestCase):
         self.assertEqual(agent['name'], 'Test Agent')
         self.assertEqual(agent['url'], 'http://127.0.0.1:15728')
         self.assertEqual(agent['api_key'], 'TestAPIKey')
-        self.assertEqual(agent['threshold_gb'], 100.0)
 
     @patch('src.trigger_evaluator.save_state')
     @patch('src.trigger_evaluator.load_state')
