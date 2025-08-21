@@ -17,6 +17,9 @@ app = Flask(__name__)
 
 # Load configuration and create the security decorator
 config = load_config()
+if 'api_key' not in config or not config.get('api_key'):
+    print("FATAL: API key is not configured. Please ensure 'api_key' is set in config.json.")
+    exit(1)
 secure_route = create_security_decorator(config)
 
 

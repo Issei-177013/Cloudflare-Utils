@@ -13,7 +13,6 @@ def load_config():
     any missing values.
     """
     defaults = {
-        "api_key": "default-key",
         "whitelist": ["127.0.0.1"],
         "vnstat_interface": "eth0",
         "port": 15728
