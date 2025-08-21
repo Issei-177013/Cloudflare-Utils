@@ -3,15 +3,28 @@ import os
 import json
 from unittest.mock import patch, MagicMock
 
+# Add the project root to the Python path
 import sys
-import time
-# Add the 'src' directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.menus.traffic_monitoring import add_agent
-from src.trigger_evaluator import check_triggers_for_agent
+from src.triggers import add_trigger, edit_trigger, delete_trigger
+from src.background_service import _check_all_triggers
+from src.ip_rotator import run_rotation
+from src.logger import configure_console_logging, logger
 
-class TestTriggers(unittest.TestCase):
+class MockDNSRecord:
+    def __init__(self, id, name, type, content):
+        self.id = id
+        self.name = name
+        self.type = type
+        self.content = content
+
+class TestNewTriggers(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """Configure console logging for tests."""
+        configure_console_logging({"logging": {"level": "DEBUG"}})
 
     def setUp(self):
         """No setup needed for file-based tests anymore."""
@@ -21,65 +34,69 @@ class TestTriggers(unittest.TestCase):
         """No teardown needed for file-based tests anymore."""
         pass
 
-    @patch('builtins.input')
-    @patch('src.menus.traffic_monitoring.save_config')
-    @patch('src.menus.traffic_monitoring.load_config')
-    def test_add_agent(self, mock_load_config, mock_save_config, mock_input):
-        """Test adding an agent."""
+    @patch('src.triggers.select_from_list')
+    @patch('src.triggers.get_user_input')
+    @patch('src.triggers.get_validated_input')
+    @patch('src.triggers.get_numeric_input')
+    def test_add_trigger(self, mock_numeric, mock_validated, mock_user, mock_select):
+        """Test the add_trigger function."""
         # --- Setup Mocks ---
-        mock_load_config.return_value = {"agents": []}
-        mock_input.side_effect = [
-            'Test Agent',    # name
-            '127.0.0.1',     # host
-            '15728',         # port
-            'TestAPIKey',    # api_key
-            '',              # Press enter to continue
-        ]
+        mock_config = {
+            "agents": [{"name": "Test Agent", "url": "http://test.com", "api_key": "123"}]
+        }
+        mock_select.return_value = mock_config["agents"][0]
+        mock_user.return_value = "Test Trigger"
+        mock_validated.side_effect = ['1', '1'] # Period, Type
+        mock_numeric.return_value = 100.0 # Volume
 
-        # --- Call the function to test ---
-        from src.menus.traffic_monitoring import add_agent
-        add_agent()
+        # --- Call function ---
+        new_trigger = add_trigger(mock_config)
 
         # --- Assertions ---
-        mock_save_config.assert_called_once()
-        saved_config = mock_save_config.call_args[0][0]
-        
-        self.assertEqual(len(saved_config['agents']), 1)
-        agent = saved_config['agents'][0]
-        self.assertEqual(agent['name'], 'Test Agent')
-        self.assertEqual(agent['url'], 'http://127.0.0.1:15728')
-        self.assertEqual(agent['api_key'], 'TestAPIKey')
+        self.assertIsNotNone(new_trigger)
+        self.assertEqual(new_trigger["name"], "Test Trigger")
+        self.assertEqual(new_trigger["agent_name"], "Test Agent")
+        self.assertEqual(len(mock_config["triggers"]), 1)
+        self.assertEqual(mock_config["triggers"][0]["name"], "Test Trigger")
+        self.assertTrue(mock_config["triggers"][0]["alert_enabled"])
 
-    @patch('src.trigger_evaluator.save_state')
-    @patch('src.trigger_evaluator.load_state')
-    @patch('src.trigger_evaluator._get_usage_for_period')
-    def test_trigger_evaluation_and_state(self, mock_get_usage, mock_load_state, mock_save_state):
-        """Test that a trigger fires when usage is high and is recorded in state."""
-        # --- Setup ---
-        agent = {
-            "name": "Test Agent Eval", "type": "remote", "url": "http://127.0.0.1:15728", "api_key": "TestAPIKey",
-            "triggers": [{"name": "Test Trigger Eval", "period": "d", "volume_gb": 100, "volume_type": "rx", "action": "alarm"}]
-        }
-        mock_get_usage.return_value = {"rx": 150 * (1024**3), "tx": 10 * (1024**3), "total": 160 * (1024**3)}
-        
-        # --- First call: Trigger should fire ---
-        mock_load_state.return_value = {} # Start with empty state
-        from src.trigger_evaluator import check_triggers_for_agent
-        check_triggers_for_agent(agent)
+    @patch('src.background_service.logger')
+    @patch('src.background_service.save_state')
+    @patch('src.background_service.load_state')
+    @patch('src.background_service.load_config')
+    @patch('src.background_service._get_usage_for_period')
+    def test_background_service_alerting(self, mock_get_usage, mock_load_config, mock_load_state, mock_save_state, mock_logger):
+        """Test the background service's trigger evaluation and alerting logic."""
+        # --- Test Case 1: Alerting Enabled (Default) ---
+        trigger_alert_on = {"id": "trigger_alert_on", "name": "Alerting Trigger", "agent_name": "Test Agent BG", "period": "d", "volume_gb": 50, "volume_type": "total", "alert_enabled": True}
+        agent = {"name": "Test Agent BG", "url": "http://test.com", "api_key": "123"}
+        mock_load_config.return_value = {"agents": [agent], "triggers": [trigger_alert_on]}
+        mock_load_state.return_value = {}
+        mock_get_usage.return_value = {"total": 60 * (1024**3)}
 
-        # --- Assertions for first fire ---
+        _check_all_triggers()
+
+        mock_logger.warning.assert_called_with(f"🚨 ALERT: Trigger '{trigger_alert_on['name']}' has been activated. 🚨")
         mock_save_state.assert_called_once()
         saved_state = mock_save_state.call_args[0][0]
-        trigger_key = f"trigger_{agent['name']}_{agent['triggers'][0]['name']}"
-        self.assertIn(trigger_key, saved_state)
+        self.assertIn(trigger_alert_on["id"], saved_state["fired_triggers"])
 
-        # --- Second call: Trigger should NOT fire again ---
-        mock_load_state.return_value = saved_state # Next load will have the saved state
-        mock_save_state.reset_mock() # Reset the mock for the next assertion
-        
-        check_triggers_for_agent(agent)
-        
-        mock_save_state.assert_not_called()
+        # --- Reset mocks for next case ---
+        mock_logger.reset_mock()
+        mock_save_state.reset_mock()
+
+        # --- Test Case 2: Alerting Disabled ---
+        trigger_alert_off = {"id": "trigger_alert_off", "name": "Silent Trigger", "agent_name": "Test Agent BG", "period": "d", "volume_gb": 50, "volume_type": "total", "alert_enabled": False}
+        mock_load_config.return_value = {"agents": [agent], "triggers": [trigger_alert_off]}
+        mock_load_state.return_value = {} # Reset state
+
+        _check_all_triggers()
+
+        mock_logger.info.assert_any_call(f"Trigger '{trigger_alert_off['name']}' is silent. No alert sent.")
+        mock_logger.warning.assert_not_called()
+        mock_save_state.assert_called_once()
+        saved_state = mock_save_state.call_args[0][0]
+        self.assertIn(trigger_alert_off["id"], saved_state["fired_triggers"])
 
 
 if __name__ == '__main__':

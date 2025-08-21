@@ -8,10 +8,14 @@ based on an agent's traffic usage.
 """
 import uuid
 from .config import load_config, save_config
-from .display import display_as_table, print_fast, print_slow, COLOR_TITLE, COLOR_SEPARATOR, OPTION_SEPARATOR, RESET_COLOR, COLOR_WARNING, COLOR_ERROR, COLOR_SUCCESS
+from .display import (
+    display_as_table, print_fast, print_slow,
+    COLOR_TITLE, COLOR_SEPARATOR, OPTION_SEPARATOR, RESET_COLOR,
+    COLOR_WARNING, COLOR_ERROR, COLOR_SUCCESS, COLOR_INFO
+)
 from .input_helper import get_user_input, get_numeric_input, get_validated_input
 from .logger import logger
-from .menus.utils import clear_screen, select_from_list
+from .menus.utils import clear_screen, select_from_list, confirm_action
 
 def load_triggers():
     """Loads the triggers from the main configuration file."""
@@ -23,6 +27,30 @@ def save_triggers(triggers):
     config = load_config()
     config["triggers"] = triggers
     save_config(config)
+
+def list_triggers():
+    """Displays a list of all configured triggers."""
+    triggers = load_triggers()
+    if not triggers:
+        print_fast(f"{COLOR_WARNING}No triggers configured.{RESET_COLOR}")
+        return
+
+    headers = ["#", "Name", "Agent", "Period", "Volume (GB)", "Type", "Alerting"]
+    rows = []
+    for i, trigger in enumerate(triggers):
+        alert_status = f"{COLOR_SUCCESS}On{RESET_COLOR}" if trigger.get('alert_enabled', True) else f"{COLOR_ERROR}Off{RESET_COLOR}"
+        rows.append([
+            i + 1,
+            trigger.get('name'),
+            trigger.get('agent_name'),
+            trigger.get('period'),
+            trigger.get('volume_gb'),
+            trigger.get('volume_type'),
+            alert_status
+        ])
+    
+    print_fast(f"\n{COLOR_TITLE}--- Configured Triggers ---{RESET_COLOR}")
+    display_as_table(rows, headers)
 
 def add_trigger(config):
     """
@@ -78,7 +106,8 @@ def add_trigger(config):
         "agent_name": agent_to_monitor["name"],
         "period": period,
         "volume_gb": volume_gb,
-        "volume_type": volume_type
+        "volume_type": volume_type,
+        "alert_enabled": True
     }
 
     if "triggers" not in config:
@@ -101,23 +130,7 @@ def select_trigger():
         clear_screen()
         print_fast(f"{COLOR_TITLE}--- Select a Trigger ---{RESET_COLOR}")
         
-        triggers = config.get("triggers", [])
-        
-        if not triggers:
-            print_fast(f"{COLOR_WARNING}No triggers found.{RESET_COLOR}")
-        else:
-            headers = ["#", "Name", "Agent", "Period", "Volume", "Type"]
-            rows = []
-            for i, trigger in enumerate(triggers):
-                rows.append([
-                    i + 1,
-                    trigger.get('name'),
-                    trigger.get('agent_name'),
-                    trigger.get('period'),
-                    f"{trigger.get('volume_gb')} GB",
-                    trigger.get('volume_type')
-                ])
-            display_as_table(rows, headers)
+        list_triggers()
 
         print_fast("\n1. Select an existing trigger")
         print_fast("2. Create a new trigger")
@@ -127,6 +140,7 @@ def select_trigger():
         choice = get_user_input("Enter your choice: ")
 
         if choice == '1':
+            triggers = config.get("triggers", [])
             if not triggers:
                 print_fast(f"{COLOR_ERROR}No triggers to select.{RESET_COLOR}")
                 input("Press Enter to continue...")
@@ -150,3 +164,71 @@ def select_trigger():
         else:
             print_fast(f"{COLOR_ERROR}Invalid choice.{RESET_COLOR}")
             input("Press Enter to continue...")
+
+def edit_trigger():
+    """Guides the user through editing an existing trigger."""
+    config = load_config()
+    triggers = config.get("triggers", [])
+
+    if not triggers:
+        print_fast(f"{COLOR_WARNING}No triggers to edit.{RESET_COLOR}")
+        return
+
+    list_triggers()
+    
+    choice = get_numeric_input("\nEnter the # of the trigger to edit (or 0 to cancel):", int, min_val=0, max_val=len(triggers))
+    if choice == 0:
+        return
+
+    trigger_to_edit = triggers[choice - 1]
+
+    print_fast(f"\n--- Editing Trigger: {trigger_to_edit['name']} ---")
+    print_fast("Press Enter to keep the current value.")
+
+    # --- Edit Fields ---
+    trigger_to_edit['name'] = get_user_input(f"Name [{trigger_to_edit['name']}]:", default=trigger_to_edit['name'])
+    
+    # For simplicity, agent, period, and type are not editable. 
+    # User can delete and re-create if they need to change these.
+    # This could be enhanced later.
+    print_fast(f"{COLOR_INFO}Agent, Period, and Type cannot be changed. Delete and recreate the trigger if needed.{RESET_COLOR}")
+
+    trigger_to_edit['volume_gb'] = get_numeric_input(f"Volume GB [{trigger_to_edit['volume_gb']}]:", float, default=trigger_to_edit['volume_gb'])
+    
+    current_alert_status = 'On' if trigger_to_edit.get('alert_enabled', True) else 'Off'
+    alert_choice = get_validated_input(f"Enable alerts for this trigger? (On/Off) [{current_alert_status}]:", 
+                                       lambda x: x.lower() in ['on', 'off', ''], 
+                                       "Invalid input. Please enter 'On' or 'Off'.",
+                                       default=current_alert_status)
+
+    if alert_choice.lower() == 'on':
+        trigger_to_edit['alert_enabled'] = True
+    elif alert_choice.lower() == 'off':
+        trigger_to_edit['alert_enabled'] = False
+
+    save_triggers(triggers)
+    logger.info(f"Edited trigger '{trigger_to_edit['name']}' ({trigger_to_edit['id']})")
+    print_fast(f"\n{COLOR_SUCCESS}✅ Trigger '{trigger_to_edit['name']}' updated successfully.{RESET_COLOR}")
+
+def delete_trigger():
+    """Guides the user through deleting a trigger."""
+    config = load_config()
+    triggers = config.get("triggers", [])
+
+    if not triggers:
+        print_fast(f"{COLOR_WARNING}No triggers to delete.{RESET_COLOR}")
+        return
+
+    list_triggers()
+    
+    choice = get_numeric_input("\nEnter the # of the trigger to delete (or 0 to cancel):", int, min_val=0, max_val=len(triggers))
+    if choice == 0:
+        return
+
+    trigger_to_delete = triggers[choice - 1]
+
+    if confirm_action(f"Are you sure you want to delete the trigger '{trigger_to_delete['name']}'?"):
+        triggers.pop(choice - 1)
+        save_triggers(triggers)
+        logger.info(f"Deleted trigger '{trigger_to_delete['name']}' ({trigger_to_delete['id']})")
+        print_fast(f"{COLOR_SUCCESS}✅ Trigger deleted successfully.{RESET_COLOR}")

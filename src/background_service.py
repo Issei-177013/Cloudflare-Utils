@@ -107,13 +107,13 @@ def _check_all_triggers():
                 logger.info(f"🔥 TRIGGER ACTIVATED: '{trigger['name']}' ({trigger['id']})")
                 
                 # --- Handle Actions ---
-                # 1. Log Alarms
-                alarms = config.get("alarms", [])
-                for alarm in alarms:
-                    if alarm["trigger_id"] == trigger["id"]:
-                        logger.warning(f"🚨 ALARM: {alarm['name']} 🚨")
-                        # In the future, this would call a notification function.
-                
+                # 1. Log alert if enabled
+                if trigger.get('alert_enabled', True):
+                    logger.warning(f"🚨 ALERT: Trigger '{trigger['name']}' has been activated. 🚨")
+                    # In the future, this would call a notification function.
+                else:
+                    logger.info(f"Trigger '{trigger['name']}' is silent. No alert sent.")
+
                 # --- Update State ---
                 fired_triggers[trigger["id"]] = datetime.now().isoformat()
                 state["fired_triggers"] = fired_triggers

@@ -20,7 +20,7 @@ from ..helpers import format_period_date
 from ..input_helper import get_user_input, get_numeric_input
 from ..logger import logger
 from .utils import clear_screen, confirm_action
-from .consumption_alarms import consumption_alarms_menu
+from .trigger_management import trigger_management_menu
 from .. import self_monitor
 
 def get_all_agents():
@@ -516,9 +516,9 @@ def traffic_monitoring_menu():
 
         print_slow("2. Add New Agent")
         print_slow("3. Remove Agent")
-        print_slow("4. Edit Monitor")
-        print_slow("5. View Monitor Usage Details")
-        print_slow("6. Manage Consumption Alarms")
+        print_slow("4. Edit Agent")
+        print_slow("5. View Agent Usage Details")
+        print_slow("6. Manage Triggers")
         print_slow("0. Back to Main Menu")
         print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
@@ -535,7 +535,7 @@ def traffic_monitoring_menu():
         elif choice == '5':
             view_agent_usage(all_agents)
         elif choice == '6':
-            consumption_alarms_menu()
+            trigger_management_menu()
         elif choice == '0':
             break
         else:
