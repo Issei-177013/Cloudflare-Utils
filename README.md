@@ -5,6 +5,10 @@ This project contains a command-line utility to interact with Cloudflare, allowi
 ## Table of Contents
 - [Quick Start](#quick-start)
 - [Features](#features)
+- [Trigger System](#trigger-system)
+  - [How it Works](#how-it-works)
+  - [Managing Triggers](#managing-triggers)
+- [Monitoring Agent](#monitoring-agent)
 - [Project Structure](#project-structure)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
@@ -66,6 +70,33 @@ cfu
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
 - **Zone Management**: A full suite of tools to manage your Cloudflare zones directly from the CLI, including adding, listing, viewing details, deleting zones, and editing zone settings (SSL, Always Use HTTPS, etc.).
 - **Monitoring Agent**: An optional companion agent to monitor server traffic usage.
+- **Self-Monitoring**: The main utility can monitor the local server's traffic usage without needing a separate agent.
+
+## Trigger System
+
+The Cloudflare-Utils application includes a powerful trigger system that allows you to monitor data usage from your agents and receive alerts when certain thresholds are met. This is useful for keeping track of bandwidth usage and avoiding unexpected costs.
+
+### How it Works
+
+The trigger system runs as a background service that periodically checks the data usage of your configured agents. When the usage exceeds a specified limit within a given time period (e.g., 100GB in a month), a trigger is activated.
+
+Key components of the trigger system:
+- **Background Service**: A service that runs every 5 minutes to evaluate all configured triggers.
+- **Triggers**: A set of rules that define the conditions for an alert. Each trigger consists of:
+    - An **agent** to monitor.
+    - A **time period** (daily, weekly, or monthly).
+    - A **data volume** threshold (in GB).
+    - An **alert** that is logged when the trigger is activated.
+- **State Management**: The application uses a `state.json` file to keep track of fired triggers, ensuring that you only receive one alert per period for each trigger.
+
+### Managing Triggers
+
+You can manage triggers through the interactive CLI:
+1. Run `cfu` to open the main menu.
+2. Select "Traffic Monitoring".
+3. Select "Manage Triggers" to open the trigger management menu.
+
+From the trigger management menu, you can add, edit, and delete triggers.
 
 ## Monitoring Agent
 
@@ -90,6 +121,27 @@ Once installed, the agent runs in the background. You can manage it using standa
 - **Stop**: `sudo systemctl stop cloudflare-utils-agent.service`
 - **View Logs**: `sudo journalctl -u cloudflare-utils-agent.service`
 
+### Managing the Agent with `cfu-agent`
+
+In addition to using `systemctl`, you can manage the agent directly using the `cfu-agent` command-line tool. This tool provides more specific control over the agent's functions.
+
+**Available Commands:**
+
+-   **`cfu-agent token`**: Manage the agent's API token.
+    -   `display`: Show the current token (masked by default).
+    -   `change`: Generate a new API token.
+-   **`cfu-agent service`**: Control the agent's `systemd` service.
+    -   `start`, `stop`, `restart`, `status`.
+-   **`cfu-agent logs`**: View the agent's logs.
+    -   Use `-f` to follow the logs in real-time.
+-   **`cfu-agent version`**: Display the agent's version.
+-   **`cfu-agent stats`**: Show traffic statistics for the monitored interface.
+    -   `reset`: Clear the statistics for the interface.
+-   **`cfu-agent config`**: Manage the agent's configuration.
+    -   `show`: Display the current configuration (with the API token masked).
+
+For more detailed help on any command, you can use `cfu-agent <command> --help`.
+
 ## Project Structure
 ```
 .
@@ -98,19 +150,22 @@ Once installed, the agent runs in the background. You can manage it using standa
 ├── requirements.txt      # Python dependencies
 ├── src/
 │   ├── app.py              # Core application logic and startup
+│   ├── background_service.py # Background service for trigger monitoring
 │   ├── cloudflare_api.py   # Wrapper for the Cloudflare API
 │   ├── config.py           # Handles loading/saving config files
 │   ├── dns_manager.py      # Logic for managing DNS records in config
 │   ├── ip_rotator.py       # Core logic for the IP rotation cron job
-│   ├── state_manager.py    # Manages state for multi-record rotations
+│   ├── state_manager.py    # Manages state for rotations and triggers
+│   ├── triggers.py         # Logic for managing triggers
 │   ├── menus/              # Contains all CLI menu modules
 │   │   ├── main.py
-│   │   ├── accounts.py
-│   │   ├── dns.py
-│   │   ├── zones.py
 │   │   └── ...
-│   ├── configs.json        # Stores user configurations (accounts, records)
-│   └── rotation_status.json # Tracks the state of IP rotations
+│   ├── agent/              # Source code for the monitoring agent
+│   │   ├── cfu-agent.py    # CLI entry point for the agent
+│   │   └── ...
+│   ├── configs.json        # Stores user configurations
+│   ├── rotation_status.json # Tracks the state of IP rotations
+│   └── state.json          # Stores the state of fired triggers
 └── tests/
     └── ...                 # Unit and integration tests
 ```
@@ -170,7 +225,7 @@ sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudfla
 The application uses two main JSON files located in `/opt/Cloudflare-Utils/src/`:
 - `configs.json`: Stores all user-defined configurations, including Cloudflare accounts, zones, and single-record rotation rules.
 - `rotation_status.json`: Tracks the last rotation time for each record or group to ensure rotations happen at the correct interval.
-- `state.json`: Stores the state for multi-record rotation configurations.
+- `state.json`: Stores state for multi-record rotations and fired triggers.
 
 ### API Token Permissions
 
@@ -196,8 +251,9 @@ This is the central navigation hub of the application.
 2. 🌐 Manage Zones
 3. 📜 Manage DNS Records
 4. 🔄 IP Rotator Tools
-5. 📄 View Application Logs
-6. ⚙️ Settings
+5. 📡 Traffic Monitoring
+6. 📄 View Application Logs
+7. ⚙️ Settings
 0. 🚪 Exit
 -----------------
 👉 Enter your choice:
