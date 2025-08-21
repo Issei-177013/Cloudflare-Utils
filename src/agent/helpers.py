@@ -4,6 +4,7 @@ import subprocess
 import datetime
 import psutil
 import socket
+import re
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
@@ -57,39 +58,48 @@ def get_uptime():
 
 def get_vnstat_data(interface, json_mode=None):
     """
-    Fetches traffic data from vnstat for the specified interface.
-    Accepts an optional json_mode to customize the query (e.g., 'h' for hourly).
-    Returns parsed JSON data or an error message.
+    Fetch traffic data from vnstat for the specified network interface.
+    Validates inputs to avoid command injection.
+    Returns (data, None) on success, or (None, error_message) on failure.
     """
-    command = ['vnstat', '--json']
+
+    # Validate interface: only letters, digits, - and _
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", interface):
+        return None, f"Invalid network interface: {interface}"
+
+    # Allow only safe json modes
+    valid_json_modes = {"h", "d", "m", "t"}  # hourly, daily, monthly, top
+    if json_mode and json_mode not in valid_json_modes:
+        return None, f"Invalid json_mode: {json_mode}"
+
+    command = ["vnstat", "--json"]
     if json_mode:
         command.append(json_mode)
-    command.extend(['-i', interface])
+    command.extend(["-i", interface])
 
     try:
         result = subprocess.run(
             command,
             capture_output=True,
-            text=True
+            text=True,
+            check=False
         )
 
         if result.returncode != 0:
-            error_message = result.stderr.strip() or "vnstat returned an error with no message"
+            error_message = result.stderr.strip() or "vnstat returned an error"
             return None, f"vnstat error: {error_message}"
 
         stdout = result.stdout.strip()
-
         if not stdout:
             return {"interfaces": [{"name": interface, "traffic": {}}]}, None
 
         try:
-            data = json.loads(stdout)
-            return data, None
+            return json.loads(stdout), None
         except json.JSONDecodeError as e:
             snippet = stdout[:300].replace("\n", " ")
-            return None, f"Failed to parse vnstat JSON output: {str(e)} | Raw snippet: {snippet}"
+            return None, f"Failed to parse vnstat JSON: {e} | Raw snippet: {snippet}"
 
     except FileNotFoundError:
-        return None, "vnstat command not found. Is it installed and in the system's PATH?"
+        return None, "vnstat command not found"
     except Exception as e:
-        return None, f"An unexpected error occurred: {str(e)}"
+        return None, f"Unexpected error: {e}"
