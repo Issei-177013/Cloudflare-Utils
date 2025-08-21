@@ -7,9 +7,12 @@ for managing zones, DNS records, and account information. It also includes custo
 error handling to provide more specific feedback, such as for missing API token
 permissions.
 """
+import requests
+from requests.exceptions import RequestException
 from cloudflare import Cloudflare, APIError
 from .config import REQUIRED_PERMISSIONS
 from .error_handler import MissingPermissionError
+from .logger import logger
 
 class CloudflareAPI:
     """
@@ -45,7 +48,8 @@ class CloudflareAPI:
         try:
             return self.cf.zones.list()
         except APIError as e:
-            raise RuntimeError(f"Error listing zones: {e}")
+            logger.error(f"Error listing zones: {e}")
+            raise RuntimeError("Error listing zones. Please check logs for details.")
 
     def get_zone_details(self, zone_id):
         """
@@ -63,7 +67,8 @@ class CloudflareAPI:
         try:
             return self.cf.zones.get(zone_id=zone_id)
         except APIError as e:
-            raise RuntimeError(f"Error getting zone details: {e}")
+            logger.error(f"Error getting zone details for zone_id={zone_id}: {e}")
+            raise RuntimeError("Error getting zone details. Please check logs for details.")
 
     def add_zone(self, domain_name, zone_type="full"):
         """
@@ -90,7 +95,6 @@ class CloudflareAPI:
             }
             payload = {"name": domain_name, "type": zone_type}
 
-            import requests
             response = requests.post(url, headers=headers, json=payload)
             data = response.json()
 
@@ -100,14 +104,20 @@ class CloudflareAPI:
                     if "Requires permission" in error.get("message", ""):
                         permission_needed = error["message"].split('"')[1]
                         raise MissingPermissionError(f"'{permission_needed}'")
+                
+                logger.error(f"Failed to add zone '{domain_name}'. API response: {errors}")
                 raise RuntimeError(f"Failed to add zone: {errors}")
 
             return data["result"]
 
         except MissingPermissionError:
             raise
+        except RequestException as e:
+            logger.error(f"Network error while trying to add zone '{domain_name}': {e}")
+            raise RuntimeError(f"❌ Failed to add zone '{domain_name}' due to a network error.")
         except Exception as e:
-            raise RuntimeError(f"❌ Failed to add zone '{domain_name}': {e}")
+            logger.error(f"An unexpected error occurred while adding zone '{domain_name}': {e}", exc_info=True)
+            raise RuntimeError(f"❌ Failed to add zone '{domain_name}' due to an unexpected error.")
 
     def delete_zone(self, zone_id):
         """
@@ -125,7 +135,8 @@ class CloudflareAPI:
         try:
             return self.cf.zones.delete(zone_id=zone_id)
         except APIError as e:
-            raise RuntimeError(f"Error deleting zone: {e}")
+            logger.error(f"Error deleting zone {zone_id}: {e}")
+            raise RuntimeError("Error deleting zone. Please check logs for details.")
 
     def get_account_id(self):
         """
@@ -145,9 +156,11 @@ class CloudflareAPI:
             else:
                 raise RuntimeError("❌ No Cloudflare accounts found.")
         except APIError as e:
-            raise RuntimeError(f"Cloudflare API error when fetching account ID: {e}")
+            logger.error(f"Cloudflare API error when fetching account ID: {e}")
+            raise RuntimeError("Cloudflare API error when fetching account ID. Please check logs for details.")
         except Exception as e:
-            raise RuntimeError(f"Unexpected error fetching account ID: {e}")
+            logger.error(f"Unexpected error fetching account ID: {e}", exc_info=True)
+            raise RuntimeError("Unexpected error fetching account ID. Please check logs for details.")
 
     def verify_token(self):
         """
@@ -173,9 +186,11 @@ class CloudflareAPI:
                     "Please ensure your token has Zone:Read and DNS:Read/Edit permissions."
                 )
             else:
-                raise e
+                logger.error(f"An unexpected API error occurred during token verification: {e}")
+                raise APIError("An unexpected API error occurred during token verification.")
         except Exception as e:
-            raise APIError(f"An unexpected error occurred during token verification: {e}")
+            logger.error(f"An unexpected error occurred during token verification: {e}", exc_info=True)
+            raise APIError("An unexpected error occurred during token verification.")
 
     def list_dns_records(self, zone_id):
         """
@@ -193,7 +208,8 @@ class CloudflareAPI:
         try:
             return self.cf.dns.records.list(zone_id=zone_id)
         except APIError as e:
-            raise e
+            logger.error(f"Error listing DNS records for zone {zone_id}: {e}")
+            raise RuntimeError(f"Error listing DNS records for zone {zone_id}. Please check logs for details.")
 
     def create_dns_record(self, zone_id, name, type, content, proxied=False, ttl=None):
         """
@@ -225,7 +241,8 @@ class CloudflareAPI:
                 ttl=ttl
             )
         except APIError as e:
-            raise e
+            logger.error(f"Error creating DNS record for zone {zone_id}: {e}")
+            raise RuntimeError(f"Error creating DNS record for zone {zone_id}. Please check logs for details.")
 
     def update_dns_record(self, zone_id, dns_record_id, name, type, content, proxied=False, ttl=None):
         """
@@ -258,7 +275,8 @@ class CloudflareAPI:
                 ttl=ttl
             )
         except APIError as e:
-            raise e
+            logger.error(f"Error updating DNS record {dns_record_id} for zone {zone_id}: {e}")
+            raise RuntimeError(f"Error updating DNS record {dns_record_id}. Please check logs for details.")
 
     def delete_dns_record(self, zone_id, dns_record_id):
         """
@@ -280,7 +298,8 @@ class CloudflareAPI:
                 dns_record_id=dns_record_id
             )
         except APIError as e:
-            raise e
+            logger.error(f"Error deleting DNS record {dns_record_id} for zone {zone_id}: {e}")
+            raise RuntimeError(f"Error deleting DNS record {dns_record_id}. Please check logs for details.")
 
     def get_zone_setting(self, zone_id, setting_name):
         """
@@ -305,7 +324,11 @@ class CloudflareAPI:
         except APIError as e:
             if "setting not found" in str(e).lower():
                 return None
-            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Read'") if "permission" in str(e).lower() else e
+            logger.error(f"API error getting zone setting '{setting_name}' for zone {zone_id}: {e}")
+            if "permission" in str(e).lower():
+                 raise MissingPermissionError(f"Missing permission: 'Zone Settings:Read'")
+            else:
+                 raise RuntimeError(f"API error getting zone setting '{setting_name}'. Check logs for details.")
 
     def update_zone_setting(self, zone_id, setting_name, new_value):
         """
@@ -324,7 +347,11 @@ class CloudflareAPI:
         try:
             self.cf.zones.settings.update(zone_id=zone_id, setting_id=setting_name, value=new_value)
         except APIError as e:
-            raise MissingPermissionError(f"Missing permission: 'Zone Settings:Edit'") if "permission" in str(e).lower() else e
+            logger.error(f"API error updating zone setting '{setting_name}' for zone {zone_id}: {e}")
+            if "permission" in str(e).lower():
+                raise MissingPermissionError(f"Missing permission: 'Zone Settings:Edit'")
+            else:
+                raise RuntimeError(f"API error updating zone setting '{setting_name}'. Check logs for details.")
 
     def get_zone_core_settings(self, zone_id):
         """

@@ -13,7 +13,7 @@ from .config import load_config, validate_and_save_config, find_account, find_zo
 from .validator import is_valid_rotator_record_type
 from .logger import logger
 
-def add_record(account_name, zone_domain, record_name, record_type, ips, rotation_interval_minutes):
+def add_record(account_name, zone_domain, record_name, record_type, ips, schedule):
     """
     Adds a new DNS record configuration for IP rotation.
 
@@ -23,7 +23,7 @@ def add_record(account_name, zone_domain, record_name, record_type, ips, rotatio
         record_name (str): The name of the DNS record.
         record_type (str): The type of the record ('A' or 'AAAA').
         ips (list): A list of IP addresses for rotation.
-        rotation_interval_minutes (int or None): The rotation interval in minutes.
+        schedule (dict or None): The schedule configuration object.
     """
     if not is_valid_rotator_record_type(record_type):
         logger.error(f"Invalid record type: {record_type}")
@@ -50,8 +50,8 @@ def add_record(account_name, zone_domain, record_name, record_type, ips, rotatio
         "type": record_type,
         "ips": ips,
     }
-    if rotation_interval_minutes is not None:
-        record_data["rotation_interval_minutes"] = rotation_interval_minutes
+    if schedule:
+        record_data["schedule"] = schedule
 
     zone["records"].append(record_data)
     if validate_and_save_config(data):
@@ -190,7 +190,7 @@ def delete_account_from_config(account_name):
         print(f"✅ Account '{account_name}' deleted successfully.")
 
 
-def add_rotation_group(account_name, zone_domain, group_name, record_names, rotation_interval_minutes):
+def add_rotation_group(account_name, zone_domain, group_name, record_names, schedule):
     """
     Adds a new rotation group to the configuration.
 
@@ -202,7 +202,7 @@ def add_rotation_group(account_name, zone_domain, group_name, record_names, rota
         zone_domain (str): The domain of the zone.
         group_name (str): The name for the new rotation group.
         record_names (list): A list of record names to include in the group.
-        rotation_interval_minutes (int): The rotation interval in minutes.
+        schedule (dict): The schedule configuration object.
     """
     data = load_config()
     acc = find_account(data, account_name)
@@ -228,7 +228,7 @@ def add_rotation_group(account_name, zone_domain, group_name, record_names, rota
     group_data = {
         "name": group_name,
         "records": record_names,
-        "rotation_interval_minutes": rotation_interval_minutes
+        "schedule": schedule
     }
 
     zone["rotation_groups"].append(group_data)

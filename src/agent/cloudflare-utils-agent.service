@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloudflare-Utils-Agent
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/opt/Cloudflare-Utils-Agent
+ExecStart=__PYTHON_EXEC_PATH__ /opt/Cloudflare-Utils-Agent/agent.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

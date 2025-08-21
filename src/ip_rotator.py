@@ -102,18 +102,6 @@ def run_rotation():
     intended to be run periodically (e.g., via a cron job). It loads the
     configuration and rotation status, then iterates through all configured
     accounts, zones, and records to perform IP rotation where needed.
-
-    The function handles three types of rotation:
-    1.  **Global Rotations:** Rotates a shared pool of IPs across multiple
-        records from different zones, managed globally.
-    2.  **Single-Record Rotations:** Rotates IPs for individual DNS records
-        based on their own list of IPs and rotation schedule.
-    3.  **Rotation Groups:** Rotates the current IPs among a group of records
-        within the same zone.
-
-    It checks the `rotation_status.json` file to determine if a rotation is
-    due based on the configured interval for each record or group. After a
-    successful rotation, it updates the status file with the current timestamp.
     """
     config = load_config()
     rotation_status = load_rotation_status()
@@ -122,15 +110,29 @@ def run_rotation():
 
     # --- Handle Global Rotations ---
     if "global_rotations" in state:
-        for name, global_config in state["global_rotations"].items():
-            rotation_interval_minutes = global_config.get("rotation_interval_minutes", DEFAULT_ROTATION_INTERVAL_MINUTES)
-            rotation_interval_seconds = rotation_interval_minutes * 60
-            last_rotated_at_seconds = global_config.get("last_rotated_at", 0)
+        fired_triggers = state.get("fired_triggers", {})
+        needs_state_save_global = False
 
-            if current_time_seconds - last_rotated_at_seconds < rotation_interval_seconds:
-                logger.debug(f"Global rotation not due yet for '{name}'. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
+        for name, global_config in state["global_rotations"].items():
+            should_rotate = False
+            is_trigger_based = False
+            schedule = global_config.get("schedule", {"type": "time"})
+
+            if schedule.get("type") == "time":
+                rotation_interval_minutes = schedule.get("interval_minutes", DEFAULT_ROTATION_INTERVAL_MINUTES)
+                rotation_interval_seconds = rotation_interval_minutes * 60
+                last_rotated_at_seconds = global_config.get("last_rotated_at", 0)
+                if current_time_seconds - last_rotated_at_seconds >= rotation_interval_seconds:
+                    should_rotate = True
+            elif schedule.get("type") == "trigger":
+                trigger_id = schedule.get("trigger_id")
+                if trigger_id and trigger_id in fired_triggers:
+                    should_rotate = True
+                    is_trigger_based = True
+
+            if not should_rotate:
                 continue
-            
+
             account = next((acc for acc in config["accounts"] if acc["name"] == global_config["account_name"]), None)
             if not account:
                 logger.warning(f"Account '{global_config['account_name']}' not found for global rotation '{name}'. Skipping.")
@@ -151,30 +153,29 @@ def run_rotation():
                 logger.warning(f"Could not find all records for global rotation '{name}' in zone '{global_config['zone_name']}'. Skipping rotation.")
                 continue
 
-            updated_records, new_rotation_index = rotate_ips_for_multi_record(
-                records_to_rotate,
-                global_config["ip_pool"],
-                global_config["rotation_index"]
-            )
+            updated_records, new_rotation_index = rotate_ips_for_multi_record(records_to_rotate, global_config["ip_pool"], global_config["rotation_index"])
 
             for update in updated_records:
                 try:
-                    cf_api.update_dns_record(
-                        zone_id=zone_id,
-                        dns_record_id=update["record_id"],
-                        name=update["name"],
-                        type=update["record_type"],
-                        content=update["new_ip"]
-                    )
+                    cf_api.update_dns_record(zone_id=zone_id, dns_record_id=update["record_id"], name=update["name"], type=update["record_type"], content=update["new_ip"])
                     logger.info(f"Updated {update['name']} to {update['new_ip']} as part of global rotation '{name}'")
                 except APIError as e:
                     logger.error(f"Update error for {update['name']} in global rotation '{name}': {e}")
             
             global_config["rotation_index"] = new_rotation_index
-            global_config["last_rotated_at"] = current_time_seconds
             
-    save_state(state)
+            if is_trigger_based:
+                del fired_triggers[schedule["trigger_id"]]
+                needs_state_save_global = True
+                logger.info(f"Consumed trigger '{schedule['trigger_id']}' for global rotation '{name}'.")
+            else:
+                global_config["last_rotated_at"] = current_time_seconds
+        
+        if needs_state_save_global:
+            state["fired_triggers"] = fired_triggers
+        save_state(state)
 
+    # --- Handle Zone-Level Rotations (Single Record and Group) ---
     for account in config["accounts"]:
         cf_api = CloudflareAPI(account["api_token"])
         for zone in account.get("zones", []):
@@ -185,20 +186,34 @@ def run_rotation():
                 logger.error(f"Zone fetch error: {zone['domain']}: {e}")
                 continue
 
+            fired_triggers = state.get("fired_triggers", {})
+            needs_state_save = False
+
             # --- Handle single record rotations ---
             for cfg_record in zone.get("records", []):
                 record_name = cfg_record["name"]
                 record_key = f"{zone_id}_{record_name}"
+                schedule = cfg_record.get("schedule", {"type": "time"})
 
-                custom_interval_minutes = cfg_record.get("rotation_interval_minutes")
-                rotation_interval_minutes = custom_interval_minutes if custom_interval_minutes is not None else DEFAULT_ROTATION_INTERVAL_MINUTES
-                rotation_interval_seconds = rotation_interval_minutes * 60
+                should_rotate = False
+                is_trigger_based = False
 
-                last_rotated_at_seconds = rotation_status.get(record_key, 0)
-                if current_time_seconds - last_rotated_at_seconds < rotation_interval_seconds:
-                    logger.debug(f"Rotation not due yet for {record_name}. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
+                if schedule.get("type") == "time":
+                    custom_interval_minutes = schedule.get("interval_minutes")
+                    rotation_interval_minutes = custom_interval_minutes if custom_interval_minutes is not None else DEFAULT_ROTATION_INTERVAL_MINUTES
+                    rotation_interval_seconds = rotation_interval_minutes * 60
+                    last_rotated_at_seconds = rotation_status.get(record_key, 0)
+                    if current_time_seconds - last_rotated_at_seconds >= rotation_interval_seconds:
+                        should_rotate = True
+                elif schedule.get("type") == "trigger":
+                    trigger_id = schedule.get("trigger_id")
+                    if trigger_id and trigger_id in fired_triggers:
+                        should_rotate = True
+                        is_trigger_based = True
+
+                if not should_rotate:
                     continue
-                
+
                 matching_cf_record = next((r for r in records_from_cf if r.name == record_name), None)
                 if not matching_cf_record:
                     logger.warning(f"Record not found in Cloudflare: {record_name}")
@@ -208,37 +223,51 @@ def run_rotation():
                 new_ip = rotate_ip(cfg_record["ips"], current_ip_on_cf, logger)
                 
                 if new_ip == current_ip_on_cf:
-                    logger.info(f"IP for {record_name} is already {new_ip}. No update needed, but resetting rotation timer as per schedule.")
-                    rotation_status[record_key] = current_time_seconds
+                    if is_trigger_based:
+                        del fired_triggers[schedule["trigger_id"]]
+                        needs_state_save = True
+                        logger.info(f"Consumed trigger '{schedule['trigger_id']}' for record '{record_name}'.")
+                    else:
+                        rotation_status[record_key] = current_time_seconds
                     continue
 
                 try:
-                    cf_api.update_dns_record(
-                        zone_id=zone_id,
-                        dns_record_id=matching_cf_record.id,
-                        name=record_name,
-                        type=cfg_record["type"],
-                        content=new_ip
-                    )
+                    cf_api.update_dns_record(zone_id=zone_id, dns_record_id=matching_cf_record.id, name=record_name, type=cfg_record["type"], content=new_ip)
                     logger.info(f"Updated {record_name} to {new_ip}")
-                    rotation_status[record_key] = current_time_seconds
+                    
+                    if is_trigger_based:
+                        del fired_triggers[schedule["trigger_id"]]
+                        needs_state_save = True
+                        logger.info(f"Consumed trigger '{schedule['trigger_id']}' for record '{record_name}'.")
+                    else:
+                        rotation_status[record_key] = current_time_seconds
                 except APIError as e:
                     logger.error(f"Update error for {record_name}: {e}")
-
+            
             # --- Handle rotation groups ---
             for group in zone.get("rotation_groups", []):
                 group_name = group["name"]
                 group_key = f"{zone_id}_{group_name}"
+                schedule = group.get("schedule", {"type": "time"})
 
-                rotation_interval_minutes = group.get("rotation_interval_minutes", DEFAULT_ROTATION_INTERVAL_MINUTES)
-                rotation_interval_seconds = rotation_interval_minutes * 60
+                should_rotate = False
+                is_trigger_based = False
 
-                last_rotated_at_seconds = rotation_status.get(group_key, 0)
-                if current_time_seconds - last_rotated_at_seconds < rotation_interval_seconds:
-                    logger.debug(f"Rotation not due yet for group '{group_name}'. Last rotated { (current_time_seconds - last_rotated_at_seconds) / 60:.1f} minutes ago. Interval: {rotation_interval_minutes} min.")
+                if schedule.get("type") == "time":
+                    rotation_interval_minutes = schedule.get("interval_minutes", DEFAULT_ROTATION_INTERVAL_MINUTES)
+                    rotation_interval_seconds = rotation_interval_minutes * 60
+                    last_rotated_at_seconds = rotation_status.get(group_key, 0)
+                    if current_time_seconds - last_rotated_at_seconds >= rotation_interval_seconds:
+                        should_rotate = True
+                elif schedule.get("type") == "trigger":
+                    trigger_id = schedule.get("trigger_id")
+                    if trigger_id and trigger_id in fired_triggers:
+                        should_rotate = True
+                        is_trigger_based = True
+                
+                if not should_rotate:
                     continue
 
-                # Find the CF records that match the names in the group
                 group_record_names = group["records"]
                 group_records_from_cf = [r for r in records_from_cf if r.name in group_record_names]
 
@@ -250,14 +279,21 @@ def run_rotation():
                     logger.warning(f"Rotation group '{group_name}' has fewer than 2 valid records. Skipping rotation.")
                     continue
 
-                # The rotate_ips_between_records function expects indices, so we create a list of indices
-                # corresponding to the records' positions in the *original* records_from_cf list.
                 indices_for_rotation = [i for i, record in enumerate(records_from_cf) if record.name in group_record_names]
-
                 logger.info(f"Rotating IPs for group '{group_name}'...")
                 rotate_ips_between_records(cf_api, zone_id, records_from_cf, indices_for_rotation)
-                rotation_status[group_key] = current_time_seconds
-    
+                
+                if is_trigger_based:
+                    del fired_triggers[schedule["trigger_id"]]
+                    needs_state_save = True
+                    logger.info(f"Consumed trigger '{schedule['trigger_id']}' for group '{group_name}'.")
+                else:
+                    rotation_status[group_key] = current_time_seconds
+            
+            if needs_state_save:
+                state["fired_triggers"] = fired_triggers
+                save_state(state)
+
     save_rotation_status(rotation_status)
 
 def rotate_ips_for_multi_record(records, ip_pool, rotation_index):

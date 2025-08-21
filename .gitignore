@@ -83,3 +83,7 @@ __pypackages__/
 
 # Dev note
 update_note.md
+
+# User-specific configuration files
+src/configs.json
+src/rotation_status.json

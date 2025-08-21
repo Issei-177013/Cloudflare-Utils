@@ -33,23 +33,50 @@ def load_config():
     Returns:
         dict: The configuration data.
     """
+    default_self_monitor_config = {
+        "enabled": False,
+        "name": "Master",
+        "threshold_gb": 1000,
+        "interval": 5,
+        "targets": [],
+        "alarms": [],
+        "vnstat_interface": "eth0"
+    }
+
     if not os.path.exists(CONFIG_PATH):
         logger.info(f"Config file not found at {CONFIG_PATH}. Creating a new one.")
-        default_config = {"accounts": [], "settings": {"console_logging": True}}
+        default_config = {
+            "accounts": [],
+            "agents": [],
+            "settings": {"console_logging": True},
+            "self_monitor": default_self_monitor_config
+        }
         save_config(default_config)
         return default_config
     try:
         with open(CONFIG_PATH, "r") as f:
             config = json.load(f)
-            # Ensure default settings exist to prevent key errors elsewhere.
+            # Ensure default keys exist to prevent errors elsewhere.
             if "settings" not in config:
                 config["settings"] = {"console_logging": True}
             elif "console_logging" not in config["settings"]:
                 config["settings"]["console_logging"] = True
+            
+            if "agents" not in config:
+                config["agents"] = []
+
+            if "self_monitor" not in config:
+                config["self_monitor"] = default_self_monitor_config
+
             return config
     except json.JSONDecodeError:
         logger.error(f"Could not decode JSON from {CONFIG_PATH}. Returning default config.")
-        return {"accounts": [], "settings": {"console_logging": True}}
+        return {
+            "accounts": [],
+            "agents": [],
+            "settings": {"console_logging": True},
+            "self_monitor": default_self_monitor_config
+        }
 
 def validate_and_save_config(data):
     """

@@ -18,52 +18,45 @@ from .zones import zone_management_menu
 from .dns import dns_management_menu
 from .rotator_main import rotator_tools_menu
 from .settings import settings_menu
+from .traffic_monitoring import traffic_monitoring_menu
+from ..display import *
 
 def main_menu():
     """
     Displays and handles the main menu of the application.
-
-    This function runs in a loop, presenting the user with a list of
-    options to navigate to different parts of the application. It handles
-    user input and calls the appropriate menu function based on the user's
-    choice. The loop continues until the user chooses to exit.
     """
-    # Define ANSI escape codes for colors
-    YELLOW = '\033[93m'
-    CYAN = '\033[96m'
-    RESET = '\033[0m'
-    
     author_str = "Author: https://github.com/Issei-177013"
 
-    # Embed ASCII art
-    art = """
-
- ██████╗███████╗    ██╗   ██╗████████╗██╗██╗     ███████╗
-██╔════╝██╔════╝    ██║   ██║╚══██╔══╝██║██║     ██╔════╝
-██║     █████╗█████╗██║   ██║   ██║   ██║██║     ███████╗
-██║     ██╔══╝╚════╝██║   ██║   ██║   ██║██║     ╚════██║
-╚██████╗██║         ╚██████╔╝   ██║   ██║███████╗███████║
- ╚═════╝╚═╝          ╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝
-                                                              
-"""
+    art_lines = [
+        f" {COLOR_CF_ORANGE} ██████╗███████╗{RESET_COLOR}    {COLOR_CF_YELLOW}██╗   ██╗████████╗██╗██╗     ███████╗{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}██╔════╝██╔════╝{RESET_COLOR}    {COLOR_CF_YELLOW}██║   ██║╚══██╔══╝██║██║     ██╔════╝{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}██║     █████╗{RESET_COLOR}█████╗{COLOR_CF_YELLOW}██║   ██║   ██║   ██║██║     ███████╗{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}██║     ██╔══╝{RESET_COLOR}╚════╝{COLOR_CF_YELLOW}██║   ██║   ██║   ██║██║     ╚════██║{RESET_COLOR}",
+        f" {COLOR_CF_ORANGE}╚██████╗██║{RESET_COLOR}         {COLOR_CF_YELLOW}╚██████╔╝   ██║   ██║███████╗███████║{RESET_COLOR}",
+        f"  {COLOR_CF_ORANGE}╚═════╝╚═╝{RESET_COLOR}          {COLOR_CF_YELLOW}╚═════╝    ╚═╝   ╚═╝╚══════╝╚══════╝{RESET_COLOR}"
+    ]
     
     while True:
         clear_screen()
-        print(f"{YELLOW}{art}{RESET}")
-        print(f"{CYAN}{author_str}{RESET}")
-        print(f"{CYAN}{version_str}{RESET}")
+        print_fast("\n")
+        for line in art_lines:
+            print_fast(line)
+        print_fast("\n")
+        print_fast(f"{COLOR_INFO}{author_str}{RESET_COLOR}")
+        print_fast(f"{COLOR_INFO}{version_str}{RESET_COLOR}")
         
-        print("===================================")
+        print_fast(f"{COLOR_SEPARATOR}{HEADER_LINE}{RESET_COLOR}")
 
-        print("\n--- Main Menu ---")
-        print("1. 👤 Manage Cloudflare Accounts")
-        print("2. 🌐 Manage Zones")
-        print("3. 📜 Manage DNS Records")
-        print("4. 🔄 IP Rotator Tools")
-        print("5. 📄 View Application Logs")
-        print("6. ⚙️ Settings")
-        print("0. 🚪 Exit")
-        print("-----------------")
+        print_fast(f"\n{COLOR_TITLE}--- Main Menu ---{RESET_COLOR}")
+        print_slow("1. 👤 Manage Cloudflare Accounts")
+        print_slow("2. 🌐 Manage Zones")
+        print_slow("3. 📜 Manage DNS Records")
+        print_slow("4. 🔄 IP Rotator Tools")
+        print_slow("5. 📡 Traffic Monitoring")
+        print_slow("6. 📄 View Application Logs")
+        print_slow("7. ⚙️ Settings")
+        print_slow("0. 🚪 Exit")
+        print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
         choice = input("👉 Enter your choice: ").strip()
         
@@ -76,8 +69,10 @@ def main_menu():
         elif choice == "4":
             rotator_tools_menu()
         elif choice == "5":
-            view_live_logs()
+            traffic_monitoring_menu()
         elif choice == "6":
+            view_live_logs()
+        elif choice == "7":
             settings_menu()
         elif choice == "0":
             if confirm_action("Are you sure you want to exit?"):
@@ -85,4 +80,4 @@ def main_menu():
                 break
         else:
             logger.warning(f"Invalid choice: {choice}")
-            print("❌ Invalid choice. Please select a valid option.")
+            print_fast(f"{COLOR_WARNING}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")

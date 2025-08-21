@@ -65,6 +65,30 @@ cfu
 - **Automated Updates**: Set up a cron job automatically to periodically update DNS records.
 - **Interactive CLI**: A user-friendly command-line interface for managing all features.
 - **Zone Management**: A full suite of tools to manage your Cloudflare zones directly from the CLI, including adding, listing, viewing details, deleting zones, and editing zone settings (SSL, Always Use HTTPS, etc.).
+- **Monitoring Agent**: An optional companion agent to monitor server traffic usage.
+
+## Monitoring Agent
+
+The Cloudflare-Utils suite includes a lightweight monitoring agent, `Cloudflare-Utils-Agent`, designed to run on your servers and report traffic usage. This is particularly useful for users who need to track bandwidth on servers behind Cloudflare.
+
+### Agent Features
+
+- **Lightweight**: The agent has a small footprint and minimal dependencies.
+- **Secure**: Communication with the agent is secured with an API key.
+- **Easy to Install**: The agent is installed using the same `install.sh` script as the main `Cloudflare-Utils` program.
+
+### Agent Installation
+
+The agent can be installed by running the main `install.sh` script and choosing the "Install/Update Agent" option from the menu. The script will guide you through the process of selecting a network interface to monitor and will automatically configure and start the agent as a `systemd` service.
+
+### Managing the Agent
+
+Once installed, the agent runs in the background. You can manage it using standard `systemctl` commands:
+
+- **Check Status**: `sudo systemctl status cloudflare-utils-agent.service`
+- **Start**: `sudo systemctl start cloudflare-utils-agent.service`
+- **Stop**: `sudo systemctl stop cloudflare-utils-agent.service`
+- **View Logs**: `sudo journalctl -u cloudflare-utils-agent.service`
 
 ## Project Structure
 ```
@@ -113,7 +137,12 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudf
 sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)"
 ```
 
-The script will:
+The script will present a menu allowing you to:
+1. Install the main `Cloudflare-Utils` controller.
+2. Install the `Cloudflare-Utils-Agent`.
+3. Remove either component.
+
+The controller installation will:
 1. Install necessary system packages (`git`, `python3-pip`).
 2. Clone the repository to `/opt/Cloudflare-Utils`.
 3. Install required Python packages.
