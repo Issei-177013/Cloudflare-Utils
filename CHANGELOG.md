@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.9.2-rc] - 2025-08-21
+
+### ✨ Added
+- **Trigger System & Alerts**
+  - Introduced flexible, trigger-based monitoring system replacing consumption alarms.
+  - Multiple triggers per agent with conditions:
+    - Time period (daily/weekly/monthly)
+    - Traffic type (rx, tx, total)
+    - Traffic volume thresholds
+    - Actions (alarm, IP rotate, etc.)
+  - Trigger management menu with `alert_enabled` toggle.
+  - Background service for periodic trigger evaluation.
+  - Integrated triggers with all rotation types (single, multi, group).
+
+- **Traffic Monitoring**
+  - Expanded VNStat support:
+    - Hourly
+    - Weekly
+    - 15-day
+    - Custom ranges
+  - Refactored display: side-by-side RX/TX stats (daily & monthly).
+  - Integrated **Self-Monitor** as a local agent (configurable interface).
+  - Unified agent editing and refactored menus into table-based display.
+  - Integrated master server as local agent.
+  - Removed legacy monthly threshold system.
+
+- **Installer & Updates**
+  - Overhauled `install.sh`:
+    - Interactive & non-interactive modes
+    - Safe, **non-destructive updates** with rollback
+    - Auto-install of missing dependencies
+    - Support for Python `venv`
+    - Logging to `/var/log/cloudflare-utils/installer.log`
+    - Improved cron job handling & symlink management
+  - Added `update_cfutils_from_local` for dev-path updates.
+  - Security improvements:
+    - Strong API key generation
+    - Optional IP whitelist
+
+- **Agent & CLI**
+  - Added standalone `cfu-agent` CLI with:
+    - Token management (`display`, `change` with masked output + audit logging)
+    - Service control (`start`, `stop`, `restart`, `status`)
+    - Logs, statistics, version, and config inspection
+  - Refactored token management with audit logging.
+  - Overhauled CLI visuals:
+    - Unicode separators
+    - Typewriter-style rendering (`print_slow`)
+    - Configurable `FAST_MODE`
+
+### 🐛 Fixed
+- Fixed `UnicodeEncodeError` when handling special characters in input.
+- Fixed VNStat parsing issues (empty output, JSON parsing, weekly aggregation).
+- Fixed `TypeError` in `get_user_input` (added default param).
+- Fixed `KeyError` in `view_agent_usage` for self-monitor.
+- Fixed cron duplication & stale entrypoints during updates.
+- Fixed installer errors:
+  - Missing imports
+  - `psutil` dependency
+  - Screen clearing & path handling
+
+### ♻️ Changed
+- Refactored `install.sh` into modular, error-handled functions.
+- Renamed agent → **Cloudflare-Utils-Agent**.
+- Migrated imports from relative to absolute paths.
+- Refactored consumption alarms → trigger-based alerts.
+- Refactored agent installation to use minimal GitHub API download.
+- Refactored CLI rendering for performance & consistency.
+
+### 🧪 Tests
+- Added new test suites (`test_triggers.py`, `test_new_triggers.py`) for triggers & monitoring.
+- Updated existing tests to match new functionality.
+- Removed obsolete tests (background service checks).
+- Added `.gitignore` rule for logs.
+
 ## [2.8.0] - 2025-08-14
 
 ### Added
