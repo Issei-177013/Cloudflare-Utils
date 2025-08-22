@@ -7,21 +7,21 @@ are rotated among each other on a schedule. This is different from other
 rotation methods as it uses the records' existing IPs rather than a
 separate, predefined list.
 """
-from ..config import load_config, validate_and_save_config, find_account, find_zone
-from ..cloudflare_api import CloudflareAPI
-from ..dns_manager import add_rotation_group, edit_rotation_group, delete_rotation_group
-from ..input_helper import get_validated_input, get_rotation_interval
-from ..logger import logger
+from ..core.config import config_manager
+from ..core.cloudflare_api import CloudflareAPI
+from ..core.dns_manager import add_rotation_group, edit_rotation_group, delete_rotation_group
+from .utils import get_validated_input, get_rotation_interval
+from ..core.logger import logger
 from ..display import *
-from cloudflare import APIError
+from ..core.exceptions import APIError, AuthenticationError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs, get_schedule_config
 
 def list_rotation_groups():
     """
     Lists all configured rotation groups in a table.
     """
-    data = load_config()
-    triggers = data.get("triggers", [])
+    config = config_manager.get_config()
+    triggers = config.get("triggers", [])
     def get_trigger_name(trigger_id):
         for t in triggers:
             if t["id"] == trigger_id:
@@ -29,7 +29,7 @@ def list_rotation_groups():
         return "Unknown Trigger"
 
     groups_data = []
-    for acc in data.get("accounts", []):
+    for acc in config.get("accounts", []):
         for zone in acc.get("zones", []):
             for group in zone.get("rotation_groups", []):
                 schedule_info = "Not Set"
@@ -66,12 +66,12 @@ def add_rotation_group_menu():
     """
     Guides the user through creating a new rotation group.
     """
-    data = load_config()
-    if not data["accounts"]:
+    config = config_manager.get_config()
+    if not config["accounts"]:
         print_fast(f"{COLOR_ERROR}❌ No accounts available. Please add an account first.{RESET_COLOR}")
         return
 
-    acc = select_from_list(data["accounts"], "Select an account:")
+    acc = select_from_list(config["accounts"], "Select an account:")
     if not acc:
         return
 
@@ -90,13 +90,13 @@ def add_rotation_group_menu():
         zone_id = selected_zone_info['id']
         zone_domain = selected_zone_info['name']
         
-        zone = find_zone(acc, zone_domain)
+        zone = config_manager.find_zone(acc, zone_domain)
         if not zone:
             if "zones" not in acc:
                 acc["zones"] = []
             zone = {"domain": zone_domain, "zone_id": zone_id, "records": [], "rotation_groups": []}
             acc["zones"].append(zone)
-            validate_and_save_config(data)
+            config_manager.save_config()
             logger.info(f"Zone '{zone_domain}' added to local config.")
 
         records_from_cf = [r for r in cf_api.list_dns_records(zone_id) if r.type in ['A', 'AAAA']]
@@ -137,7 +137,7 @@ def add_rotation_group_menu():
 
         add_rotation_group(acc['name'], zone_domain, group_name, record_names, schedule)
 
-    except APIError as e:
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Cloudflare API Error: {e}")
         print_fast(f"{COLOR_ERROR}❌ Cloudflare API Error: {e}{RESET_COLOR}")
     except Exception as e:
@@ -148,9 +148,9 @@ def edit_rotation_group_menu():
     """
     Guides the user through editing an existing rotation group.
     """
-    data = load_config()
+    config = config_manager.get_config()
     all_groups = []
-    for acc in data.get("accounts", []):
+    for acc in config.get("accounts", []):
         for zone in acc.get("zones", []):
             for group in zone.get("rotation_groups", []):
                 all_groups.append({
@@ -174,8 +174,8 @@ def edit_rotation_group_menu():
     print_fast("You will need to re-select all records for the group.")
     
     try:
-        cf_api = CloudflareAPI(find_account(data, group_to_edit['account_name'])['api_token'])
-        zone_id = find_zone(find_account(data, group_to_edit['account_name']), group_to_edit['zone_domain'])['zone_id']
+        cf_api = CloudflareAPI(config_manager.find_account(group_to_edit['account_name'])['api_token'])
+        zone_id = config_manager.find_zone(config_manager.find_account(group_to_edit['account_name']), group_to_edit['zone_domain'])['zone_id']
         records_from_cf = [r for r in cf_api.list_dns_records(zone_id) if r.type in ['A', 'AAAA']]
 
         if len(records_from_cf) < 2:
@@ -217,7 +217,7 @@ def edit_rotation_group_menu():
             new_interval_str
         )
 
-    except APIError as e:
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Cloudflare API Error: {e}")
         print_fast(f"{COLOR_ERROR}❌ Cloudflare API Error: {e}{RESET_COLOR}")
     except Exception as e:
@@ -229,9 +229,9 @@ def delete_rotation_group_menu():
     """
     Guides the user through deleting a rotation group.
     """
-    data = load_config()
+    config = config_manager.get_config()
     all_groups = []
-    for acc in data.get("accounts", []):
+    for acc in config.get("accounts", []):
         for zone in acc.get("zones", []):
             for group in zone.get("rotation_groups", []):
                 all_groups.append({
@@ -279,9 +279,9 @@ def rotate_ips_between_records_management_menu():
         elif choice == "3":
             delete_rotation_group_menu()
         elif choice == "4":
-            data = load_config()
+            config = config_manager.get_config()
             all_groups = []
-            for acc in data.get("accounts", []):
+            for acc in config.get("accounts", []):
                 for zone in acc.get("zones", []):
                     for group in zone.get("rotation_groups", []):
                         all_groups.append(group)

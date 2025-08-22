@@ -8,13 +8,13 @@ synchronized, round-robin fashion.
 
 These configurations are stored in the `state.json` file.
 """
-from ..config import load_config, find_account
-from ..cloudflare_api import CloudflareAPI
-from ..state_manager import load_state, save_state
-from ..input_helper import get_validated_input, get_ip_list, get_rotation_interval
-from ..logger import logger
+from ..core.config import config_manager
+from ..core.cloudflare_api import CloudflareAPI
+from ..core.state_manager import load_state, save_state
+from .utils import get_validated_input, get_ip_list, get_rotation_interval
+from ..core.logger import logger
 from ..display import *
-from cloudflare import APIError
+from ..core.exceptions import APIError, AuthenticationError
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs, get_schedule_config
 
 def add_global_rotation_menu():
@@ -24,13 +24,13 @@ def add_global_rotation_menu():
     clear_screen()
     print_fast(f"\n{COLOR_TITLE}--- Add New Global Rotation Configuration ---{RESET_COLOR}")
 
-    data = load_config()
-    if not data["accounts"]:
+    config = config_manager.get_config()
+    if not config["accounts"]:
         print_fast(f"{COLOR_ERROR}❌ No accounts available. Please add an account first.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
-    acc = select_from_list(data["accounts"], "Select an account:")
+    acc = select_from_list(config["accounts"], "Select an account:")
     if not acc:
         return
 
@@ -110,7 +110,7 @@ def add_global_rotation_menu():
         save_state(state)
         print_fast(f"\n{COLOR_SUCCESS}✅ Global rotation configuration '{config_name}' saved.{RESET_COLOR}")
 
-    except APIError as e:
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Cloudflare API Error: {e}")
         print_fast(f"{COLOR_ERROR}❌ Cloudflare API Error: {e}{RESET_COLOR}")
     except Exception as e:
@@ -126,7 +126,7 @@ def list_global_rotations():
         print_fast("No global rotations configured.")
         return
 
-    config_data = load_config()
+    config_data = config_manager.get_config()
     triggers = config_data.get("triggers", [])
     
     def get_trigger_name(trigger_id):

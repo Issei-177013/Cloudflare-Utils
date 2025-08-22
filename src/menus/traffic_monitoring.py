@@ -10,24 +10,24 @@ import json
 import datetime
 from urllib.parse import urlsplit, urlunsplit
 
-from ..config import load_config, save_config
+from ..core.config import config_manager
 from ..display import (
     display_as_table, print_slow, print_fast,
     OPTION_SEPARATOR, COLOR_WARNING, RESET_COLOR,
     COLOR_ERROR, COLOR_SUCCESS, COLOR_TITLE, COLOR_SEPARATOR
 )
-from ..helpers import format_period_date
-from ..input_helper import get_user_input, get_numeric_input
-from ..logger import logger
+from ..core.helpers import format_period_date
+from .utils import get_user_input, get_numeric_input
+from ..core.logger import logger
 from .utils import clear_screen, confirm_action
 from .trigger_management import trigger_management_menu
-from .. import self_monitor
+from ..core import self_monitor
 
 def get_all_agents():
     """
     Loads configured agents from configs.json and prepends the self-monitor if enabled.
     """
-    config = load_config()
+    config = config_manager.get_config()
     agents = config.get("agents", [])
     
     self_monitor_config = config.get("self_monitor", {})
@@ -48,7 +48,7 @@ def _get_current_usage_gb(agent, period):
     """
     data = []
     if agent.get("type") == "self":
-        config = load_config()
+        config = config_manager.get_config()
         interface = config.get("self_monitor", {}).get("vnstat_interface")
         result = self_monitor.get_usage_by_period(interface, period)
         if "error" not in result:
@@ -152,7 +152,7 @@ def list_agents(agents):
 
 def add_agent():
     """Adds a new remote agent to the configuration."""
-    config = load_config()
+    config = config_manager.get_config()
     
     clear_screen()
     print_fast(f"{COLOR_TITLE}--- Add New Agent ---{RESET_COLOR}")
@@ -175,14 +175,14 @@ def add_agent():
     if "agents" not in config:
         config["agents"] = []
     config["agents"].append(new_agent)
-    save_config(config)
+    config_manager.save_config()
     logger.info(f"Added new agent: {name} at {url}")
     print_fast(f"\n{COLOR_SUCCESS}✅ Agent '{name}' added successfully.{RESET_COLOR}")
     input("Press Enter to continue...")
 
 def remove_agent(agents):
     """Removes an existing agent from the configuration."""
-    config = load_config()
+    config = config_manager.get_config()
     
     removable_agents = [agent for agent in agents if not agent.get("is_local")]
     if not removable_agents:
@@ -219,7 +219,7 @@ def remove_agent(agents):
         
         if len(updated_config_agents) < len(config_agents):
             config["agents"] = updated_config_agents
-            save_config(config)
+            config_manager.save_config()
             logger.info(f"Removed agent: {agent_to_remove['name']}")
             print_fast(f"{COLOR_SUCCESS}✅ Agent '{agent_to_remove['name']}' removed.{RESET_COLOR}")
         else:
@@ -232,7 +232,7 @@ def remove_agent(agents):
 
 def edit_single_agent(agent_to_edit):
     """Edits the details of a single agent."""
-    config = load_config()
+    config = config_manager.get_config()
 
     config_agents = config.get("agents", [])
     agent_index_in_config = -1
@@ -269,7 +269,7 @@ def edit_single_agent(agent_to_edit):
         "api_key": new_api_key
     }
 
-    save_config(config)
+    config_manager.save_config()
     logger.info(f"Edited agent: {new_name}")
     print_fast(f"\n{COLOR_SUCCESS}✅ Agent '{new_name}' updated successfully.{RESET_COLOR}")
     input("\nPress Enter to continue...")
@@ -292,7 +292,7 @@ def view_agent_usage(agents):
         endpoint = ""
         if agent.get("type") == "self":
             if not config:
-                config = load_config()
+                config = config_manager.get_config()
             endpoint = config.get("self_monitor", {}).get("vnstat_interface", "N/A")
         else:
             endpoint = agent.get("url", "N/A")
@@ -343,7 +343,7 @@ def fetch_and_display_periodic_usage(agent, params):
     """
     result = None
     if agent.get("type") == "self":
-        config = load_config()
+        config = config_manager.get_config()
         interface = config.get("self_monitor", {}).get("vnstat_interface")
         result = self_monitor.get_usage_by_period(interface, params.get("period"))
     else:
@@ -395,7 +395,7 @@ def fetch_and_display_periodic_usage(agent, params):
 
 def edit_self_monitor_config():
     """Edits the Self-Monitor's configuration."""
-    config = load_config()
+    config = config_manager.get_config()
     self_monitor_config = config.get("self_monitor", {})
 
     # It's better to allow editing even when disabled.
@@ -417,7 +417,7 @@ def edit_self_monitor_config():
     config["self_monitor"]["name"] = new_name
     config["self_monitor"]["vnstat_interface"] = new_interface
 
-    save_config(config)
+    config_manager.save_config()
     logger.info(f"Edited Self-Monitor configuration.")
     print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor configuration updated successfully.{RESET_COLOR}")
     input("\nPress Enter to continue...")
@@ -438,7 +438,7 @@ def edit_monitor_menu():
     rows = []
     for i, agent in enumerate(all_agents):
         if agent.get("type") == "self":
-            config = load_config()
+            config = config_manager.get_config()
             interface = config.get("self_monitor", {}).get("vnstat_interface", "N/A")
             rows.append([i + 1, agent["name"], "Self-Monitor", interface])
         else:
@@ -464,14 +464,14 @@ def edit_monitor_menu():
 
 def toggle_self_monitor():
     """Toggles the self-monitor on or off."""
-    config = load_config()
+    config = config_manager.get_config()
     self_monitor_config = config.get("self_monitor", {})
     is_enabled = self_monitor_config.get("enabled", False)
 
     if is_enabled:
         if confirm_action("The Self-Monitor is currently enabled. Do you want to disable it?"):
             config["self_monitor"]["enabled"] = False
-            save_config(config)
+            config_manager.save_config()
             logger.info("Self-Monitor disabled.")
             print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor has been disabled.{RESET_COLOR}")
         else:
@@ -487,7 +487,7 @@ def toggle_self_monitor():
 
             config["self_monitor"]["vnstat_interface"] = new_interface
             config["self_monitor"]["enabled"] = True
-            save_config(config)
+            config_manager.save_config()
             logger.info(f"Self-Monitor enabled on interface {new_interface}.")
             print_fast(f"\n{COLOR_SUCCESS}✅ Self-Monitor has been enabled on interface '{new_interface}'.{RESET_COLOR}")
         else:
@@ -501,7 +501,7 @@ def traffic_monitoring_menu():
         clear_screen()
         
         all_agents = get_all_agents()
-        config = load_config()
+        config = config_manager.get_config()
         self_monitor_enabled = config.get("self_monitor", {}).get("enabled", False)
 
         print_fast(f"{COLOR_TITLE}--- Traffic Monitoring ---{RESET_COLOR}")

@@ -1,9 +1,9 @@
 import os
 import sys
-from .config import load_config
-from .logger import configure_console_logging
+from .core.config import config_manager
+from .core.logger import configure_console_logging
 from .menus.main import main_menu
-from .menus.accounts import add_account
+from .menus.accounts import add_account_menu
 from .menus.utils import clear_screen
 from .display import print_fast, COLOR_INFO, COLOR_WARNING, RESET_COLOR
 
@@ -20,7 +20,7 @@ def main():
     5. Handling a graceful exit on KeyboardInterrupt (Ctrl+C).
     """
     # Load configuration at the start
-    config = load_config()
+    config = config_manager.get_config()
 
     # Configure console logging based on the loaded config
     configure_console_logging(config)
@@ -32,10 +32,10 @@ def main():
         print_fast("It looks like this is your first time, or you don't have any accounts configured yet.")
         print_fast("Let's add your first Cloudflare account.")
         input("\nPress Enter to continue...")
-        add_account()
+        add_account_menu()
 
         # After attempting to add an account, reload the config and check again.
-        config = load_config()
+        config = config_manager.get_config()
         if not config.get("accounts"):
             print_fast(f"{COLOR_WARNING}\nNo account was added. Exiting.{RESET_COLOR}")
             sys.exit(0)

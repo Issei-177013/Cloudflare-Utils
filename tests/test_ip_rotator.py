@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from src.ip_rotator import rotate_ips_for_multi_record
+from src.core.ip_rotator import rotate_ips_for_multi_record
 
 class TestIpRotator(unittest.TestCase):
 

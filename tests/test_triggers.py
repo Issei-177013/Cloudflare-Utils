@@ -7,10 +7,10 @@ from unittest.mock import patch, MagicMock
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.triggers import add_trigger, edit_trigger, delete_trigger
-from src.background_service import _check_all_triggers
-from src.ip_rotator import run_rotation
-from src.logger import configure_console_logging, logger
+from src.menus.trigger_management import add_trigger_menu, edit_trigger_menu, delete_trigger_menu
+from src.core.background_service import _check_all_triggers
+from src.core.ip_rotator import run_rotation
+from src.core.logger import configure_console_logging, logger
 
 class MockDNSRecord:
     def __init__(self, id, name, type, content):
@@ -34,43 +34,45 @@ class TestNewTriggers(unittest.TestCase):
         """No teardown needed for file-based tests anymore."""
         pass
 
-    @patch('src.triggers.select_from_list')
-    @patch('src.triggers.get_user_input')
-    @patch('src.triggers.get_validated_input')
-    @patch('src.triggers.get_numeric_input')
-    def test_add_trigger(self, mock_numeric, mock_validated, mock_user, mock_select):
-        """Test the add_trigger function."""
+    @patch('src.menus.trigger_management.select_from_list')
+    @patch('src.menus.trigger_management.get_user_input')
+    @patch('src.menus.trigger_management.get_validated_input')
+    @patch('src.menus.trigger_management.get_numeric_input')
+    @patch('src.menus.trigger_management.config_manager')
+    def test_add_trigger_menu(self, mock_config_manager, mock_numeric, mock_validated, mock_user, mock_select):
+        """Test the add_trigger_menu function."""
         # --- Setup Mocks ---
         mock_config = {
-            "agents": [{"name": "Test Agent", "url": "http://test.com", "api_key": "123"}]
+            "agents": [{"name": "Test Agent", "url": "http://test.com", "api_key": "123"}],
+            "triggers": []
         }
+        mock_config_manager.get_config.return_value = mock_config
         mock_select.return_value = mock_config["agents"][0]
         mock_user.return_value = "Test Trigger"
         mock_validated.side_effect = ['1', '1'] # Period, Type
         mock_numeric.return_value = 100.0 # Volume
 
         # --- Call function ---
-        new_trigger = add_trigger(mock_config)
+        with patch('src.core.triggers.get_triggers') as mock_get_triggers:
+            mock_get_triggers.return_value = mock_config['triggers']
+            add_trigger_menu()
 
         # --- Assertions ---
-        self.assertIsNotNone(new_trigger)
-        self.assertEqual(new_trigger["name"], "Test Trigger")
-        self.assertEqual(new_trigger["agent_name"], "Test Agent")
         self.assertEqual(len(mock_config["triggers"]), 1)
         self.assertEqual(mock_config["triggers"][0]["name"], "Test Trigger")
         self.assertTrue(mock_config["triggers"][0]["alert_enabled"])
 
-    @patch('src.background_service.logger')
-    @patch('src.background_service.save_state')
-    @patch('src.background_service.load_state')
-    @patch('src.background_service.load_config')
-    @patch('src.background_service._get_usage_for_period')
-    def test_background_service_alerting(self, mock_get_usage, mock_load_config, mock_load_state, mock_save_state, mock_logger):
+    @patch('src.core.background_service.logger')
+    @patch('src.core.background_service.save_state')
+    @patch('src.core.background_service.load_state')
+    @patch('src.core.background_service.config_manager')
+    @patch('src.core.background_service._get_usage_for_period')
+    def test_background_service_alerting(self, mock_get_usage, mock_config_manager, mock_load_state, mock_save_state, mock_logger):
         """Test the background service's trigger evaluation and alerting logic."""
         # --- Test Case 1: Alerting Enabled (Default) ---
         trigger_alert_on = {"id": "trigger_alert_on", "name": "Alerting Trigger", "agent_name": "Test Agent BG", "period": "d", "volume_gb": 50, "volume_type": "total", "alert_enabled": True}
         agent = {"name": "Test Agent BG", "url": "http://test.com", "api_key": "123"}
-        mock_load_config.return_value = {"agents": [agent], "triggers": [trigger_alert_on]}
+        mock_config_manager.get_config.return_value = {"agents": [agent], "triggers": [trigger_alert_on]}
         mock_load_state.return_value = {}
         mock_get_usage.return_value = {"total": 60 * (1024**3)}
 
@@ -87,7 +89,7 @@ class TestNewTriggers(unittest.TestCase):
 
         # --- Test Case 2: Alerting Disabled ---
         trigger_alert_off = {"id": "trigger_alert_off", "name": "Silent Trigger", "agent_name": "Test Agent BG", "period": "d", "volume_gb": 50, "volume_type": "total", "alert_enabled": False}
-        mock_load_config.return_value = {"agents": [agent], "triggers": [trigger_alert_off]}
+        mock_config_manager.get_config.return_value = {"agents": [agent], "triggers": [trigger_alert_off]}
         mock_load_state.return_value = {} # Reset state
 
         _check_all_triggers()

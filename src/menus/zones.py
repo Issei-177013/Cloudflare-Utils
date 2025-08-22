@@ -5,24 +5,35 @@ This module provides the user interface for managing Cloudflare zones.
 It allows users to list, add, view details of, delete, and modify the
 settings of their zones.
 """
-from ..config import load_config, find_zone
-from ..cloudflare_api import CloudflareAPI
-from ..input_helper import get_validated_input, get_zone_type
-from ..validator import is_valid_domain
-from ..logger import logger
-from ..display import *
-from ..error_handler import MissingPermissionError
-from cloudflare import APIError
+from ..core import accounts as core_accounts
+from ..core import zones as core_zones
+from .utils import get_validated_input, get_zone_type
+from ..core.validator import is_valid_domain
+from ..core.logger import logger
+from ..display import (
+    display_as_table,
+    print_fast,
+    print_slow,
+    COLOR_TITLE,
+    COLOR_SUCCESS,
+    COLOR_ERROR,
+    COLOR_WARNING,
+    COLOR_INFO,
+    COLOR_SEPARATOR,
+    OPTION_SEPARATOR,
+    RESET_COLOR,
+)
+from ..core.exceptions import APIError, AuthenticationError
 from .utils import clear_screen, select_from_list
 
-def edit_zone_settings(cf_api, zone_id, zone_name):
+def edit_zone_settings_menu(api_token, zone_id, zone_name):
     """
     Manages the editing of core settings for a specific zone.
     """
     while True:
         try:
             print_fast(f"\n{COLOR_TITLE}--- Current settings for {zone_name} ---{RESET_COLOR}")
-            settings = cf_api.get_zone_core_settings(zone_id)
+            settings = core_zones.get_zone_core_settings(api_token, zone_id)
 
             settings_data = [
                 {"Setting": "SSL/TLS Mode", "Value": settings.get('ssl', 'N/A')},
@@ -67,22 +78,16 @@ def edit_zone_settings(cf_api, zone_id, zone_name):
 
             try:
                 print_fast(f"Updating '{setting_name}' to '{new_value}'...")
-                cf_api.update_zone_setting(zone_id, setting_name, new_value)
+                core_zones.update_zone_setting(api_token, zone_id, setting_name, new_value)
                 print_fast(f"{COLOR_SUCCESS}✅ Setting '{setting_name}' updated successfully to '{new_value}'.{RESET_COLOR}")
-            except (APIError, MissingPermissionError) as e:
+            except (APIError, AuthenticationError) as e:
                 logger.error(f"Failed to update setting '{setting_name}' for zone {zone_name}: {e}")
-                if "Missing permission: 'Zone Settings:Edit'" in str(e):
-                    print_fast(f"{COLOR_ERROR}❌ Missing permission: 'Zone Settings:Edit'{RESET_COLOR}")
-                else:
-                    print_fast(f"{COLOR_ERROR}❌ API Error: {e}{RESET_COLOR}")
+                print_fast(f"{COLOR_ERROR}❌ {e}{RESET_COLOR}")
                 break
 
-        except (APIError, MissingPermissionError) as e:
+        except (APIError, AuthenticationError) as e:
             logger.error(f"Error managing zone settings for {zone_name}: {e}")
-            if "Missing permission: 'Zone Settings:Edit'" in str(e):
-                 print_fast(f"{COLOR_ERROR}❌ Missing permission: 'Zone Settings:Edit'{RESET_COLOR}")
-            else:
-                print_fast(f"{COLOR_ERROR}❌ An API error occurred: {e}{RESET_COLOR}")
+            print_fast(f"{COLOR_ERROR}❌ An API error occurred: {e}{RESET_COLOR}")
             break
         except Exception as e:
             logger.error(f"An unexpected error occurred in edit_zone_settings: {e}", exc_info=True)
@@ -94,24 +99,24 @@ def zone_management_menu():
     """
     Displays the main menu for Zone Management.
     """
-    data = load_config()
-    if not data["accounts"]:
+    accounts = core_accounts.get_accounts()
+    if not accounts:
         logger.warning("No accounts available.")
         print_fast(f"{COLOR_ERROR}❌ No accounts available. Please add an account first.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
     acc = None
-    if len(data["accounts"]) == 1:
-        acc = data["accounts"][0]
+    if len(accounts) == 1:
+        acc = accounts[0]
         logger.info(f"Auto-selecting the only account: {acc['name']}")
     else:
-        acc = select_from_list(data["accounts"], "Select an account:")
+        acc = select_from_list(accounts, "Select an account:")
     
     if not acc:
         return
 
-    cf_api = CloudflareAPI(acc["api_token"])
+    api_token = acc["api_token"]
 
     while True:
         clear_screen()
@@ -119,7 +124,7 @@ def zone_management_menu():
 
         try:
             print_fast("Fetching zones...")
-            zones_from_cf = list(cf_api.list_zones())
+            zones_from_cf = core_zones.list_zones(api_token)
             
             if not zones_from_cf:
                 print_fast(f"{COLOR_WARNING}\nNo zones found for this account in Cloudflare.{RESET_COLOR}")
@@ -142,7 +147,7 @@ def zone_management_menu():
                 }
                 display_as_table(zones_for_display, headers=headers)
 
-        except APIError as e:
+        except (APIError, AuthenticationError) as e:
             logger.error(f"Cloudflare API Error fetching zones for account '{acc['name']}': {e}")
             print_fast(f"{COLOR_ERROR}❌ Error fetching zones: {e}{RESET_COLOR}")
             input("\nPress Enter to return...")
@@ -164,8 +169,8 @@ def zone_management_menu():
                 zone_type = get_zone_type()
                 try:
                     print_fast(f"Adding zone {domain_name}...")
-                    new_zone = cf_api.add_zone(domain_name, zone_type=zone_type)
-                    zone_details = cf_api.get_zone_details(new_zone["id"])
+                    new_zone = core_zones.add_zone(api_token, domain_name, zone_type=zone_type)
+                    zone_details = core_zones.get_zone_details(api_token, new_zone["id"])
 
                     print_fast(f"\n{COLOR_SUCCESS}✅ Zone '{domain_name}' added successfully!{RESET_COLOR}")
                     print_fast(f"   - Status: {zone_details.status}")
@@ -183,7 +188,7 @@ def zone_management_menu():
                         print_fast("⏳ Your domain is not yet active on Cloudflare.")
                         print_fast("❗ If nameservers are not updated within the grace period, this zone may be deleted.")
 
-                except (MissingPermissionError, RuntimeError) as e:
+                except (AuthenticationError, APIError) as e:
                     logger.error(f"Failed to add zone '{domain_name}': {e}")
                     print_fast(f"\n{COLOR_ERROR}❌ Error adding zone: {e}{RESET_COLOR}")
                     
@@ -198,7 +203,7 @@ def zone_management_menu():
                     if 1 <= selection <= len(zones_from_cf):
                         selected_zone_id = zones_from_cf[selection - 1].id
                         print_fast(f"Fetching details for zone {selected_zone_id}...")
-                        zone_details = cf_api.get_zone_details(selected_zone_id)
+                        zone_details = core_zones.get_zone_details(api_token, selected_zone_id)
                         
                         print_fast(f"\n{COLOR_TITLE}--- Zone Details ---{RESET_COLOR}")
                         details = {
@@ -215,7 +220,7 @@ def zone_management_menu():
                         print_fast(f"{COLOR_ERROR}❌ Invalid selection.{RESET_COLOR}")
                 except ValueError:
                     print_fast(f"{COLOR_ERROR}❌ Invalid input. Please enter a number.{RESET_COLOR}")
-                except APIError as e:
+                except (APIError, AuthenticationError) as e:
                     logger.error(f"Failed to fetch zone details: {e}")
                     print_fast(f"{COLOR_ERROR}❌ Error fetching zone details: {e}{RESET_COLOR}")
             input("\nPress Enter to continue...")
@@ -237,10 +242,10 @@ def zone_management_menu():
                         if confirmation.strip().lower() == zone_to_delete.name.lower():
                             try:
                                 print_fast(f"Deleting zone {zone_to_delete.name}...")
-                                cf_api.delete_zone(zone_to_delete.id)
+                                core_zones.delete_zone(api_token, zone_to_delete.id)
                                 logger.info(f"Zone '{zone_to_delete.name}' deleted successfully.")
                                 print_fast(f"{COLOR_SUCCESS}✅ Zone '{zone_to_delete.name}' has been deleted.{RESET_COLOR}")
-                            except APIError as e:
+                            except (APIError, AuthenticationError) as e:
                                 logger.error(f"Failed to delete zone '{zone_to_delete.name}': {e}")
                                 print_fast(f"{COLOR_ERROR}❌ Error deleting zone: {e}{RESET_COLOR}")
                         else:
@@ -259,7 +264,7 @@ def zone_management_menu():
                     selection = int(input("Enter the # of the zone to edit settings for: "))
                     if 1 <= selection <= len(zones_from_cf):
                         selected_zone = zones_from_cf[selection - 1]
-                        edit_zone_settings(cf_api, selected_zone.id, selected_zone.name)
+                        edit_zone_settings_menu(api_token, selected_zone.id, selected_zone.name)
                     else:
                         print_fast(f"{COLOR_ERROR}❌ Invalid selection.{RESET_COLOR}")
                 except ValueError:

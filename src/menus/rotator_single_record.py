@@ -6,29 +6,28 @@ DNS records. Users can create, edit, delete, and view rotation configurations.
 A single-record rotation involves one DNS record and a dedicated list of IPs
 that are cycled through on a schedule.
 """
-from ..config import load_config, validate_and_save_config, find_account, find_zone, find_record
-from ..cloudflare_api import CloudflareAPI
-from ..dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config
-from ..input_helper import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
-from ..validator import is_valid_record_name
-from ..logger import logger
+from ..core.config import config_manager
+from ..core.cloudflare_api import CloudflareAPI
+from ..core.dns_manager import add_record as add_record_to_config, delete_record as delete_record_from_config, edit_record as edit_record_in_config
+from .utils import get_validated_input, get_ip_list, get_record_type, get_rotation_interval
+from ..core.validator import is_valid_record_name
+from ..core.logger import logger
 from ..display import *
-from ..error_handler import MissingPermissionError
-from ..triggers import select_trigger
-from cloudflare import APIError
+from ..core.exceptions import APIError, AuthenticationError
+from .trigger_management import select_trigger
 from .utils import clear_screen, select_from_list, confirm_action, view_live_logs, get_schedule_config
 
 def add_record():
     """
     Guides the user through adding a new single-record rotation configuration.
     """
-    data = load_config()
-    if not data["accounts"]:
+    config = config_manager.get_config()
+    if not config["accounts"]:
         logger.warning("No accounts available.")
         print_fast(f"{COLOR_ERROR}❌ No accounts available. Please add an account first.{RESET_COLOR}")
         return
 
-    acc = select_from_list(data["accounts"], "Select an account:")
+    acc = select_from_list(config["accounts"], "Select an account:")
     if not acc:
         return
 
@@ -49,18 +48,18 @@ def add_record():
 
         zone_domain = selected_zone_info['name']
         zone_id = selected_zone_info['id']
-        zone = find_zone(acc, zone_domain)
+        zone = config_manager.find_zone(acc, zone_domain)
         if not zone:
             if "zones" not in acc:
                 acc["zones"] = []
             zone = {"domain": zone_domain, "zone_id": zone_id, "records": []}
             acc["zones"].append(zone)
-            validate_and_save_config(data)
+            config_manager.save_config()
             logger.info(f"Zone '{zone_domain}' added to local config.")
         else:
             logger.info(f"Zone '{zone_domain}' already exists in local config.")
 
-    except APIError as e:
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Cloudflare API Error fetching zones: {e}")
         print_fast(f"{COLOR_ERROR}❌ Could not fetch zones from Cloudflare.{RESET_COLOR}")
         return
@@ -96,7 +95,7 @@ def add_record():
         else:
             logger.info(f"No existing records found in Cloudflare for zone {zone['domain']}. Proceeding with manual entry.")
 
-    except APIError as e:
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Cloudflare API Error fetching records: {e}")
         print_fast(f"{COLOR_WARNING}⚠️ Proceeding with manual record name entry.{RESET_COLOR}")
     except Exception as e:
@@ -110,7 +109,7 @@ def add_record():
             "Invalid record name."
         )
 
-    if find_record(zone, record_name):
+    if config_manager.find_record(zone, record_name):
         logger.warning(f"Record '{record_name}' already exists locally.")
         print_fast(f"{COLOR_INFO}ℹ️ To update, please delete and re-add it.{RESET_COLOR}")
         return
@@ -131,8 +130,8 @@ def list_records_from_config():
     """
     Lists all single-record rotation configurations in a table.
     """
-    data = load_config()
-    if not any(acc.get("zones") for acc in data["accounts"]):
+    config = config_manager.get_config()
+    if not any(acc.get("zones") for acc in config["accounts"]):
         logger.info("No records to display.")
         print_fast("No records configured for rotation. Please add a record first.")
         return
@@ -140,7 +139,7 @@ def list_records_from_config():
     print_fast(f"\n{COLOR_TITLE}--- Records Configured for Rotation ---{RESET_COLOR}")
     
     all_records_data = []
-    triggers = data.get("triggers", [])
+    triggers = config.get("triggers", [])
     
     def get_trigger_name(trigger_id):
         for t in triggers:
@@ -148,7 +147,7 @@ def list_records_from_config():
                 return t["name"]
         return "Unknown Trigger"
 
-    for acc in data["accounts"]:
+    for acc in config["accounts"]:
         for zone in acc.get("zones", []):
             for record in zone.get("records", []):
                 schedule_info = "Not Set"
@@ -187,13 +186,13 @@ def delete_record():
     """
     Guides the user through deleting a single-record rotation configuration.
     """
-    data = load_config()
-    if not data["accounts"]:
+    config = config_manager.get_config()
+    if not config["accounts"]:
         logger.warning("No accounts available.")
         print_fast(f"{COLOR_ERROR}❌ No accounts available.{RESET_COLOR}")
         return
 
-    acc = select_from_list(data["accounts"], "Select an account to delete a record from:")
+    acc = select_from_list(config["accounts"], "Select an account to delete a record from:")
     if not acc:
         return
 
@@ -225,13 +224,13 @@ def edit_record():
     """
     Guides the user through editing a single-record rotation configuration.
     """
-    data = load_config()
-    if not data["accounts"]:
+    config = config_manager.get_config()
+    if not config["accounts"]:
         logger.warning("No accounts available.")
         print_fast(f"{COLOR_ERROR}❌ No accounts available.{RESET_COLOR}")
         return
 
-    acc = select_from_list(data["accounts"], "Select an account to edit a record in:")
+    acc = select_from_list(config["accounts"], "Select an account to edit a record in:")
     if not acc:
         return
 
@@ -293,14 +292,14 @@ def rotate_based_on_list_of_ips_single_record_menu():
         elif choice == "3":
             delete_record()
         elif choice == "4":
-            data = load_config()
-            if not any(acc.get("zones") for acc in data["accounts"]):
+            config = config_manager.get_config()
+            if not any(acc.get("zones") for acc in config["accounts"]):
                 print_fast(f"{COLOR_WARNING}No records configured for rotation. Please add a record first.{RESET_COLOR}")
                 input("\nPress Enter to return...")
                 continue
             
             records = []
-            for acc in data["accounts"]:
+            for acc in config["accounts"]:
                 for zone in acc.get("zones", []):
                     for record in zone.get("records", []):
                         records.append(record)

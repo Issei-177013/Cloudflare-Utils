@@ -2,12 +2,12 @@ import os
 import sys
 import time
 from tabulate import tabulate
-from .config import load_config
+from .core.config import config_manager
 
 # --- UI Configuration ---
 def get_config_setting(key, default):
     """Helper to get a setting from the config file."""
-    config = load_config()
+    config = config_manager.get_config()
     return config.get("settings", {}).get(key, default)
 
 def get_fast_mode_status():
@@ -97,7 +97,7 @@ def summarize_list(items, max_items=2):
         return f"{items[0]}, ..., {items[-1]}"
     return ", ".join(items)
 
-from .config import REQUIRED_PERMISSIONS
+from .core.config import REQUIRED_PERMISSIONS
 
 def display_as_table(data, headers):
     """

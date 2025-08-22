@@ -1,6 +1,6 @@
 import unittest
 import datetime
-from src.helpers import format_period_date
+from src.core.helpers import format_period_date
 
 class TestFormatPeriodDate(unittest.TestCase):
 

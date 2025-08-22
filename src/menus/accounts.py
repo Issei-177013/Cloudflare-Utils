@@ -1,73 +1,77 @@
 """
 Account Management Menu.
 
-This module provides the user interface and logic for managing Cloudflare
+This module provides the user interface for managing Cloudflare
 accounts within the application. It allows users to add, edit, list, and
 delete accounts from the configuration.
 """
-from ..config import load_config, validate_and_save_config, find_account
-from ..cloudflare_api import CloudflareAPI
-from ..dns_manager import edit_account_in_config, delete_account_from_config
-from ..input_helper import get_validated_input
-from ..logger import logger
-from ..display import *
-from ..error_handler import MissingPermissionError
-from cloudflare import APIError
-from .utils import clear_screen, select_from_list, confirm_action
+from ..core.app import Application
+from ..core.cloudflare_api import CloudflareAPI
+from ..core.exceptions import APIError, AuthenticationError
+from ..core.logger import logger
 
-def add_account():
+app = Application()
+from ..display import (
+    display_as_table,
+    print_fast,
+    print_slow,
+    display_token_guidance,
+    COLOR_TITLE,
+    COLOR_SUCCESS,
+    COLOR_ERROR,
+    COLOR_WARNING,
+    COLOR_SEPARATOR,
+    OPTION_SEPARATOR,
+    RESET_COLOR,
+)
+from .utils import clear_screen, select_from_list, confirm_action, get_validated_input
+
+def add_account_menu():
     """
     Guides the user through adding a new Cloudflare account.
     """
-    data = load_config()
     name = get_validated_input("Account name: ", lambda s: s.strip(), "Account name cannot be empty.")
-
-    if find_account(data, name):
-        logger.warning("Account already exists")
-        print_fast(f"{COLOR_ERROR}❌ Account already exists{RESET_COLOR}")
-        return
 
     display_token_guidance()
 
     while True:
         token = get_validated_input("\nEnter your Cloudflare API Token: ", lambda s: s.strip(), "API Token cannot be empty.")
-        try:
-            print_fast("🔐 Verifying token...")
-            cf_api = CloudflareAPI(token)
-            cf_api.verify_token()
-            print_fast(f"{COLOR_SUCCESS}✅ Token is valid{RESET_COLOR}")
+        print_fast("🔐 Verifying token and adding account...")
+        success, result = app.add_account(name, token)
+
+        if success:
+            logger.info(f"Account '{name}' added.")
+            print_fast(f"{COLOR_SUCCESS}✅ Account '{name}' added successfully!{RESET_COLOR}")
             break
-        except MissingPermissionError as e:
-            logger.error(f"Token validation failed due to missing permissions: {e}")
-            print_fast(f"{COLOR_ERROR}❌ {e}{RESET_COLOR}")
-            print_fast("Please create a new token with the required permissions listed above.")
-            if not confirm_action("Try again with a new token?"):
+        
+        logger.error(f"Failed to add account: {result}")
+        print_fast(f"{COLOR_ERROR}❌ {result}{RESET_COLOR}")
+        
+        # If it's an authentication error, ask to try again
+        if "permission" in str(result).lower() or "token" in str(result).lower():
+             if not confirm_action("Try again with a new token?"):
                 logger.warning("User aborted account creation.")
-                return
-        except APIError as e:
-            logger.error(f"Cloudflare API Error on token verification: {e}")
-            print_fast(f"{COLOR_ERROR}❌ Invalid Token. Cloudflare API Error: {e}{RESET_COLOR}")
-            print_fast("This could be due to an incorrect token, or you might be using a Global API Key which is not recommended.")
-            if not confirm_action("Try again?"):
-                logger.warning("User aborted account creation.")
-                return
+                break
+        else:
+            # For other errors like 'account already exists', just break
+            break
 
-    data["accounts"].append({"name": name, "api_token": token, "zones": []})
-    if validate_and_save_config(data):
-        logger.info(f"Account '{name}' added.")
-        print_fast(f"{COLOR_SUCCESS}✅ Account added{RESET_COLOR}")
 
-def edit_account():
+def edit_account_menu():
     """
     Allows the user to edit the name or API token of an existing account.
     """
-    data = load_config()
-    if not data["accounts"]:
-        logger.warning("No accounts available.")
-        print_fast(f"{COLOR_ERROR}❌ No accounts available.{RESET_COLOR}")
+    success, accounts = app.get_accounts()
+    if not success:
+        print_fast(f"{COLOR_ERROR}❌ Error: {accounts}{RESET_COLOR}")
         return
 
-    acc = select_from_list(data["accounts"], "Select an account to edit:")
+    if not accounts:
+        logger.warning("No accounts available.")
+        print_fast(f"{COLOR_WARNING}⚠️ No accounts available.{RESET_COLOR}")
+        return
+
+    acc = select_from_list(accounts, "Select an account to edit:")
     if not acc:
         return
 
@@ -76,45 +80,68 @@ def edit_account():
     new_token = get_validated_input("Enter new API token (or press Enter to keep current): ", lambda s: s.strip(), allow_empty=True)
 
     if new_name or new_token:
-        edit_account_in_config(acc['name'], new_name, new_token)
+        success, result = app.edit_account(acc['name'], new_name or None, new_token or None)
+        if success:
+            logger.info(f"Account '{acc['name']}' updated.")
+            print_fast(f"{COLOR_SUCCESS}✅ Account updated successfully!{RESET_COLOR}")
+        else:
+            logger.error(f"Error editing account: {result}")
+            print_fast(f"{COLOR_ERROR}❌ {result}{RESET_COLOR}")
     else:
         print_fast("No changes made.")
 
-def delete_account():
+
+def delete_account_menu():
     """
     Allows the user to delete an existing account from the configuration.
     """
-    data = load_config()
-    if not data["accounts"]:
+    success, accounts = app.get_accounts()
+    if not success:
+        print_fast(f"{COLOR_ERROR}❌ Error: {accounts}{RESET_COLOR}")
+        return
+        
+    if not accounts:
         logger.warning("No accounts available.")
-        print_fast(f"{COLOR_ERROR}❌ No accounts available.{RESET_COLOR}")
+        print_fast(f"{COLOR_WARNING}⚠️ No accounts available.{RESET_COLOR}")
         return
 
-    acc = select_from_list(data["accounts"], "Select an account to delete:")
+    acc = select_from_list(accounts, "Select an account to delete:")
     if not acc:
         return
 
     if confirm_action(f"Are you sure you want to delete the account '{acc['name']}'?"):
-        delete_account_from_config(acc['name'])
-        logger.info(f"Account '{acc['name']}' deleted.")
+        success, result = app.delete_account(acc['name'])
+        if success:
+            logger.info(f"Account '{acc['name']}' deleted.")
+            print_fast(f"{COLOR_SUCCESS}✅ Account '{acc['name']}' deleted successfully.{RESET_COLOR}")
+        else:
+            logger.error(f"Error deleting account: {result}")
+            print_fast(f"{COLOR_ERROR}❌ {result}{RESET_COLOR}")
     else:
-        logger.info("Deletion cancelled.")
+        logger.info("Deletion cancelled by user.")
+        print_fast("Deletion cancelled.")
 
-def list_accounts():
+
+def list_accounts_menu():
     """
     Lists all configured accounts in a table format.
     """
-    data = load_config()
-    if not data["accounts"]:
+    success, accounts = app.get_accounts()
+    if not success:
+        print_fast(f"{COLOR_ERROR}❌ Error: {accounts}{RESET_COLOR}")
+        return
+
+    if not accounts:
         print_fast("No accounts configured.")
         return
 
     accounts_data = []
-    for acc in data["accounts"]:
+    print_fast("\nFetching zone information for accounts...")
+    for acc in accounts:
         try:
+            # This logic remains in the UI as it's for display purposes
             cf_api = CloudflareAPI(acc["api_token"])
-            zones = list(cf_api.list_zones())
-            zone_count = len(zones)
+            zone_count = len(list(cf_api.list_zones()))
         except APIError as e:
             logger.error(f"Failed to fetch zones for account {acc['name']}: {e}")
             zone_count = "Error"
@@ -129,10 +156,10 @@ def account_management_menu():
     """
     Displays and handles the Account Management submenu.
     """
-    clear_screen()
     while True:
+        clear_screen()
         print_fast(f"\n{COLOR_TITLE}--- 👤 Cloudflare Account Management ---{RESET_COLOR}")
-        list_accounts()
+        list_accounts_menu()
         print_slow("\n1. 👤 Add a New Cloudflare Account")
         print_slow("2. ✏️ Edit an Existing Cloudflare Account")
         print_slow("3. 🗑️ Delete a Cloudflare Account")
@@ -142,13 +169,16 @@ def account_management_menu():
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == "1":
-            add_account()
+            add_account_menu()
         elif choice == "2":
-            edit_account()
+            edit_account_menu()
         elif choice == "3":
-            delete_account()
+            delete_account_menu()
         elif choice == "0":
             break
         else:
             logger.warning(f"Invalid choice: {choice}")
             print_fast(f"{COLOR_ERROR}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")
+        
+        if choice in ["1", "2", "3"]:
+            input("\nPress Enter to continue...")

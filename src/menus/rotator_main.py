@@ -6,7 +6,7 @@ It provides a navigation menu to access different rotation strategies,
 such as single-record rotation, multi-record rotation, and swapping IPs
 between existing records.
 """
-from ..logger import logger
+from ..core.logger import logger
 from .utils import clear_screen
 from .rotator_single_record import rotate_based_on_list_of_ips_single_record_menu
 from .rotator_multi_record import rotate_based_on_list_of_ips_multi_record_menu

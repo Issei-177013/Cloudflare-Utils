@@ -6,11 +6,11 @@ such as toggling console logging.
 """
 import importlib
 from .utils import clear_screen
-from ..config import load_config, save_config
-from ..logger import logger, setup_logger
+from ..core.config import config_manager
+from ..core.logger import logger, setup_logger
 from ..display import *
 from .. import display
-from ..input_helper import get_numeric_input
+from .utils import get_numeric_input
 
 def settings_menu():
     """
@@ -18,7 +18,7 @@ def settings_menu():
     """
     while True:
         clear_screen()
-        config = load_config()
+        config = config_manager.get_config()
         
         # Get current settings
         console_logging_status = "Enabled" if config.get("settings", {}).get("console_logging", True) else "Disabled"
@@ -38,7 +38,7 @@ def settings_menu():
             current_status = config.get("settings", {}).get("console_logging", True)
             if "settings" not in config: config["settings"] = {}
             config["settings"]["console_logging"] = not current_status
-            save_config(config)
+            config_manager.save_config()
             setup_logger() # Reconfigure logger
             new_status = "Enabled" if not current_status else "Disabled"
             print_fast(f"{COLOR_SUCCESS}✅ Console logging has been {new_status}.{RESET_COLOR}")
@@ -49,7 +49,7 @@ def settings_menu():
             current_status = get_fast_mode_status()
             if "settings" not in config: config["settings"] = {}
             config["settings"]["fast_mode"] = not current_status
-            save_config(config)
+            config_manager.save_config()
             importlib.reload(display) # Reload to update FAST_MODE global
             new_status = "Enabled" if current_status else "Disabled"
             print_fast(f"{COLOR_SUCCESS}✅ Slow Mode has been {new_status}.{RESET_COLOR}")
@@ -66,7 +66,7 @@ def settings_menu():
             if new_delay is not None:
                 if "settings" not in config: config["settings"] = {}
                 config["settings"]["slow_mode_delay"] = new_delay
-                save_config(config)
+                config_manager.save_config()
                 importlib.reload(display) # Reload to update delay
                 print_fast(f"{COLOR_SUCCESS}✅ Slow mode delay updated to {new_delay}s.{RESET_COLOR}")
                 logger.info(f"Slow mode delay changed to: {new_delay}")

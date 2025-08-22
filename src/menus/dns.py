@@ -6,43 +6,54 @@ through the Cloudflare API. It allows users to select an account and a zone,
 and then perform operations such as listing, adding, editing, and deleting
 DNS records.
 """
-from ..config import load_config
-from ..cloudflare_api import CloudflareAPI
-from ..input_helper import get_validated_input
-from ..validator import is_valid_dns_record_type
-from ..logger import logger
-from ..display import *
-from ..error_handler import MissingPermissionError
-from cloudflare import APIError
+from ..core import accounts as core_accounts
+from ..core import zones as core_zones
+from ..core import dns as core_dns
+from .utils import get_validated_input
+from ..core.validator import is_valid_dns_record_type
+from ..core.logger import logger
+from ..display import (
+    display_as_table,
+    print_fast,
+    print_slow,
+    COLOR_TITLE,
+    COLOR_SUCCESS,
+    COLOR_ERROR,
+    COLOR_WARNING,
+    COLOR_SEPARATOR,
+    OPTION_SEPARATOR,
+    RESET_COLOR,
+)
+from ..core.exceptions import APIError, AuthenticationError
 from .utils import clear_screen, select_from_list, confirm_action, parse_selection
 
 def dns_management_menu():
     """
     Displays the main menu for DNS management.
     """
-    data = load_config()
-    if not data["accounts"]:
+    accounts = core_accounts.get_accounts()
+    if not accounts:
         logger.warning("No accounts available.")
         print_fast(f"{COLOR_ERROR}❌ No accounts available. Please add an account first.{RESET_COLOR}")
         input("\nPress Enter to return...")
         return
 
     acc = None
-    if len(data["accounts"]) == 1:
-        acc = data["accounts"][0]
+    if len(accounts) == 1:
+        acc = accounts[0]
         logger.info(f"Auto-selecting the only account: {acc['name']}")
     else:
-        acc = select_from_list(data["accounts"], "Select an account:")
+        acc = select_from_list(accounts, "Select an account:")
     
     if not acc:
         return
 
-    cf_api = CloudflareAPI(acc["api_token"])
+    api_token = acc["api_token"]
 
     try:
         print_fast("Fetching zones...")
-        zones_from_cf = list(cf_api.list_zones())
-    except APIError as e:
+        zones_from_cf = core_zones.list_zones(api_token)
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Cloudflare API Error fetching zones for account '{acc['name']}': {e}")
         print_fast(f"{COLOR_ERROR}❌ Error fetching zones: {e}{RESET_COLOR}")
         input("\nPress Enter to return...")
@@ -69,7 +80,7 @@ def dns_management_menu():
             selection = int(selection)
             if 1 <= selection <= len(zones_from_cf):
                 selected_zone = zones_from_cf[selection - 1]
-                manage_zone_records(cf_api, selected_zone.id, selected_zone.name)
+                manage_zone_records_menu(api_token, selected_zone.id, selected_zone.name)
             else:
                 print_fast(f"{COLOR_ERROR}❌ Invalid selection.{RESET_COLOR}")
                 input("\nPress Enter to continue...")
@@ -77,23 +88,15 @@ def dns_management_menu():
             print_fast(f"{COLOR_ERROR}❌ Invalid input. Please enter a number.{RESET_COLOR}")
             input("\nPress Enter to continue...")
 
-def manage_zone_records(cf_api, zone_id, zone_name):
+def manage_zone_records_menu(api_token, zone_id, zone_name):
     """
     Displays and handles the DNS record management options for a specific zone.
-
-    This function lists all DNS records for the given zone and provides options
-    to add, edit, or delete records.
-
-    Args:
-        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
-        zone_id (str): The ID of the zone to manage.
-        zone_name (str): The name of the zone.
     """
     while True:
         clear_screen()
         print_fast(f"{COLOR_TITLE}--- DNS Records for {zone_name} ---{RESET_COLOR}")
         try:
-            records = list(cf_api.list_dns_records(zone_id))
+            records = core_dns.list_dns_records(api_token, zone_id)
             if not records:
                 print_fast(f"{COLOR_WARNING}\nNo DNS records found for this zone.{RESET_COLOR}")
             else:
@@ -119,16 +122,16 @@ def manage_zone_records(cf_api, zone_id, zone_name):
             choice = input("👉 Enter your choice: ").strip()
 
             if choice == "1":
-                add_dns_record(cf_api, zone_id, zone_name)
+                add_dns_record_menu(api_token, zone_id, zone_name)
             elif choice == "2":
                 if records:
-                    edit_dns_record(cf_api, zone_id, zone_name, records)
+                    edit_dns_record_menu(api_token, zone_id, zone_name, records)
                 else:
                     print_fast(f"{COLOR_WARNING}No records to edit.{RESET_COLOR}")
                     input("\nPress Enter to continue...")
             elif choice == "3":
                 if records:
-                    delete_dns_record(cf_api, zone_id, zone_name, records)
+                    delete_dns_record_menu(api_token, zone_id, zone_name, records)
                 else:
                     print_fast(f"{COLOR_WARNING}No records to delete.{RESET_COLOR}")
                     input("\nPress Enter to continue...")
@@ -138,7 +141,7 @@ def manage_zone_records(cf_api, zone_id, zone_name):
                 print_fast(f"{COLOR_ERROR}❌ Invalid choice. Please select a valid option.{RESET_COLOR}")
                 input("\nPress Enter to continue...")
 
-        except APIError as e:
+        except (APIError, AuthenticationError) as e:
             logger.error(f"Error fetching DNS records for zone {zone_name}: {e}")
             print_fast(f"{COLOR_ERROR}❌ An API error occurred: {e}{RESET_COLOR}")
             input("\nPress Enter to return...")
@@ -149,14 +152,9 @@ def manage_zone_records(cf_api, zone_id, zone_name):
             input("\nPress Enter to return...")
             return
 
-def add_dns_record(cf_api, zone_id, zone_name):
+def add_dns_record_menu(api_token, zone_id, zone_name):
     """
     Handles the user input and API call for adding a new DNS record.
-
-    Args:
-        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
-        zone_id (str): The ID of the zone where the record will be added.
-        zone_name (str): The name of the zone (for logging purposes).
     """
     print_fast(f"\n{COLOR_TITLE}--- Add New DNS Record ---{RESET_COLOR}")
     
@@ -190,23 +188,17 @@ def add_dns_record(cf_api, zone_id, zone_name):
 
     try:
         print_fast("Creating DNS record...")
-        cf_api.create_dns_record(zone_id, name, record_type, content, proxied, ttl)
+        core_dns.create_dns_record(api_token, zone_id, name, record_type, content, proxied, ttl)
         print_fast(f"{COLOR_SUCCESS}✅ DNS record created successfully!{RESET_COLOR}")
-    except APIError as e:
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Failed to create DNS record in zone {zone_name}: {e}")
         print_fast(f"{COLOR_ERROR}❌ Error creating DNS record: {e}{RESET_COLOR}")
     
     input("\nPress Enter to continue...")
 
-def edit_dns_record(cf_api, zone_id, zone_name, records):
+def edit_dns_record_menu(api_token, zone_id, zone_name, records):
     """
     Handles the user input and API call for editing an existing DNS record.
-
-    Args:
-        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
-        zone_id (str): The ID of the zone containing the record.
-        zone_name (str): The name of the zone (for logging purposes).
-        records (list): The list of current DNS records in the zone.
     """
     print_fast(f"\n{COLOR_TITLE}--- Edit DNS Record ---{RESET_COLOR}")
     try:
@@ -241,7 +233,8 @@ def edit_dns_record(cf_api, zone_id, zone_name, records):
         new_proxied = {'yes': True, 'no': False, '': record_to_edit.proxied}[new_proxied_str]
 
         print_fast("Updating DNS record...")
-        cf_api.update_dns_record(
+        core_dns.update_dns_record(
+            api_token,
             zone_id,
             record_to_edit.id,
             new_name,
@@ -254,21 +247,15 @@ def edit_dns_record(cf_api, zone_id, zone_name, records):
 
     except ValueError:
         print_fast(f"{COLOR_ERROR}❌ Invalid input. Please enter a number.{RESET_COLOR}")
-    except APIError as e:
+    except (APIError, AuthenticationError) as e:
         logger.error(f"Failed to update DNS record in zone {zone_name}: {e}")
         print_fast(f"{COLOR_ERROR}❌ Error updating DNS record: {e}{RESET_COLOR}")
     
     input("\nPress Enter to continue...")
 
-def delete_dns_record(cf_api, zone_id, zone_name, records):
+def delete_dns_record_menu(api_token, zone_id, zone_name, records):
     """
     Handles the user input and API call for deleting one or more DNS records.
-
-    Args:
-        cf_api (CloudflareAPI): An instance of the CloudflareAPI client.
-        zone_id (str): The ID of the zone containing the records.
-        zone_name (str): The name of the zone (for logging purposes).
-        records (list): The list of current DNS records in the zone.
     """
     print_fast(f"\n{COLOR_TITLE}--- Delete DNS Records ---{RESET_COLOR}")
     selection_str = input("Enter the # of the record(s) to delete (e.g., 1, 2-4, 5): ")
@@ -307,10 +294,10 @@ def delete_dns_record(cf_api, zone_id, zone_name, records):
         for record in records_to_delete:
             try:
                 print_fast(f"Deleting record {record.name}...")
-                cf_api.delete_dns_record(zone_id, record.id)
+                core_dns.delete_dns_record(api_token, zone_id, record.id)
                 logger.info(f"DNS record '{record.name}' deleted successfully from zone '{zone_name}'.")
                 deleted_count += 1
-            except APIError as e:
+            except (APIError, AuthenticationError) as e:
                 logger.error(f"Failed to delete DNS record {record.name} in zone {zone_name}: {e}")
                 print_fast(f"{COLOR_ERROR}❌ Error deleting record {record.name}: {e}{RESET_COLOR}")
                 failed_count += 1

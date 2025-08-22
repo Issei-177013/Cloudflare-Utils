@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     # Import the necessary components
     from src.app import main
-    from src.background_service import run_background_service
+    from src.core.background_service import run_background_service
     import threading
 
     # Start the background service in a daemon thread

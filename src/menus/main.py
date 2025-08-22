@@ -11,7 +11,7 @@ try:
 except ImportError:
     version_str = "Version: N/A"
 
-from ..logger import logger
+from ..core.logger import logger
 from .utils import clear_screen, confirm_action, view_live_logs
 from .accounts import account_management_menu
 from .zones import zone_management_menu

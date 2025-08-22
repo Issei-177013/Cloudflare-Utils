@@ -1,70 +1,53 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from src.menus.accounts import add_account
-from cloudflare import APIError
+from src.menus.accounts import add_account_menu
+from src.core.exceptions import APIError, AuthenticationError, ConfigError
+from src.app import main
 
 class TestApp(unittest.TestCase):
 
     @patch('src.menus.accounts.get_validated_input')
-    @patch('src.menus.accounts.CloudflareAPI')
-    @patch('src.menus.accounts.confirm_action')
-    @patch('src.menus.accounts.validate_and_save_config')
-    @patch('src.menus.accounts.load_config')
-    def test_add_account_valid_token(self, mock_load_config, mock_validate_and_save_config, mock_confirm_action, mock_cloudflare_api, mock_get_validated_input):
+    @patch('src.menus.accounts.app.add_account')
+    def test_add_account_valid_token(self, mock_add_account, mock_get_validated_input):
         # Arrange
         mock_get_validated_input.side_effect = ['test_account', 'valid_token']
-        mock_load_config.return_value = {"accounts": []}
-        mock_cloudflare_api.return_value.verify_token.return_value = None
-        mock_validate_and_save_config.return_value = True
+        mock_add_account.return_value = (True, {"name": "test_account"})
 
         # Act
-        add_account()
+        add_account_menu()
 
         # Assert
-        mock_cloudflare_api.assert_called_with('valid_token')
-        mock_cloudflare_api.return_value.verify_token.assert_called_once()
-        mock_validate_and_save_config.assert_called_once()
+        mock_add_account.assert_called_once_with('test_account', 'valid_token')
 
-    @patch('src.menus.accounts.get_validated_input')
-    @patch('src.menus.accounts.CloudflareAPI')
-    @patch('src.menus.accounts.confirm_action')
-    @patch('src.menus.accounts.validate_and_save_config')
-    @patch('src.menus.accounts.load_config')
-    def test_add_account_invalid_token_then_valid_token(self, mock_load_config, mock_validate_and_save_config, mock_confirm_action, mock_cloudflare_api, mock_get_validated_input):
+
+    @patch('src.app.config_manager')
+    @patch('src.app.configure_console_logging')
+    @patch('src.app.main_menu')
+    def test_main_with_accounts(self, mock_main_menu, mock_configure_console_logging, mock_config_manager):
         # Arrange
-        mock_get_validated_input.side_effect = ['test_account', 'invalid_token', 'valid_token']
-        mock_load_config.return_value = {"accounts": []}
-        mock_cloudflare_api.side_effect = [MagicMock(verify_token=MagicMock(side_effect=APIError("Invalid token", request=MagicMock(), body=None))), MagicMock(verify_token=MagicMock())]
-        mock_confirm_action.return_value = True
-        mock_validate_and_save_config.return_value = True
+        mock_config_manager.get_config.return_value = {"accounts": [{"name": "test_account"}]}
 
         # Act
-        add_account()
+        main()
 
         # Assert
-        self.assertEqual(mock_cloudflare_api.call_count, 2)
-        mock_confirm_action.assert_called_once_with("Try again?")
-        mock_validate_and_save_config.assert_called_once()
+        mock_main_menu.assert_called_once()
 
-    @patch('src.menus.accounts.get_validated_input')
-    @patch('src.menus.accounts.CloudflareAPI')
-    @patch('src.menus.accounts.confirm_action')
-    @patch('src.menus.accounts.validate_and_save_config')
-    @patch('src.menus.accounts.load_config')
-    def test_add_account_invalid_token_then_cancel(self, mock_load_config, mock_validate_and_save_config, mock_confirm_action, mock_cloudflare_api, mock_get_validated_input):
+    @patch('src.app.config_manager')
+    @patch('src.app.configure_console_logging')
+    @patch('src.app.add_account_menu')
+    @patch('src.app.main_menu')
+    @patch('builtins.input')
+    def test_main_no_accounts_then_add(self, mock_input, mock_main_menu, mock_add_account_menu, mock_configure_console_logging, mock_config_manager):
         # Arrange
-        mock_get_validated_input.side_effect = ['test_account', 'invalid_token']
-        mock_load_config.return_value = {"accounts": []}
-        mock_cloudflare_api.return_value.verify_token.side_effect = APIError("Invalid token", request=MagicMock(), body=None)
-        mock_confirm_action.return_value = False
-        
+        mock_config_manager.get_config.side_effect = [{"accounts": []}, {"accounts": [{"name": "new_account"}]}]
+
         # Act
-        add_account()
+        main()
 
         # Assert
-        mock_cloudflare_api.assert_called_with('invalid_token')
-        mock_confirm_action.assert_called_once_with("Try again?")
-        mock_validate_and_save_config.assert_not_called()
+        mock_add_account_menu.assert_called_once()
+        mock_main_menu.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()
