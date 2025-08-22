@@ -3,6 +3,7 @@ from src.bot.i18n import t
 
 def settings_menu(lang="en"):
     keyboard = [
+        [InlineKeyboardButton(t("language", lang), callback_data="menu_language")],
         [InlineKeyboardButton(t("toggle_console_logging", lang), callback_data="settings_toggle_console_logging")],
         [InlineKeyboardButton(t("toggle_slow_mode", lang), callback_data="settings_toggle_slow_mode")],
         [InlineKeyboardButton(t("back", lang), callback_data="menu_main")],

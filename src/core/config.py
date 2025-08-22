@@ -51,6 +51,7 @@ class ConfigManager:
             "accounts": [],
             "agents": [],
             "settings": {"console_logging": True},
+            "bot": {"lang": "en"},
             "self_monitor": {
                 "enabled": False,
                 "name": "Master",
@@ -145,6 +146,15 @@ class ConfigManager:
             if group.get("name") == group_name:
                 return group
         return None
+
+    def get_bot_lang(self):
+        """Returns the bot's language from the configuration."""
+        return self.config_data.get("bot", {}).get("lang", "en")
+
+    def set_bot_lang(self, lang):
+        """Sets the bot's language in the configuration."""
+        self.config_data.setdefault("bot", {})["lang"] = lang
+        self.save_config()
 
 # --- Constants and other config-related utilities ---
 

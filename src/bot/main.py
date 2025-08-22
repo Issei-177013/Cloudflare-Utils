@@ -2,15 +2,16 @@
 Telegram Bot Main Entry Point.
 """
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from src.bot.menus.main import main_menu
 from src.bot.handlers import button_handler
 from src.core.app import Application
 from src.core.config import config_manager
+from src.bot.i18n import t
 
 async def start(update, context):
     """Sends a welcome message with the main menu."""
-    await update.message.reply_text("Welcome to Cloudflare Utils Bot!", reply_markup=main_menu())
+    lang = config_manager.get_bot_lang()
+    await update.message.reply_text(t("welcome_message", lang), reply_markup=main_menu(lang))
 
 def main():
     """Starts the bot."""

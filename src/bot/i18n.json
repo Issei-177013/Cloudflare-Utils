@@ -21,7 +21,18 @@
     "add_rule": "Add Rule",
     "delete_rule": "Delete Rule",
     "toggle_console_logging": "Toggle Console Logging",
-    "toggle_slow_mode": "Toggle Slow Mode"
+    "toggle_slow_mode": "Toggle Slow Mode",
+    "language": "Language",
+    "welcome_message": "Welcome to Cloudflare Utils Bot!",
+    "accounts_menu_title": "Accounts Menu:",
+    "no_accounts_configured": "No accounts configured.",
+    "accounts_list_title": "Accounts:",
+    "dns_menu_title": "DNS Menu:",
+    "zones_menu_title": "Zones Menu:",
+    "firewall_menu_title": "Firewall Menu:",
+    "settings_menu_title": "Settings Menu:",
+    "error_prefix": "Error: ",
+    "language_menu_title": "Select a language:"
   },
   "fa": {
     "main_menu": "یک گزینه انتخاب کنید:",
@@ -45,6 +56,17 @@
     "add_rule": "افزودن قانون",
     "delete_rule": "حذف قانون",
     "toggle_console_logging": "تغییر وضعیت لاگ کنسول",
-    "toggle_slow_mode": "تغییر وضعیت حالت آهسته"
+    "toggle_slow_mode": "تغییر وضعیت حالت آهسته",
+    "language": "زبان",
+    "welcome_message": "به ربات Cloudflare Utils خوش آمدید!",
+    "accounts_menu_title": "منوی اکانت‌ها:",
+    "no_accounts_configured": "هیچ اکانتی پیکربندی نشده است.",
+    "accounts_list_title": "اکانت‌ها:",
+    "dns_menu_title": "منوی DNS:",
+    "zones_menu_title": "منوی زون‌ها:",
+    "firewall_menu_title": "منوی فایروال:",
+    "settings_menu_title": "منوی تنظیمات:",
+    "error_prefix": "خطا: ",
+    "language_menu_title": "یک زبان انتخاب کنید:"
   }
 }

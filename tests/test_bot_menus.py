@@ -36,8 +36,8 @@ class TestBotMenus(unittest.TestCase):
     def test_settings_menu(self):
         """Test the settings menu creation."""
         menu = settings.settings_menu()
-        self.assertEqual(len(menu.inline_keyboard), 3)
-        self.assertEqual(menu.inline_keyboard[0][0].text, "Toggle Console Logging")
+        self.assertEqual(len(menu.inline_keyboard), 4)
+        self.assertEqual(menu.inline_keyboard[0][0].text, "Language")
 
 if __name__ == '__main__':
     unittest.main()
