@@ -24,7 +24,7 @@ def get_schedule_config():
         interval = get_rotation_interval()
         return {"type": "time", "interval_minutes": interval}
     elif choice == '2':
-        from ..triggers import select_trigger
+        from .trigger_management import select_trigger
         trigger_id = select_trigger()
         if trigger_id:
             return {"type": "trigger", "trigger_id": trigger_id}
