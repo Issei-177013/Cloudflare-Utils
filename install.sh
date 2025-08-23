@@ -51,7 +51,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -b <branch>              Specify the branch to install from (default: main)."
-    echo "  -p <path>                Use a local development path."
+    echo "  --local                  Update from the local repository where the script is located."
     echo "  -u                       Uninstall the application."
     echo "  --agent                  Install or uninstall the agent instead of the main utility."
     echo "  --ip-whitelist <ips>     Comma-separated IPs to whitelist for the agent."
@@ -229,12 +229,12 @@ update_cfutils_from_local() {
 
     log_info "Backing up configuration files..."
     mkdir -p /tmp/cfutils_backup
-    if [ -f "$CFUTILS_DIR/src/configs.json" ]; then
-        cp "$CFUTILS_DIR/src/configs.json" "/tmp/cfutils_backup/configs.json"
+    if [ -f "$CFUTILS_DIR/configs/configs.json" ]; then
+        cp "$CFUTILS_DIR/configs/configs.json" "/tmp/cfutils_backup/configs.json"
         log_info "Backed up configs.json."
     fi
-    if [ -f "$CFUTILS_DIR/src/rotation_status.json" ]; then
-        cp "$CFUTILS_DIR/src/rotation_status.json" "/tmp/cfutils_backup/rotation_status.json"
+    if [ -f "$CFUTILS_DIR/configs/rotation_status.json" ]; then
+        cp "$CFUTILS_DIR/configs/rotation_status.json" "/tmp/cfutils_backup/rotation_status.json"
         log_info "Backed up rotation_status.json."
     fi
 
@@ -243,11 +243,11 @@ update_cfutils_from_local() {
 
     log_info "Restoring configuration files..."
     if [ -f "/tmp/cfutils_backup/configs.json" ]; then
-        mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/src/configs.json"
+        mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/configs/configs.json"
         log_info "Restored configs.json."
     fi
     if [ -f "/tmp/cfutils_backup/rotation_status.json" ]; then
-        mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/src/rotation_status.json"
+        mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/configs/rotation_status.json"
         log_info "Restored rotation_status.json."
     fi
     rm -rf /tmp/cfutils_backup
@@ -288,12 +288,12 @@ update_cfutils() {
 
     log_info "Backing up configuration files..."
     mkdir -p /tmp/cfutils_backup
-    if [ -f "$CFUTILS_DIR/src/configs.json" ]; then
-        cp "$CFUTILS_DIR/src/configs.json" "/tmp/cfutils_backup/configs.json"
+    if [ -f "$CFUTILS_DIR/configs/configs.json" ]; then
+        cp "$CFUTILS_DIR/configs/configs.json" "/tmp/cfutils_backup/configs.json"
         log_info "Backed up configs.json."
     fi
-    if [ -f "$CFUTILS_DIR/src/rotation_status.json" ]; then
-        cp "$CFUTILS_DIR/src/rotation_status.json" "/tmp/cfutils_backup/rotation_status.json"
+    if [ -f "$CFUTILS_DIR/configs/rotation_status.json" ]; then
+        cp "$CFUTILS_DIR/configs/rotation_status.json" "/tmp/cfutils_backup/rotation_status.json"
         log_info "Backed up rotation_status.json."
     fi
 
@@ -303,10 +303,10 @@ update_cfutils() {
         log_error "Failed to update the repository. Please check for errors."
         log_info "Restoring configuration files from backup..."
         if [ -f "/tmp/cfutils_backup/configs.json" ]; then
-            mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/src/configs.json"
+            mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/configs/configs.json"
         fi
         if [ -f "/tmp/cfutils_backup/rotation_status.json" ]; then
-            mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/src/rotation_status.json"
+            mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/configs/rotation_status.json"
         fi
         rm -rf /tmp/cfutils_backup
         die "Update failed. Your configuration has been restored."
@@ -315,11 +315,11 @@ update_cfutils() {
 
     log_info "Restoring configuration files..."
     if [ -f "/tmp/cfutils_backup/configs.json" ]; then
-        mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/src/configs.json"
+        mv "/tmp/cfutils_backup/configs.json" "$CFUTILS_DIR/configs/configs.json"
         log_info "Restored configs.json."
     fi
     if [ -f "/tmp/cfutils_backup/rotation_status.json" ]; then
-        mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/src/rotation_status.json"
+        mv "/tmp/cfutils_backup/rotation_status.json" "$CFUTILS_DIR/configs/rotation_status.json"
         log_info "Restored rotation_status.json."
     fi
     rm -rf /tmp/cfutils_backup
@@ -415,12 +415,12 @@ install_cfutils() {
     setup_cfutils_venv
 
     log_info "Creating required directories and files..."
-    mkdir -p "$CFUTILS_DIR/src" "$CFUTILS_DIR/logs"
+    mkdir -p "$CFUTILS_DIR/configs" "$CFUTILS_DIR/logs"
     touch "$CFUTILS_DIR/logs/cron.log"
     chown -R root:root "$CFUTILS_DIR" || log_warning "Could not set ownership to root:root. May require manual adjustment."
     
-    if [ ! -f "$CFUTILS_DIR/src/configs.json" ]; then
-        echo '{"accounts": [], "agents": []}' > "$CFUTILS_DIR/src/configs.json"
+    if [ ! -f "$CFUTILS_DIR/configs/configs.json" ]; then
+        echo '{"accounts": [], "agents": []}' > "$CFUTILS_DIR/configs/configs.json"
     fi
 
     setup_cfutils_cron
@@ -916,7 +916,7 @@ run_interactive_mode() {
 
     if [ -t 1 ]; then clear; fi
     echo -e "${C_MAGENTA}--- Cloudflare-Utils Installer ---${C_RESET}"
-    log_info "Branch selection and local install are only supported in non-interactive mode (using -b or -p flags)."
+    log_info "Branch selection and local install are only supported in non-interactive mode (using -b or --local flags)."
     log_info "This interactive installer will use the default 'main' branch."
     
     PS3="$(echo -e "${C_YELLOW}\nPlease choose an option: ${C_RESET}")"
@@ -1016,10 +1016,10 @@ parse_args() {
                 BRANCH="$2"
                 shift 2
                 ;;
-            -p)
-                if [ -z "$2" ]; then die "'-p' requires an argument."; fi
-                LOCAL_DEV_PATH="$2"
-                shift 2
+            --local)
+                # Get the absolute path of the directory where the script is located
+                LOCAL_DEV_PATH=$(cd "$(dirname "$0")" && pwd)
+                shift
                 ;;
             -u)
                 UNINSTALL_MODE=true
@@ -1052,7 +1052,7 @@ parse_args() {
     # Validation for non-interactive mode
     if ! $INTERACTIVE_MODE; then
         if [ -n "$LOCAL_DEV_PATH" ] && [ "$BRANCH" != "main" ]; then
-            log_warning "Both -p (local path) and -b (branch) were specified. Using local path."
+            log_warning "Both --local and -b (branch) were specified. Using local path."
         fi
         if $AGENT_MODE && ! $UNINSTALL_MODE; then
             if [ -z "$IFACE" ]; then

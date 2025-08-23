@@ -9,7 +9,7 @@ class TestBotMain(unittest.TestCase):
     def test_main_function(self, mock_config_manager, mock_app_builder):
         """Test the main function of the bot."""
         # Arrange
-        mock_config_manager.get_config.return_value = {"bot": {"token": "fake_token"}}
+        mock_config_manager.get_config.return_value = {"bot": {"enabled": True, "token": "fake_token"}}
         
         # Mock the whole builder chain
         mock_builder = MagicMock()

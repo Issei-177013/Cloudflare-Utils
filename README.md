@@ -200,6 +200,7 @@ The bot runs as a background service. The application supports two modes:
 │   ├── agent/              # Source code for the monitoring agent
 │   │   ├── cfu-agent.py    # CLI entry point for the agent
 │   │   └── ...
+├── configs/
 │   ├── configs.json        # Stores user configurations
 │   ├── rotation_status.json # Tracks the state of IP rotations
 │   └── state.json          # Stores the state of fired triggers
@@ -243,23 +244,19 @@ The controller installation will:
 
 ### Developer Installation
 
-If you want to install the latest development version, you can do so by specifying the `dev` branch in the URL:
+If you are a developer and want to update your installation from a local copy of the repository (e.g., to test changes that have not been pushed to GitHub), you can run the `install.sh` script with the `--local` flag.
 
-**Using cURL:**
+**From your local repository directory:**
 ```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)" _ dev
+sudo ./install.sh --local
 ```
-
-**Using wget:**
-```bash
-sudo bash -c "$(wget -O- https://raw.githubusercontent.com/Issei-177013/Cloudflare-Utils/main/install.sh)" _ dev
-```
+This will use the files in your current directory to update the system-wide installation in `/opt/Cloudflare-Utils`.
 
 ## Configuration
 
 ### Configuration Files
 
-The application uses two main JSON files located in `/opt/Cloudflare-Utils/src/`:
+The application uses three main JSON files located in `/opt/Cloudflare-Utils/configs/`:
 - `configs.json`: Stores all user-defined configurations, including Cloudflare accounts, zones, and single-record rotation rules.
 - `rotation_status.json`: Tracks the last rotation time for each record or group to ensure rotations happen at the correct interval.
 - `state.json`: Stores state for multi-record rotations and fired triggers.

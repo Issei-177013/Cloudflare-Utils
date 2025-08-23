@@ -42,8 +42,9 @@ class ConfigManager:
 
     def _get_default_config_path(self):
         """Determines the default path for the configs.json file."""
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(script_dir, "configs.json")
+        # Project root is three levels up from src/core/config.py
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return os.path.join(project_root, "configs", "configs.json")
 
     def _get_default_config(self):
         """Returns the default configuration structure."""
@@ -117,6 +118,7 @@ class ConfigManager:
         """
         try:
             validate_config(self.config_data)
+            os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
             with open(self.config_path, "w") as f:
                 json.dump(self.config_data, f, indent=2)
             logger.info(f"Configuration successfully saved to {self.config_path}")
@@ -163,7 +165,8 @@ class ConfigManager:
 
 # --- Constants and other config-related utilities ---
 
-ROTATION_STATUS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rotation_status.json")
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROTATION_STATUS_PATH = os.path.join(project_root, "configs", "rotation_status.json")
 DEFAULT_ROTATION_INTERVAL_MINUTES = 30
 
 def load_rotation_status():
@@ -180,6 +183,7 @@ def load_rotation_status():
 
 def save_rotation_status(status_data):
     """Saves the rotation status data to the `rotation_status.json` file."""
+    os.makedirs(os.path.dirname(ROTATION_STATUS_PATH), exist_ok=True)
     with open(ROTATION_STATUS_PATH, "w") as f:
         json.dump(status_data, f, indent=2)
 

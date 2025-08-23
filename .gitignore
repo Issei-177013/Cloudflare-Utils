@@ -85,5 +85,5 @@ __pypackages__/
 update_note.md
 
 # User-specific configuration files
-src/configs.json
-src/rotation_status.json
+configs/configs.json
+configs/rotation_status.json
