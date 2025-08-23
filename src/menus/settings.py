@@ -11,6 +11,7 @@ from ..core.logger import logger, setup_logger
 from ..display import *
 from .. import display
 from .utils import get_numeric_input
+from .telegram_bot import telegram_bot_menu
 
 def settings_menu():
     """
@@ -29,6 +30,7 @@ def settings_menu():
         print_fast(f"1. Console Logging: {console_logging_status}")
         print_fast(f"2. Slow Mode: {slow_mode_status}")
         print_fast(f"3. Slow Mode Delay: {current_delay}s")
+        print_fast("4. Telegram Bot")
         print_fast("0. Back to Main Menu")
         print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
@@ -73,6 +75,9 @@ def settings_menu():
             else:
                 print_fast(f"{COLOR_ERROR}Invalid input. Delay not changed.{RESET_COLOR}")
             input("Press Enter to continue...")
+
+        elif choice == "4":
+            telegram_bot_menu()
 
         elif choice == "0":
             break

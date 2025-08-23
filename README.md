@@ -142,6 +142,43 @@ In addition to using `systemctl`, you can manage the agent directly using the `c
 
 For more detailed help on any command, you can use `cfu-agent <command> --help`.
 
+## Telegram Bot
+
+Cloudflare Utils includes an optional Telegram bot that can be configured to allow management from a Telegram chat. The bot runs as a separate background service and does not interfere with the CLI.
+
+### Setting up the Bot
+
+All bot management is done from within the CLI.
+
+1.  Navigate to the settings menu: `cfu` -> `7. Settings`.
+2.  Select `4. Telegram Bot` to open the bot management menu.
+
+### Bot Management Menu
+
+From the Telegram Bot Settings menu, you can:
+
+-   **Enable/Disable the Bot**: A global switch to turn the bot on or off. The bot service will not run if this is disabled.
+-   **Set/Update Token**: Set your Telegram bot token, obtained from BotFather. For security, the token is not displayed in full. You will be prompted to restart the service after changing the token.
+-   **Manage Allowed User IDs**: Control who can use the bot.
+    -   **Add/Remove IDs**: Add or remove individual Telegram user IDs.
+    -   **Import from CSV**: Bulk import a list of user IDs from a CSV file.
+    -   **Access Control Policy**:
+        -   If the list of allowed IDs is **empty**, **any user** can interact with the bot.
+        -   If the list contains **one or more IDs**, only users with those specific IDs can interact with the bot. All others will receive a rejection message.
+-   **Manage Service**: Control the bot's background service.
+
+### Service Management
+
+The bot runs as a background service. The application supports two modes:
+
+-   **systemd Mode (Recommended)**: If your system uses `systemd`, you can install a systemd service for the bot. This is the most reliable way to run the bot, as it will automatically restart on failure or system reboot. From the "Manage Service" menu, you can install, uninstall, start, stop, and restart the service. Installation requires root privileges.
+-   **Background Process Mode (Fallback)**: If `systemd` is not available, the bot can be run as a simple background process. The "Manage Service" menu will provide options to start and stop this process. This method is less robust and the bot will not restart automatically on system reboot.
+
+### Security Guidance
+
+-   **Token Security**: Treat your bot token like a password. Do not share it or commit it to public repositories. If you believe your token has been compromised, use the "Set/Update Token" option to generate a new one from BotFather and update it in the settings.
+-   **Access Control**: It is highly recommended to populate the "Allowed User IDs" list to ensure only authorized individuals can access your Cloudflare management functions through the bot.
+
 ## Project Structure
 ```
 .

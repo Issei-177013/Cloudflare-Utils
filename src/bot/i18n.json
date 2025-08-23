@@ -32,7 +32,8 @@
     "firewall_menu_title": "Firewall Menu:",
     "settings_menu_title": "Settings Menu:",
     "error_prefix": "Error: ",
-    "language_menu_title": "Select a language:"
+    "language_menu_title": "Select a language:",
+    "unauthorized_access": "You are not authorized to use this bot."
   },
   "fa": {
     "main_menu": "یک گزینه انتخاب کنید:",
@@ -67,6 +68,7 @@
     "firewall_menu_title": "منوی فایروال:",
     "settings_menu_title": "منوی تنظیمات:",
     "error_prefix": "خطا: ",
-    "language_menu_title": "یک زبان انتخاب کنید:"
+    "language_menu_title": "یک زبان انتخاب کنید:",
+    "unauthorized_access": "شما مجاز به استفاده از این ربات نیستید."
   }
 }

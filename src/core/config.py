@@ -51,7 +51,12 @@ class ConfigManager:
             "accounts": [],
             "agents": [],
             "settings": {"console_logging": True},
-            "bot": {"lang": "en"},
+            "bot": {
+                "enabled": False,
+                "token": "",
+                "allowed_user_ids": [],
+                "lang": "en"
+            },
             "self_monitor": {
                 "enabled": False,
                 "name": "Master",

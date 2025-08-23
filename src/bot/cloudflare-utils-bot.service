@@ -1,0 +1,15 @@
+[Unit]
+Description=Cloudflare Utils Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/Cloudflare-Utils/
+ExecStart=/opt/Cloudflare-Utils/venv/bin/python -m src.bot.main
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
