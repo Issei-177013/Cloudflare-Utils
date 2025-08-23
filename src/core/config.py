@@ -51,7 +51,7 @@ class ConfigManager:
         return {
             "accounts": [],
             "agents": [],
-            "settings": {"console_logging": True},
+            "settings": {"console_logging": False},
             "bot": {
                 "enabled": False,
                 "token": "",

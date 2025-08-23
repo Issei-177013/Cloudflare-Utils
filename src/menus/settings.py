@@ -7,7 +7,7 @@ such as toggling console logging.
 import importlib
 from .utils import clear_screen
 from ..core.config import config_manager
-from ..core.logger import logger, setup_logger
+from ..core.logger import logger, configure_console_logging
 from ..display import *
 from .. import display
 from .utils import get_numeric_input
@@ -22,7 +22,7 @@ def settings_menu():
         config = config_manager.get_config()
         
         # Get current settings
-        console_logging_status = "Enabled" if config.get("settings", {}).get("console_logging", True) else "Disabled"
+        console_logging_status = "Enabled" if config.get("settings", {}).get("console_logging", False) else "Disabled"
         slow_mode_status = "Enabled" if not get_fast_mode_status() else "Disabled"
         current_delay = get_slow_mode_delay()
 
@@ -37,14 +37,22 @@ def settings_menu():
         choice = input("👉 Enter your choice: ").strip()
 
         if choice == "1":
-            current_status = config.get("settings", {}).get("console_logging", True)
-            if "settings" not in config: config["settings"] = {}
-            config["settings"]["console_logging"] = not current_status
+            # Toggle the console_logging setting
+            settings = config.setdefault("settings", {})
+            current_status = settings.get("console_logging", False)
+            new_status_bool = not current_status
+            settings["console_logging"] = new_status_bool
+            
+            # Save the configuration
             config_manager.save_config()
-            setup_logger() # Reconfigure logger
-            new_status = "Enabled" if not current_status else "Disabled"
-            print_fast(f"{COLOR_SUCCESS}✅ Console logging has been {new_status}.{RESET_COLOR}")
-            logger.info(f"Console logging setting changed to: {not current_status}")
+            
+            # Immediately apply the new logging configuration
+            configure_console_logging(config)
+            
+            # Notify the user
+            new_status_str = "Enabled" if new_status_bool else "Disabled"
+            print_fast(f"{COLOR_SUCCESS}✅ Console logging has been {new_status_str}.{RESET_COLOR}")
+            logger.info(f"Console logging setting changed to: {new_status_bool}")
             input("Press Enter to continue...")
 
         elif choice == "2":
