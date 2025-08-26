@@ -104,9 +104,13 @@ class ConfigManager:
         """
         Returns the entire configuration data dictionary.
 
+        This method reloads the configuration from the file each time it's called
+        to ensure the data is always fresh.
+
         Returns:
             dict: The configuration data.
         """
+        self.load_config()
         return self.config_data
 
     def save_config(self):
