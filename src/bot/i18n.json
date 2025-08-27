@@ -44,7 +44,15 @@
     "account_details_title": "Account Details",
     "account_name": "Name",
     "email": "Email",
-    "token": "Token"
+    "token": "Token",
+    "edit_rename_prompt": "Please send the new name for the account `{account_name}`.",
+    "edit_token_prompt": "Please send the new API token.",
+    "skip": "➡️ Skip",
+    "cancel": "❌ Cancel",
+    "name_updated": "✅ Name updated",
+    "token_updated": "✅ Token updated",
+    "invalid_name": "Invalid name. It might be too long or already in use.",
+    "invalid_token": "Invalid API token. Please check it and try again."
   },
   "fa": {
     "main_menu": "یک گزینه انتخاب کنید:",
@@ -91,6 +99,14 @@
     "account_details_title": "جزئیات اکانت",
     "account_name": "نام (برچسب)",
     "email": "ایمیل حساب",
-    "token": "توکن"
+    "token": "توکن",
+    "edit_rename_prompt": "لطفاً نام جدید را برای اکانت «{account_name}» ارسال کنید.",
+    "edit_token_prompt": "لطفا توکن API جدید را ارسال کنید.",
+    "skip": "➡️ رد شدن",
+    "cancel": "❌ کنسل",
+    "name_updated": "✅ نام به‌روزرسانی شد.",
+    "token_updated": "✅ توکن اپدیت گردید",
+    "invalid_name": "نام نامعتبر است.ممکنه خیلی طولانی باشه یا قبلاً استفاده شده باشه.",
+    "invalid_token": "توکن نامعتبر است. پس از بررسی دوباره وارد کنید.."
   }
 }

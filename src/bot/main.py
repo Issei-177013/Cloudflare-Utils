@@ -1,11 +1,11 @@
 """
 Telegram Bot Main Entry Point.
 """
-from telegram import Update
-from telegram.ext import Application, ApplicationBuilder, CommandHandler, CallbackQueryHandler, TypeHandler, ContextTypes
+from telegram import Update # type: ignore
+from telegram.ext import Application, ApplicationBuilder, CommandHandler, CallbackQueryHandler, TypeHandler, MessageHandler, filters, ContextTypes # type: ignore
 
 from src.bot.menus.main import main_menu
-from src.bot.handlers import button_handler
+from src.bot.handlers import button_handler, handle_wizard_input
 from src.core.app import Application as CoreApplication
 from src.core.config import config_manager
 from src.bot.i18n import t
@@ -64,6 +64,7 @@ def main():
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_wizard_input))
     
     logger.info("Starting bot polling...")
     application.run_polling()

@@ -55,6 +55,22 @@ class TestBotMenus(unittest.TestCase):
         self.assertEqual(len(menu.inline_keyboard), 1)
         self.assertEqual(menu.inline_keyboard[0][0].callback_data, "ACCOUNTS_PAGE:3")
 
+    def test_get_edit_rename_menu(self):
+        """Test the edit rename menu creation."""
+        text, menu = accounts.get_edit_rename_menu("test_account", 1)
+        self.assertIn("test_account", text)
+        self.assertEqual(len(menu.inline_keyboard), 2)
+        self.assertEqual(menu.inline_keyboard[0][0].callback_data, "EDIT_SKIP_RENAME:test_account:1")
+        self.assertEqual(menu.inline_keyboard[1][0].callback_data, "EDIT_CANCEL:test_account:1")
+
+    def test_get_edit_token_menu(self):
+        """Test the edit token menu creation."""
+        text, menu = accounts.get_edit_token_menu("test_account", 1)
+        self.assertIn("new API token", text)
+        self.assertEqual(len(menu.inline_keyboard), 2)
+        self.assertEqual(menu.inline_keyboard[0][0].callback_data, "EDIT_SKIP_TOKEN:test_account:1")
+        self.assertEqual(menu.inline_keyboard[1][0].callback_data, "EDIT_BACK_TO_RENAME:test_account:1")
+
     def test_dns_menu(self):
         """Test the dns menu creation."""
         menu = dns.dns_menu()

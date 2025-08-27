@@ -74,3 +74,29 @@ def get_account_details_menu(account_details, page, lang="en"):
     ]
 
     return text, InlineKeyboardMarkup(keyboard), parse_mode
+
+def get_edit_rename_menu(account_name, page, lang="en"):
+    """
+    Generates the UI for the first step of the edit wizard (rename).
+    """
+    text = t("edit_rename_prompt", lang).format(account_name=account_name)
+    keyboard = [
+        [
+            InlineKeyboardButton(t("skip", lang), callback_data=f"EDIT_SKIP_RENAME:{account_name}:{page}"),
+            InlineKeyboardButton(t("cancel", lang), callback_data=f"EDIT_CANCEL:{account_name}:{page}")
+        ]
+    ]
+    return text, InlineKeyboardMarkup(keyboard)
+
+def get_edit_token_menu(account_name, page, lang="en"):
+    """
+    Generates the UI for the second step of the edit wizard (update token).
+    """
+    text = t("edit_token_prompt", lang)
+    keyboard = [
+        [
+            InlineKeyboardButton(t("skip", lang), callback_data=f"EDIT_SKIP_TOKEN:{account_name}:{page}"),
+            InlineKeyboardButton(t("back", lang), callback_data=f"EDIT_BACK_TO_RENAME:{account_name}:{page}")
+        ]
+    ]
+    return text, InlineKeyboardMarkup(keyboard)
