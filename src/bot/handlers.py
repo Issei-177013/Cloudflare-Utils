@@ -1,8 +1,8 @@
-from telegram import Update
-from telegram.constants import ChatType
-from telegram.ext import ContextTypes
+from telegram import Update # type: ignore
+from telegram.constants import ChatType, ParseMode # type: ignore
+from telegram.ext import ContextTypes # type: ignore
 from src.bot.menus.main import main_menu
-from src.bot.menus.accounts import accounts_menu
+from src.bot.menus.accounts import accounts_menu, get_account_details_menu
 from src.bot.menus.dns import dns_menu
 from src.bot.menus.zones import zones_menu
 from src.bot.menus.firewall import firewall_menu
@@ -40,7 +40,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(text=t("error_prefix", lang), show_alert=True)
             await query.edit_message_text(f"{t('error_prefix', lang)}{e}")
 
-    elif command in ["VIEW_ACCOUNT", "EDIT_ACCOUNT", "DELETE_ACCOUNT", "ADD_ACCOUNT"]:
+    elif command == "VIEW_ACCOUNT":
+        await query.answer()
+        try:
+            account_name, page_str = data.split(':', 1)
+            page = int(page_str)
+            
+            details = config_manager.find_account(account_name)
+            if not details:
+                raise Exception(f"Account '{account_name}' not found.")
+
+            text, reply_markup, parse_mode = get_account_details_menu(details, page, lang)
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+        except Exception as e:
+            await query.answer(text=f"{t('error_prefix', lang)} {e}", show_alert=True)
+
+    elif command in ["EDIT_ACCOUNT", "DELETE_ACCOUNT", "ADD_ACCOUNT"]:
         await query.answer(text=t("coming_soon", lang), show_alert=False)
 
     elif command == "menu_dns":

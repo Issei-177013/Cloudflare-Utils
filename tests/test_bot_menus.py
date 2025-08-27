@@ -33,6 +33,28 @@ class TestBotMenus(unittest.TestCase):
         # Pagination row is at index 11, Next button is at index 1 (0 is page indicator)
         self.assertEqual(menu.inline_keyboard[11][1].callback_data, "ACCOUNTS_PAGE:2")
 
+    def test_get_account_details_menu(self):
+        """Test the account details menu creation with and without email."""
+        # Case 1: With email
+        details_with_email = {"name": "test_account", "email": "test@example.com", "api_token": "test_token"}
+        text, menu = accounts.get_account_details_menu(details_with_email, page=2)
+
+        self.assertIn("test_account", text)
+        self.assertIn("test@example.com", text)
+        self.assertIn("||test_token||", text)
+        self.assertEqual(len(menu.inline_keyboard), 1)
+        self.assertEqual(menu.inline_keyboard[0][0].callback_data, "ACCOUNTS_PAGE:2")
+
+        # Case 2: Without email
+        details_without_email = {"name": "test_account", "email": None, "api_token": "test_token"}
+        text, menu = accounts.get_account_details_menu(details_without_email, page=3)
+
+        self.assertIn("test_account", text)
+        self.assertNotIn("Email", text)
+        self.assertIn("||test_token||", text)
+        self.assertEqual(len(menu.inline_keyboard), 1)
+        self.assertEqual(menu.inline_keyboard[0][0].callback_data, "ACCOUNTS_PAGE:3")
+
     def test_dns_menu(self):
         """Test the dns menu creation."""
         menu = dns.dns_menu()

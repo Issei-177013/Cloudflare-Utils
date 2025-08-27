@@ -47,5 +47,24 @@ class TestBotHandlers(unittest.TestCase):
 
         self.update.callback_query.edit_message_text.assert_called_once_with("This command can only be used in private chats.")
 
+    @patch('src.bot.handlers.config_manager')
+    @patch('src.bot.handlers.get_account_details_menu')
+    def test_button_handler_view_account_success(self, mock_details_menu, mock_config_manager):
+        """Test the button handler for viewing an account successfully."""
+        self.update.callback_query.data = "VIEW_ACCOUNT:test_account:1"
+        mock_config_manager.find_account.return_value = {"name": "test_account"}
+        mock_config_manager.get_bot_lang.return_value = "en"
+        mock_details_menu.return_value = ("details_text", "details_markup")
+
+        asyncio.run(handlers.button_handler(self.update, self.context))
+
+        mock_config_manager.find_account.assert_called_once_with("test_account")
+        mock_details_menu.assert_called_once_with({"name": "test_account"}, 1, 'en')
+        self.update.callback_query.edit_message_text.assert_called_with(
+            "details_text",
+            reply_markup="details_markup",
+            parse_mode="Markdown"
+        )
+
 if __name__ == '__main__':
     unittest.main()

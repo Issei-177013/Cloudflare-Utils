@@ -1,5 +1,7 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup # type: ignore
+from telegram.constants import ParseMode # type: ignore
 from src.bot.i18n import t
+from src.bot.utils import lri, pdi, escape_html
 
 def accounts_menu(accounts, page=1, lang="en"):
     """
@@ -22,9 +24,9 @@ def accounts_menu(accounts, page=1, lang="en"):
         for acc in accounts[start_index:end_index]:
             account_name = acc.get("name", "N/A")
             row = [
-                InlineKeyboardButton(f"👤 {truncate(account_name)}", callback_data=f"VIEW_ACCOUNT:{account_name}"),
-                InlineKeyboardButton(t("edit_account", lang), callback_data=f"EDIT_ACCOUNT:{account_name}"),
-                InlineKeyboardButton(t("delete_account", lang), callback_data=f"DELETE_ACCOUNT:{account_name}")
+                InlineKeyboardButton(f"👤 {truncate(account_name)}", callback_data=f"VIEW_ACCOUNT:{account_name}:{page}"),
+                InlineKeyboardButton(t("edit_account", lang), callback_data=f"EDIT_ACCOUNT:{account_name}:{page}"),
+                InlineKeyboardButton(t("delete_account", lang), callback_data=f"DELETE_ACCOUNT:{account_name}:{page}")
             ]
             keyboard.append(row)
         
@@ -49,3 +51,26 @@ def accounts_menu(accounts, page=1, lang="en"):
     keyboard.append([InlineKeyboardButton(t("back", lang), callback_data="menu_main")])
     
     return InlineKeyboardMarkup(keyboard)
+
+def get_account_details_menu(account_details, page, lang="en"):
+    """
+    Generates a message and keyboard for the account details view.
+    """
+    name = account_details.get('name', 'N/A')
+    token = account_details.get('api_token', 'N/A')
+
+    parse_mode = ParseMode.HTML
+    name_lri = f'{lri}<code>{escape_html(name)}</code>{pdi}'
+    token_html = f'{lri}<span class="tg-spoiler">{escape_html(token)}</span>{pdi}'
+
+    text = (
+        f"<b>{t('account_details_title', lang)}</b>\n\n"
+        f"<b>{t('account_name', lang)}:</b> {name_lri}\n"
+        f"<b>{t('token', lang)}:</b> {token_html}"
+    )
+
+    keyboard = [
+        [InlineKeyboardButton(t("back", lang), callback_data=f"ACCOUNTS_PAGE:{page}")]
+    ]
+
+    return text, InlineKeyboardMarkup(keyboard), parse_mode

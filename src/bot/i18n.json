@@ -40,7 +40,11 @@
     "settings_menu_title": "Settings Menu:",
     "error_prefix": "Error: ",
     "language_menu_title": "Select a language:",
-    "unauthorized_access": "You are not authorized to use this bot."
+    "unauthorized_access": "You are not authorized to use this bot.",
+    "account_details_title": "Account Details",
+    "account_name": "Name",
+    "email": "Email",
+    "token": "Token"
   },
   "fa": {
     "main_menu": "یک گزینه انتخاب کنید:",
@@ -83,6 +87,10 @@
     "settings_menu_title": "منوی تنظیمات:",
     "error_prefix": "خطا: ",
     "language_menu_title": "یک زبان انتخاب کنید:",
-    "unauthorized_access": "شما مجاز به استفاده از این ربات نیستید."
+    "unauthorized_access": "شما مجاز به استفاده از این ربات نیستید.",
+    "account_details_title": "جزئیات اکانت",
+    "account_name": "نام (برچسب)",
+    "email": "ایمیل حساب",
+    "token": "توکن"
   }
 }
