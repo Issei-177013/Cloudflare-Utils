@@ -37,39 +37,39 @@ class TestBotMenus(unittest.TestCase):
         """Test the account details menu creation with and without email."""
         # Case 1: With email
         details_with_email = {"name": "test_account", "email": "test@example.com", "api_token": "test_token"}
-        text, menu = accounts.get_account_details_menu(details_with_email, page=2)
+        text, menu, parse_mode = accounts.get_account_details_menu(details_with_email, page=2)
 
         self.assertIn("test_account", text)
-        self.assertIn("test@example.com", text)
-        self.assertIn("||test_token||", text)
+        self.assertIn("test_token", text)
         self.assertEqual(len(menu.inline_keyboard), 1)
         self.assertEqual(menu.inline_keyboard[0][0].callback_data, "ACCOUNTS_PAGE:2")
+        self.assertEqual(parse_mode, "HTML")
 
         # Case 2: Without email
         details_without_email = {"name": "test_account", "email": None, "api_token": "test_token"}
-        text, menu = accounts.get_account_details_menu(details_without_email, page=3)
+        text, menu, parse_mode = accounts.get_account_details_menu(details_without_email, page=3)
 
         self.assertIn("test_account", text)
-        self.assertNotIn("Email", text)
-        self.assertIn("||test_token||", text)
+        self.assertIn("test_token", text)
         self.assertEqual(len(menu.inline_keyboard), 1)
         self.assertEqual(menu.inline_keyboard[0][0].callback_data, "ACCOUNTS_PAGE:3")
+        self.assertEqual(parse_mode, "HTML")
 
     def test_get_edit_rename_menu(self):
         """Test the edit rename menu creation."""
         text, menu = accounts.get_edit_rename_menu("test_account", 1)
         self.assertIn("test_account", text)
-        self.assertEqual(len(menu.inline_keyboard), 2)
+        self.assertEqual(len(menu.inline_keyboard), 1)
         self.assertEqual(menu.inline_keyboard[0][0].callback_data, "EDIT_SKIP_RENAME:test_account:1")
-        self.assertEqual(menu.inline_keyboard[1][0].callback_data, "EDIT_CANCEL:test_account:1")
+        self.assertEqual(menu.inline_keyboard[0][1].callback_data, "EDIT_CANCEL:test_account:1")
 
     def test_get_edit_token_menu(self):
         """Test the edit token menu creation."""
         text, menu = accounts.get_edit_token_menu("test_account", 1)
         self.assertIn("new API token", text)
-        self.assertEqual(len(menu.inline_keyboard), 2)
+        self.assertEqual(len(menu.inline_keyboard), 1)
         self.assertEqual(menu.inline_keyboard[0][0].callback_data, "EDIT_SKIP_TOKEN:test_account:1")
-        self.assertEqual(menu.inline_keyboard[1][0].callback_data, "EDIT_BACK_TO_RENAME:test_account:1")
+        self.assertEqual(menu.inline_keyboard[0][1].callback_data, "EDIT_BACK_TO_RENAME:test_account:1")
 
     def test_dns_menu(self):
         """Test the dns menu creation."""

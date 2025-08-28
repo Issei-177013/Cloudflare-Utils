@@ -52,7 +52,11 @@
     "name_updated": "✅ Name updated",
     "token_updated": "✅ Token updated",
     "invalid_name": "Invalid name. It might be too long or already in use.",
-    "invalid_token": "Invalid API token. Please check it and try again."
+    "invalid_token": "Invalid API token. Please check it and try again.",
+    "delete_confirmation": "Are you sure you want to delete {account_name}? This action cannot be undone.",
+    "confirm_delete": "❌ Confirm Delete",
+    "deleting": "⏳ Deleting…",
+    "deleted_successfully": "✅ Deleted."
   },
   "fa": {
     "main_menu": "یک گزینه انتخاب کنید:",
@@ -107,6 +111,10 @@
     "name_updated": "✅ نام به‌روزرسانی شد.",
     "token_updated": "✅ توکن اپدیت گردید",
     "invalid_name": "نام نامعتبر است.ممکنه خیلی طولانی باشه یا قبلاً استفاده شده باشه.",
-    "invalid_token": "توکن نامعتبر است. پس از بررسی دوباره وارد کنید.."
+    "invalid_token": "توکن نامعتبر است. پس از بررسی دوباره وارد کنید..",
+    "delete_confirmation": "آیا از حذف حساب {account_name} اطمینان دارید؟ این عمل قابل بازگشت نیست.",
+    "confirm_delete": "❌ تایید حذف",
+    "deleting": "⏳ در حال حذف...",
+    "deleted_successfully": "✅ با موفقیت حذف شد."
   }
 }

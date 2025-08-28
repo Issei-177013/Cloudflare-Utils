@@ -56,7 +56,7 @@ class TestBotHandlers(unittest.TestCase):
         self.update.callback_query.data = "VIEW_ACCOUNT:test_account:1"
         mock_config_manager.find_account.return_value = {"name": "test_account"}
         mock_config_manager.get_bot_lang.return_value = "en"
-        mock_details_menu.return_value = ("details_text", "details_markup")
+        mock_details_menu.return_value = ("details_text", "details_markup", "HTML")
 
         asyncio.run(handlers.button_handler(self.update, self.context))
 
@@ -65,7 +65,7 @@ class TestBotHandlers(unittest.TestCase):
         self.update.callback_query.edit_message_text.assert_called_with(
             "details_text",
             reply_markup="details_markup",
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 
     @patch('src.bot.handlers.get_edit_rename_menu')

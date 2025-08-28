@@ -2,7 +2,7 @@ from telegram import Update # type: ignore
 from telegram.constants import ChatType, ParseMode # type: ignore
 from telegram.ext import ContextTypes # type: ignore
 from src.bot.menus.main import main_menu
-from src.bot.menus.accounts import accounts_menu, get_account_details_menu, get_edit_rename_menu, get_edit_token_menu
+from src.bot.menus.accounts import accounts_menu, get_account_details_menu, get_edit_rename_menu, get_edit_token_menu, get_delete_confirmation_menu
 from src.bot.menus.dns import dns_menu
 from src.bot.menus.zones import zones_menu
 from src.bot.menus.firewall import firewall_menu
@@ -10,7 +10,7 @@ from src.bot.menus.settings import settings_menu
 from src.bot.menus.language import language_menu
 from src.bot.i18n import t
 from src.core.config import config_manager
-from src.core.accounts import get_accounts, edit_account
+from src.core.accounts import get_accounts, edit_account, delete_account
 from src.core.cloudflare_api import CloudflareAPI
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -105,7 +105,37 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
         
-    elif command in ["DELETE_ACCOUNT", "ADD_ACCOUNT"]:
+    elif command == "DELETE_ACCOUNT":
+        await query.answer()
+        account_name, page_str = data.split(':', 1)
+        page = int(page_str)
+        
+        text, reply_markup = get_delete_confirmation_menu(account_name, page, lang)
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+    elif command == "CONFIRM_DELETE":
+        await query.answer(t("deleting", lang))
+        account_name, page_str = data.split(':', 1)
+        page = int(page_str)
+
+        try:
+            delete_account(account_name)
+            await query.answer(t("deleted_successfully", lang), show_alert=False)
+            
+            # Refresh and adjust pagination
+            accounts = get_accounts()
+            items_per_page = 10
+            total_pages = (len(accounts) + items_per_page - 1) // items_per_page
+            
+            if page > total_pages and total_pages > 0:
+                page = total_pages
+
+            reply_markup = accounts_menu(accounts, page=page, lang=lang)
+            await query.edit_message_text(t("accounts_list_title", lang), reply_markup=reply_markup)
+        except Exception as e:
+            await query.answer(f"{t('error_prefix', lang)} {e}", show_alert=True)
+
+    elif command == "ADD_ACCOUNT":
         await query.answer(text=t("coming_soon", lang), show_alert=False)
 
     elif command == "menu_dns":

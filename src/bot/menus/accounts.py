@@ -88,6 +88,19 @@ def get_edit_rename_menu(account_name, page, lang="en"):
     ]
     return text, InlineKeyboardMarkup(keyboard)
 
+def get_delete_confirmation_menu(account_name, page, lang="en"):
+    """
+    Generates a confirmation screen for deleting an account.
+    """
+    text = t("delete_confirmation", lang).format(account_name=account_name)
+    keyboard = [
+        [
+            InlineKeyboardButton(t("confirm_delete", lang), callback_data=f"CONFIRM_DELETE:{account_name}:{page}"),
+            InlineKeyboardButton(t("cancel", lang), callback_data=f"ACCOUNTS_PAGE:{page}")
+        ]
+    ]
+    return text, InlineKeyboardMarkup(keyboard)
+
 def get_edit_token_menu(account_name, page, lang="en"):
     """
     Generates the UI for the second step of the edit wizard (update token).
