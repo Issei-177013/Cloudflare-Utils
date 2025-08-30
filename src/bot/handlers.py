@@ -2,16 +2,22 @@ from telegram import Update # type: ignore
 from telegram.constants import ChatType, ParseMode # type: ignore
 from telegram.ext import ContextTypes # type: ignore
 from src.bot.menus.main import main_menu
-from src.bot.menus.accounts import accounts_menu, get_account_details_menu, get_edit_rename_menu, get_edit_token_menu, get_delete_confirmation_menu
+from src.bot.menus.accounts import (
+    accounts_menu, get_account_details_menu,
+    get_edit_rename_menu, get_edit_token_menu, get_delete_confirmation_menu,
+    get_add_account_label_menu, get_add_account_token_menu
+)
 from src.bot.menus.dns import dns_menu
 from src.bot.menus.zones import zones_menu
 from src.bot.menus.firewall import firewall_menu
 from src.bot.menus.settings import settings_menu
 from src.bot.menus.language import language_menu
 from src.bot.i18n import t
+from src.bot.utils import format_token_guidance_html
 from src.core.config import config_manager
-from src.core.accounts import get_accounts, edit_account, delete_account
+from src.core.accounts import add_account, get_accounts, edit_account, delete_account
 from src.core.cloudflare_api import CloudflareAPI
+from src.core.exceptions import AuthenticationError, APIError
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -61,6 +67,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['wizard_step'] = 'awaiting_new_name'
         context.user_data['account_to_edit'] = account_name
         context.user_data['page'] = int(page_str)
+        context.user_data['wizard_message'] = query.message
         
         text, reply_markup = get_edit_rename_menu(account_name, int(page_str), lang)
         await query.edit_message_text(text, reply_markup=reply_markup)
@@ -136,7 +143,46 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer(f"{t('error_prefix', lang)} {e}", show_alert=True)
 
     elif command == "ADD_ACCOUNT":
-        await query.answer(text=t("coming_soon", lang), show_alert=False)
+        await query.answer()
+        context.user_data['wizard_step'] = 'awaiting_account_label'
+        context.user_data['wizard_context'] = {}
+        context.user_data['wizard_message'] = query.message
+        
+        text, reply_markup = get_add_account_label_menu(lang)
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+    elif command == "ADD_ACCOUNT_SKIP_LABEL":
+        await query.answer()
+        
+        accounts = get_accounts()
+        existing_names = {acc['name'] for acc in accounts}
+        
+        i = 1
+        while f"account-{i}" in existing_names:
+            i += 1
+        
+        new_label = f"account-{i}"
+        
+        context.user_data['wizard_step'] = 'awaiting_account_token'
+        context.user_data['wizard_context']['label'] = new_label
+        
+        text, reply_markup, parse_mode = get_add_account_token_menu(lang)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+
+    elif command == "ADD_ACCOUNT_CANCEL":
+        await query.answer()
+        context.user_data.clear()
+        
+        accounts = get_accounts()
+        reply_markup = accounts_menu(accounts, page=1, lang=lang)
+        await query.edit_message_text(t("accounts_list_title", lang), reply_markup=reply_markup)
+
+    elif command == "ADD_ACCOUNT_BACK_TO_LABEL":
+        await query.answer()
+        context.user_data['wizard_step'] = 'awaiting_account_label'
+        
+        text, reply_markup = get_add_account_label_menu(lang)
+        await query.edit_message_text(text, reply_markup=reply_markup)
 
     elif command == "menu_dns":
         await query.answer()
@@ -169,56 +215,122 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(t("language_menu_title", "fa"), reply_markup=language_menu("fa"))
     # TODO: Implement other menu handlers and actions
 
-async def handle_wizard_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handles text input during a wizard process.
-    """
-    if not context.user_data or 'wizard_step' not in context.user_data:
-        # Ignore if not in wizard process.
+async def handle_add_account_wizard(update: Update, context: ContextTypes.DEFAULT_TYPE, step: str, lang: str):
+    new_text = update.message.text
+    wizard_message = context.user_data.get('wizard_message')
+
+    if not wizard_message:
+        await update.message.delete()
         return
 
-    lang = config_manager.get_bot_lang()
-    step = context.user_data['wizard_step']
+    if step == 'awaiting_account_label':
+        label = new_text.strip()
+        
+        if not (1 <= len(label) <= 30):
+            await update.message.reply_text(t("add_account_invalid_label_length", lang), quote=True)
+            return
+        
+        if config_manager.find_account(label):
+            await update.message.reply_text(t("add_account_duplicate_label", lang).format(label=label), quote=True)
+            return
+            
+        context.user_data['wizard_context']['label'] = label
+        context.user_data['wizard_step'] = 'awaiting_account_token'
+        
+        await update.message.delete()
+        text, reply_markup, parse_mode = get_add_account_token_menu(lang)
+        await wizard_message.edit_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+
+    elif step == 'awaiting_account_token':
+        token = new_text.strip()
+        label = context.user_data['wizard_context']['label']
+        
+        await wizard_message.edit_text(t("validating_token", lang))
+        await update.message.delete()
+        
+        try:
+            add_account(label, token)
+            context.user_data.clear()
+            
+            accounts = get_accounts()
+            reply_markup = accounts_menu(accounts, page=1, lang=lang)
+            await wizard_message.edit_text(
+                f"{t('account_added_successfully', lang)}\n\n{t('accounts_list_title', lang)}",
+                reply_markup=reply_markup
+            )
+            
+        except (AuthenticationError, APIError) as e:
+            text, reply_markup, parse_mode = get_add_account_token_menu(lang)
+            error_message = f"❌ {t('invalid_token_error', lang)}\n\n<i>{e}</i>"
+            await wizard_message.edit_text(
+                f"{error_message}\n\n{text}",
+                reply_markup=reply_markup,
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            text, reply_markup, parse_mode = get_add_account_token_menu(lang)
+            await wizard_message.edit_text(
+                f"❌ {t('error_prefix', lang)} {e}\n\n{text}",
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+
+async def handle_edit_account_wizard(update: Update, context: ContextTypes.DEFAULT_TYPE, step: str, lang: str):
+    new_text = update.message.text
+    wizard_message = context.user_data.get('wizard_message')
+
+    if not wizard_message:
+        await update.message.delete()
+        return
+        
     account_to_edit = context.user_data['account_to_edit']
     page = context.user_data['page']
-    new_text = update.message.text
 
     if step == 'awaiting_new_name':
-        # --- Step 1: Handle new name ---
-        if len(new_text) > 20 or config_manager.find_account(new_text):
-            await update.message.reply_text(t("invalid_name", lang))
+        if len(new_text) > 30 or config_manager.find_account(new_text):
+            await update.message.reply_text(t("invalid_name", lang), quote=True)
             return
 
+        await update.message.delete()
         edit_account(account_to_edit, new_name=new_text)
-        await update.message.reply_text(t("name_updated", lang))
         
-        # Update state for next step
         context.user_data['wizard_step'] = 'awaiting_new_token'
-        context.user_data['account_to_edit'] = new_text # Using new account name
+        context.user_data['account_to_edit'] = new_text
         
-        # Proceed to token step
         text, reply_markup = get_edit_token_menu(new_text, page, lang)
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=reply_markup)
+        await wizard_message.edit_text(
+            f"✅ {t('name_updated', lang)}\n\n{text}",
+            reply_markup=reply_markup
+        )
 
     elif step == 'awaiting_new_token':
-        # --- Step 2: Handle new token ---
         try:
             cf_api = CloudflareAPI(new_text)
             cf_api.verify_token()
         except Exception:
-            await update.message.reply_text(t("invalid_token", lang))
+            await update.message.reply_text(t("invalid_token", lang), quote=True)
             return
 
+        await update.message.delete()
         edit_account(account_to_edit, new_token=new_text)
-        await update.message.reply_text(t("token_updated", lang))
-
-        # End of wizard, show updated details
         context.user_data.clear()
+
         details = config_manager.find_account(account_to_edit)
-        text, reply_markup = get_account_details_menu(details, page, lang)
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, 
-            text=text, 
-            reply_markup=reply_markup, 
-            parse_mode=ParseMode.MARKDOWN
+        text, reply_markup, parse_mode = get_account_details_menu(details, page, lang)
+        await wizard_message.edit_text(
+            f"✅ {t('token_updated', lang)}\n\n{text}",
+            reply_markup=reply_markup,
+            parse_mode=parse_mode
         )
+
+async def handle_wizard_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data or 'wizard_step' not in context.user_data:
+        return
+
+    lang = config_manager.get_bot_lang()
+    step = context.user_data['wizard_step']
+
+    if step.startswith('awaiting_account_'):
+        await handle_add_account_wizard(update, context, step, lang)
+    elif step.startswith('awaiting_new_'):
+        await handle_edit_account_wizard(update, context, step, lang)

@@ -175,7 +175,7 @@ class CloudflareAPI:
         try:
             self.cf.zones.list()
         except CloudflareAPIError as e:
-            if e.code == 9109:
+            if hasattr(e, 'code') and e.code == 9109:
                 permission_name = "Unknown"
                 if "zones" in e.request.url:
                     permission_name = REQUIRED_PERMISSIONS['validation_map'].get('Zone:Read', 'Zone.Zone')
@@ -185,8 +185,8 @@ class CloudflareAPI:
                     original_exception=e
                 )
             else:
-                logger.error(f"An unexpected API error occurred during token verification: {e}")
-                raise APIError("An unexpected API error occurred during token verification.", original_exception=e)
+                logger.error(f"An API error occurred during token verification: {e}")
+                raise APIError("Failed to verify token due to a Cloudflare API error. Please check your token and network connection.", original_exception=e)
         except Exception as e:
             logger.error(f"An unexpected error occurred during token verification: {e}", exc_info=True)
             raise APIError("An unexpected error occurred during token verification.", original_exception=e)

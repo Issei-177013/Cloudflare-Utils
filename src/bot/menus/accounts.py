@@ -1,7 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup # type: ignore
 from telegram.constants import ParseMode # type: ignore
 from src.bot.i18n import t
-from src.bot.utils import lri, pdi, escape_html
+from src.bot.utils import lri, pdi, escape_html, format_token_guidance_html
 
 def accounts_menu(accounts, page=1, lang="en"):
     """
@@ -87,6 +87,40 @@ def get_edit_rename_menu(account_name, page, lang="en"):
         ]
     ]
     return text, InlineKeyboardMarkup(keyboard)
+
+
+def get_add_account_label_menu(lang="en"):
+    """
+    Generates the UI for the first step of the add account wizard (enter label).
+    """
+    text = t("add_account_label_prompt", lang)
+    keyboard = [
+        [
+            InlineKeyboardButton(t("skip", lang), callback_data="ADD_ACCOUNT_SKIP_LABEL"),
+            InlineKeyboardButton(t("cancel", lang), callback_data="ADD_ACCOUNT_CANCEL")
+        ]
+    ]
+    return text, InlineKeyboardMarkup(keyboard)
+
+
+def get_add_account_token_menu(lang="en"):
+    """
+    Generates the UI for the second step of the add account wizard (enter token),
+    including the token creation guidance.
+    """
+    prompt_text = t("add_account_token_prompt", lang)
+    guidance_text = format_token_guidance_html(lang)
+    
+    full_text = f"{prompt_text}\n\n{guidance_text}"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(t("back", lang), callback_data="ADD_ACCOUNT_BACK_TO_LABEL"),
+            InlineKeyboardButton(t("cancel", lang), callback_data="ADD_ACCOUNT_CANCEL")
+        ]
+    ]
+    
+    return full_text, InlineKeyboardMarkup(keyboard), ParseMode.HTML
 
 def get_delete_confirmation_menu(account_name, page, lang="en"):
     """
