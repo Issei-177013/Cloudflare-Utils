@@ -562,7 +562,7 @@ install_agent() {
         local ips
         IFS=',' read -ra ips <<< "$p_whitelist_csv"
         for ip in "${ips[@]}"; do
-            ip=$(echo "$ip" | sed 's/ //g') # Trim whitespace
+            ip="${ip// /}"
             if [ -n "$ip" ]; then
                 processed_ips+=("\"$ip\"")
             fi
