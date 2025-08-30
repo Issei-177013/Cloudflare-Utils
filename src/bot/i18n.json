@@ -73,7 +73,12 @@
     "token_guidance_step2": "Select 'Custom Token'.",
     "token_guidance_step3": "Add the following permissions:",
     "token_guidance_step4": "Set the 'Zone Resources' to 'Include all zones'.",
-    "token_guidance_step5": "Create the token and copy it here."
+    "token_guidance_step5": "Create the token and copy it here.",
+    "bot_setup_and_started": "Bot has been set up and started successfully.\nClick the button below to start.",
+    "bot_restarted_new_token": "Bot has been restarted with a new token.\nClick the button below to start.",
+    "bot_restarted": "The bot has been restarted.\nClick the button below to start.",
+    "bot_enabled_and_started": "Bot has been enabled and started.\nClick the button below to start.",
+    "start_button": "🚀 Start"
   },
   "fa": {
     "main_menu": "یک گزینه انتخاب کنید:",
@@ -149,6 +154,11 @@
     "token_guidance_step2": "گزینه 'Custom Token' را انتخاب کنید.",
     "token_guidance_step3": "مجوزهای زیر را اضافه کنید:",
     "token_guidance_step4": "'Zone Resources' را روی 'Include all zones' تنظیم کنید.",
-    "token_guidance_step5": "توکن را ایجاد کرده و اینجا کپی کنید."
+    "token_guidance_step5": "توکن را ایجاد کرده و اینجا کپی کنید.",
+    "bot_setup_and_started": "ربات با موفقیت راه اندازی و شروع به کار کرد.\nبرای شروع روی دکمه زیر کلیک کنید.",
+    "bot_restarted_new_token": "ربات با توکن جدید مجددا راه اندازی شد.\nبرای شروع روی دکمه زیر کلیک کنید.",
+    "bot_restarted": "ربات مجددا راه اندازی شد.\nبرای شروع روی دکمه زیر کلیک کنید.",
+    "bot_enabled_and_started": "ربات فعال و راه اندازی شد.\nبرای شروع روی دکمه زیر کلیک کنید.",
+    "start_button": "🚀 شروع"
   }
 }

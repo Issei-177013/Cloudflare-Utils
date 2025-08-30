@@ -10,9 +10,14 @@ class TestBotHandlers(unittest.TestCase):
         """Set up the test environment."""
         self.update = MagicMock()
         self.update.effective_chat.type = ChatType.PRIVATE
+        self.update.callback_query = MagicMock()
         self.update.callback_query.answer = AsyncMock()
         self.update.callback_query.edit_message_text = AsyncMock()
+        self.update.callback_query.message = MagicMock()
+        self.update.callback_query.message.edit_text = AsyncMock()
+        self.update.message = MagicMock()
         self.update.message.reply_text = AsyncMock()
+        self.update.message.delete = AsyncMock()
         self.context = MagicMock()
         self.context.bot.send_message = AsyncMock()
 
@@ -104,7 +109,7 @@ class TestBotHandlers(unittest.TestCase):
     def test_handle_wizard_input_rename_success(self, mock_token_menu, mock_config_manager, mock_edit_account):
         """Test successful rename input in the wizard."""
         self.update.message.text = "new_name"
-        self.context.user_data = {'wizard_step': 'awaiting_new_name', 'account_to_edit': 'old_name', 'page': 1}
+        self.context.user_data = {'wizard_step': 'awaiting_new_name', 'account_to_edit': 'old_name', 'page': 1, 'wizard_message': self.update.callback_query.message}
         mock_config_manager.find_account.return_value = None
         mock_token_menu.return_value = ("token_text", "token_markup")
 
@@ -113,7 +118,7 @@ class TestBotHandlers(unittest.TestCase):
         mock_edit_account.assert_called_once_with("old_name", new_name="new_name")
         self.assertEqual(self.context.user_data['wizard_step'], 'awaiting_new_token')
         self.assertEqual(self.context.user_data['account_to_edit'], 'new_name')
-        self.context.bot.send_message.assert_called_once()
+        self.update.callback_query.message.edit_text.assert_called_once()
 
     @patch('src.bot.handlers.edit_account')
     @patch('src.bot.handlers.config_manager')
@@ -122,16 +127,16 @@ class TestBotHandlers(unittest.TestCase):
     def test_handle_wizard_input_token_success(self, mock_details_menu, mock_cf_api, mock_config_manager, mock_edit_account):
         """Test successful token input in the wizard."""
         self.update.message.text = "new_token"
-        self.context.user_data = {'wizard_step': 'awaiting_new_token', 'account_to_edit': 'account_name', 'page': 1}
+        self.context.user_data = {'wizard_step': 'awaiting_new_token', 'account_to_edit': 'account_name', 'page': 1, 'wizard_message': self.update.callback_query.message}
         mock_cf_api.return_value.verify_token.return_value = True
         mock_config_manager.find_account.return_value = {"name": "account_name"}
-        mock_details_menu.return_value = ("details_text", "details_markup")
+        mock_details_menu.return_value = ("details_text", "details_markup", "HTML")
 
         asyncio.run(handlers.handle_wizard_input(self.update, self.context))
 
         mock_edit_account.assert_called_once_with("account_name", new_token="new_token")
         self.assertEqual(self.context.user_data, {}) # Should be cleared
-        self.context.bot.send_message.assert_called_once()
+        self.update.callback_query.message.edit_text.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()

@@ -45,6 +45,31 @@ IP_WHITELIST=""
 IFACE=""
 
 # --- Helper Functions ---
+restart_bot_if_enabled() {
+    log_info "Checking if Telegram bot needs to be restarted after update..."
+    local config_file="$CFUTILS_DIR/configs/configs.json"
+    local python_exec="$CFUTILS_DIR/venv/bin/python3"
+    local cfu_script="$CFUTILS_DIR/cf-utils.py"
+
+    if [ -f "$config_file" ] && [ -f "$python_exec" ] && [ -f "$cfu_script" ]; then
+        # Use jq to check if bot is enabled. Suppress errors if keys don't exist.
+        if jq -e '.bot.enabled == true' "$config_file" > /dev/null 2>&1; then
+            log_info "Telegram bot is enabled, issuing restart command..."
+            # Call the main script with a special flag to handle the restart.
+            # This respects whether the system uses systemd or fallback mode.
+            if "$python_exec" "$cfu_script" --restart-bot; then
+                log_success "Bot restart command issued successfully."
+            else
+                log_warning "Bot restart command failed. The bot service might need a manual restart."
+            fi
+        else
+            log_info "Telegram bot is not enabled, skipping restart."
+        fi
+    else
+        log_info "Telegram bot configuration or scripts not found, skipping restart check."
+    fi
+}
+
 usage() {
     echo "Usage: $0 [options]"
     echo "  Run without options for interactive mode."
@@ -267,6 +292,7 @@ update_cfutils_from_local() {
 
     VERSION_TAG="local"
     log_success "Cloudflare-Utils updated successfully from local path (Version: $VERSION_TAG)."
+    restart_bot_if_enabled
 }
 
 update_cfutils() {
@@ -354,6 +380,7 @@ update_cfutils() {
     cd - > /dev/null
     VERSION_TAG=$(cd "$CFUTILS_DIR" && (git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD))
     log_success "Cloudflare-Utils updated successfully (Version: $VERSION_TAG)."
+    restart_bot_if_enabled
 }
 
 setup_cfutils_venv() {

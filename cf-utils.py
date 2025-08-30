@@ -30,14 +30,34 @@ def ensure_root():
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Ensure root privileges before importing and running the main application.
-    ensure_root()
-    
     # Get the absolute path of the script's directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     # Add the script's directory to the Python path
     sys.path.insert(0, script_dir)
 
+    # Handle special flags that should run without the main app
+    if '--restart-bot' in sys.argv:
+        ensure_root()
+        from src.core.service_manager import service_manager
+        from src.core.config import config_manager
+        
+        config = config_manager.get_config()
+        if config.get("bot", {}).get("enabled", False):
+            print("Restarting Telegram bot service due to an update...")
+            success, message = service_manager.restart_service()
+            if success:
+                print("Service restarted successfully.")
+            else:
+                print(f"Failed to restart service: {message}")
+        else:
+            # This case should ideally not be hit if the installer script checks first,
+            # but it's here as a safeguard.
+            print("Bot is not enabled, skipping restart.")
+        sys.exit(0)
+
+    # Ensure root privileges before importing and running the main application.
+    ensure_root()
+    
     # Import the necessary components
     from src.app import main
     from src.core.background_service import run_background_service
