@@ -6,6 +6,7 @@ It handles the interaction with the Cloudflare API for zone-related
 operations, without any presentation-layer code.
 """
 from .cloudflare_api import CloudflareAPI
+from .accounts import get_account_token
 
 def list_zones(api_token):
     """
@@ -86,3 +87,21 @@ def update_zone_setting(api_token, zone_id, setting_name, value):
     """
     cf_api = CloudflareAPI(api_token)
     cf_api.update_zone_setting(zone_id, setting_name, value)
+
+def list_zones_for_account(account_name):
+    """
+    Lists all zones for a given account name by retrieving its token.
+    """
+    api_token = get_account_token(account_name)
+    if not api_token:
+        raise ValueError(f"No API token found for account: {account_name}")
+    return list_zones(api_token)
+
+def get_zone_details_for_account(account_name, zone_id):
+    """
+    Retrieves details for a specific zone for a given account name.
+    """
+    api_token = get_account_token(account_name)
+    if not api_token:
+        raise ValueError(f"No API token found for account: {account_name}")
+    return get_zone_details(api_token, zone_id)

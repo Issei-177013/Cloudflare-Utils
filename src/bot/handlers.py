@@ -1,6 +1,7 @@
 from telegram import Update # type: ignore
 from telegram.constants import ChatType, ParseMode # type: ignore
 from telegram.ext import ContextTypes # type: ignore
+from src.core.logger import logger
 from src.bot.menus.main import main_menu
 from src.bot.menus.accounts import (
     accounts_menu, get_account_details_menu,
@@ -8,7 +9,11 @@ from src.bot.menus.accounts import (
     get_add_account_label_menu, get_add_account_token_menu
 )
 from src.bot.menus.dns import dns_menu
-from src.bot.menus.zones import zones_menu
+from src.bot.menus.zones import (
+    account_selection_menu_for_zones,
+    zones_list_menu,
+    get_zone_details_menu
+)
 from src.bot.menus.firewall import firewall_menu
 from src.bot.menus.settings import settings_menu
 from src.bot.menus.language import language_menu
@@ -16,6 +21,7 @@ from src.bot.i18n import t
 from src.bot.utils import format_token_guidance_html
 from src.core.config import config_manager
 from src.core.accounts import add_account, get_accounts, edit_account, delete_account
+from src.core.zones import list_zones_for_account, get_zone_details_for_account
 from src.core.cloudflare_api import CloudflareAPI
 from src.core.exceptions import AuthenticationError, APIError
 
@@ -188,9 +194,73 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         await query.edit_message_text(t("dns_menu_title", lang), reply_markup=dns_menu(lang))
 
-    elif query.data == "menu_zones":
+    elif command in ("menu_zones", "ZONES_ACCOUNTS_PAGE"):
         await query.answer()
-        await query.edit_message_text(t("zones_menu_title", lang), reply_markup=zones_menu(lang))
+        page = int(data) if data else 1
+        try:
+            accounts = get_accounts()
+            reply_markup = account_selection_menu_for_zones(accounts, page=page, lang=lang)
+            await query.edit_message_text(t("choose_account_for_zones", lang), reply_markup=reply_markup)
+        except Exception as e:
+            await query.answer(text=t("error_prefix", lang) + str(e), show_alert=True)
+
+    elif command == "ZONES_PICK_ACCOUNT":
+        await query.answer(text=t("loading", lang))
+        account_name, account_page_str = data.split(':', 1)
+        account_page = int(account_page_str)
+        try:
+            zones = list_zones_for_account(account_name)
+            text = t('zones_list_title', lang).format(account_name=account_name)
+            if not zones:
+                text += f"\n\n{t('no_zones_yet', lang)}"
+            
+            # The first page of zones is always 1
+            reply_markup = zones_list_menu(zones, account_name, page=1, lang=lang)
+            await query.edit_message_text(text, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error picking account for zones: {e}", exc_info=True)
+            await query.answer(text=f"{t('error_prefix', lang)} {e}", show_alert=True)
+            # On error, show the account list again with an error message
+            accounts = get_accounts()
+            reply_markup = account_selection_menu_for_zones(accounts, page=account_page, lang=lang)
+            error_text = f"❌ {e}\n\n{t('choose_account_for_zones', lang)}"
+            await query.edit_message_text(error_text, reply_markup=reply_markup)
+
+    elif command == "ZONES_PAGE":
+        await query.answer(text=t("loading", lang))
+        account_name, page_str = data.split(':', 1)
+        page = int(page_str)
+        try:
+            zones = list_zones_for_account(account_name)
+            text = t('zones_list_title', lang).format(account_name=account_name)
+            if not zones:
+                text += f"\n\n{t('no_zones_yet', lang)}"
+            
+            reply_markup = zones_list_menu(zones, account_name, page=page, lang=lang)
+            await query.edit_message_text(text, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error paginating zones: {e}", exc_info=True)
+            await query.answer(text=f"{t('error_prefix', lang)} {e}", show_alert=True)
+            # On error, we can't do much but show the alert, as we don't have the account page context
+
+    elif command == "VIEW_ZONE":
+        await query.answer()
+        try:
+            account_name, zone_id, page_str = data.split(':', 2)
+            page = int(page_str)
+            
+            details = get_zone_details_for_account(account_name, zone_id)
+            if not details:
+                raise Exception(f"Zone '{zone_id}' not found.")
+
+            text, reply_markup, parse_mode = get_zone_details_menu(details, account_name, page, lang)
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+        except Exception as e:
+            logger.error(f"Error viewing zone details: {e}", exc_info=True)
+            await query.answer(text=f"{t('error_prefix', lang)} {e}", show_alert=True)
+
+    elif command in ("ZONE_SETTINGS", "EDIT_ZONE", "DELETE_ZONE", "ADD_ZONE"):
+        await query.answer(text=t("coming_soon", lang), show_alert=True)
 
     elif query.data == "menu_firewall":
         await query.answer()

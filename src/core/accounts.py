@@ -103,3 +103,16 @@ def get_accounts():
         list: A list of account dictionaries.
     """
     return config_manager.get_config().get("accounts", [])
+
+def get_account_token(account_name):
+    """
+    Retrieves the API token for a specific account.
+
+    Args:
+        account_name (str): The name of the account.
+
+    Returns:
+        str: The API token, or None if the account is not found.
+    """
+    account = config_manager.find_account(account_name)
+    return account.get("api_token") if account else None
