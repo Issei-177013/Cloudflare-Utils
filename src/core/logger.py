@@ -80,7 +80,7 @@ def configure_console_logging(config):
         logger.removeHandler(console_handler)
 
     # Add a new console handler if enabled in the config
-    if config.get("settings", {}).get("console_logging", True):
+    if config.get("settings", {}).get("cli", {}).get("console_logging", True):
         coloredlogs.install(level='INFO', logger=logger, fmt='%(levelname)s: %(message)s')
 
 class StreamToLogger:

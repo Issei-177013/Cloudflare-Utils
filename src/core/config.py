@@ -51,12 +51,24 @@ class ConfigManager:
         return {
             "accounts": [],
             "agents": [],
-            "settings": {"console_logging": False},
-            "bot": {
-                "enabled": False,
-                "token": "",
-                "allowed_user_ids": [],
-                "lang": "en"
+            "settings": {
+                "global": {
+                    "timezone": "UTC"
+                },
+                "bot": {
+                    "enabled": False,
+                    "token": "",
+                    "allowed_user_ids": [],
+                    "lang": {
+                        "default": "en",
+                        "users": {}
+                    }
+                },
+                "cli": {
+                    "console_logging": False,
+                    "fast_mode": True,
+                    "slow_mode_delay": 0.01
+                }
             },
             "self_monitor": {
                 "enabled": False,
@@ -158,13 +170,31 @@ class ConfigManager:
                 return group
         return None
 
-    def get_bot_lang(self):
-        """Returns the bot's language from the configuration."""
-        return self.config_data.get("bot", {}).get("lang", "en")
+    def get_bot_lang(self, user_id=None):
+        """
+        Returns the bot's language for a given user, or the default language.
+        Handles migration from old string-based lang config.
+        """
+        bot_settings = self.config_data.get("settings", {}).get("bot", {})
+        lang_config = bot_settings.get("lang", {})
 
-    def set_bot_lang(self, lang):
-        """Sets the bot's language in the configuration."""
-        self.config_data.setdefault("bot", {})["lang"] = lang
+        if isinstance(lang_config, str):
+            logger.info("Migrating old language configuration.")
+            default_lang = lang_config
+            bot_settings["lang"] = {
+                "default": default_lang,
+                "users": {}
+            }
+            self.save_config()
+            lang_config = bot_settings["lang"]
+
+        if user_id and str(user_id) in lang_config.get("users", {}):
+            return lang_config["users"][str(user_id)]
+        return lang_config.get("default", "en")
+
+    def set_bot_lang(self, user_id, lang):
+        """Sets the bot's language for a specific user."""
+        self.config_data.setdefault("settings", {}).setdefault("bot", {}).setdefault("lang", {}).setdefault("users", {})[str(user_id)] = lang
         self.save_config()
 
 # --- Constants and other config-related utilities ---

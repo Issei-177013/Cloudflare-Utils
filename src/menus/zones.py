@@ -7,6 +7,7 @@ settings of their zones.
 """
 from ..core import accounts as core_accounts
 from ..core import zones as core_zones
+from ..core.utils import format_datetime
 from .utils import get_validated_input, get_zone_type
 from ..core.validator import is_valid_domain
 from ..core.logger import logger
@@ -211,7 +212,7 @@ def zone_management_menu():
                             "ID": zone_details.id,
                             "Status": zone_details.status,
                             "Plan": zone_details.plan.name,
-                            "Created On": zone_details.created_on.strftime('%Y-%m-%d'),
+                            "Created On": format_datetime(zone_details.created_on),
                             "Nameservers": ", ".join(zone_details.name_servers)
                         }
                         display_as_table([details], headers="keys")

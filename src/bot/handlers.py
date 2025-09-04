@@ -17,17 +17,20 @@ from src.bot.menus.zones import (
 from src.bot.menus.firewall import firewall_menu
 from src.bot.menus.settings import settings_menu
 from src.bot.menus.language import language_menu
+from src.bot.menus.user_management import user_management_menu
 from src.bot.i18n import t
 from src.bot.utils import format_token_guidance_html
 from src.core.config import config_manager
 from src.core.accounts import add_account, get_accounts, edit_account, delete_account
 from src.core.zones import list_zones_for_account, get_zone_details_for_account
 from src.core.cloudflare_api import CloudflareAPI
+from zoneinfo import available_timezones
 from src.core.exceptions import AuthenticationError, APIError
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    lang = config_manager.get_bot_lang()
+    user_id = update.effective_user.id
+    lang = config_manager.get_bot_lang(user_id)
 
     if update.effective_chat.type != ChatType.PRIVATE:
         await query.answer(text=t("private_chat_only", lang), show_alert=True)
@@ -270,19 +273,50 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         await query.edit_message_text(t("settings_menu_title", lang), reply_markup=settings_menu(lang))
 
-    elif query.data == "menu_language":
+    elif query.data == "settings_language":
         await query.answer()
         await query.edit_message_text(t("language_menu_title", lang), reply_markup=language_menu(lang))
 
+    elif query.data == "settings_timezone":
+        await query.answer()
+        context.user_data['wizard_step'] = 'awaiting_timezone'
+        context.user_data['wizard_message'] = query.message
+        
+        text = "Please enter your preferred time zone (e.g., UTC, Europe/Berlin, Asia/Tehran):"
+        await query.edit_message_text(text)
+
     elif query.data == "set_lang_en":
         await query.answer(text=t("loading", lang), show_alert=False)
-        config_manager.set_bot_lang("en")
-        await query.edit_message_text(t("language_menu_title", "en"), reply_markup=language_menu("en"))
+        config_manager.set_bot_lang(user_id, "en")
+        await query.edit_message_text(t("language_set", "en"), reply_markup=main_menu("en"))
 
     elif query.data == "set_lang_fa":
         await query.answer(text=t("loading", lang), show_alert=False)
-        config_manager.set_bot_lang("fa")
-        await query.edit_message_text(t("language_menu_title", "fa"), reply_markup=language_menu("fa"))
+        config_manager.set_bot_lang(user_id, "fa")
+        await query.edit_message_text(t("language_set", "fa"), reply_markup=main_menu("fa"))
+    
+    elif command == "settings_user_ids":
+        await query.answer()
+        await query.edit_message_text(t("manage_user_ids", lang), reply_markup=user_management_menu(user_id, lang))
+
+    elif command == "add_user_id":
+        await query.answer()
+        context.user_data['wizard_step'] = 'awaiting_user_id'
+        context.user_data['wizard_message'] = query.message
+        await query.edit_message_text("Please enter the user ID to add:")
+
+    elif command == "delete_user":
+        user_id_to_delete = int(data)
+        config = config_manager.get_config()
+        allowed_ids = config.setdefault("settings", {}).setdefault("bot", {}).setdefault("allowed_user_ids", [])
+        if user_id_to_delete in allowed_ids:
+            allowed_ids.remove(user_id_to_delete)
+            config_manager.save_config()
+            await query.answer("User ID deleted.")
+            await query.edit_message_text(t("manage_user_ids", lang), reply_markup=user_management_menu(user_id, lang))
+        else:
+            await query.answer("User ID not found.")
+
     # TODO: Implement other menu handlers and actions
 
 async def handle_add_account_wizard(update: Update, context: ContextTypes.DEFAULT_TYPE, step: str, lang: str):
@@ -397,10 +431,39 @@ async def handle_wizard_input(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not context.user_data or 'wizard_step' not in context.user_data:
         return
 
-    lang = config_manager.get_bot_lang()
+    user_id = update.effective_user.id
+    lang = config_manager.get_bot_lang(user_id)
     step = context.user_data['wizard_step']
 
     if step.startswith('awaiting_account_'):
         await handle_add_account_wizard(update, context, step, lang)
     elif step.startswith('awaiting_new_'):
         await handle_edit_account_wizard(update, context, step, lang)
+    elif step == 'awaiting_timezone':
+        wizard_message = context.user_data.get('wizard_message')
+        new_timezone = update.message.text.strip()
+        if new_timezone in available_timezones():
+            config = config_manager.get_config()
+            config.setdefault("settings", {}).setdefault("global", {})["timezone"] = new_timezone
+            config_manager.save_config()
+            await update.message.reply_text(f"Time zone updated to {new_timezone}.")
+            context.user_data.clear()
+            await wizard_message.edit_text(t("settings_menu_title", lang), reply_markup=settings_menu(lang))
+        else:
+            await update.message.reply_text("Invalid timezone. Please try again.")
+    elif step == 'awaiting_user_id':
+        wizard_message = context.user_data.get('wizard_message')
+        try:
+            new_user_id = int(update.message.text.strip())
+            config = config_manager.get_config()
+            allowed_ids = config.setdefault("settings", {}).setdefault("bot", {}).setdefault("allowed_user_ids", [])
+            if new_user_id not in allowed_ids:
+                allowed_ids.append(new_user_id)
+                config_manager.save_config()
+                await update.message.reply_text(f"User ID {new_user_id} added.")
+                context.user_data.clear()
+                await wizard_message.edit_text(t("manage_user_ids", lang), reply_markup=user_management_menu(user_id, lang))
+            else:
+                await update.message.reply_text("User ID already exists.")
+        except ValueError:
+            await update.message.reply_text("Invalid user ID. Please enter a number.")

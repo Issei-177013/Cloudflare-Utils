@@ -33,11 +33,11 @@ def _send_telegram_message(token, chat_id, text, reply_markup=None):
         logger.error(f"Error sending Telegram message: {e}")
         return False
 
-def _notify_users_on_start(bot_config, message_key):
+def _notify_users_on_start(bot_settings, message_key):
     """Notifies all allowed users when the bot starts or restarts."""
-    token = bot_config.get("token")
-    user_ids = bot_config.get("allowed_user_ids", [])
-    lang = bot_config.get("lang", "en")
+    token = bot_settings.get("token")
+    user_ids = bot_settings.get("allowed_user_ids", [])
+    lang = bot_settings.get("lang", {}).get("default", "en")
     if not token or not user_ids:
         return
 
@@ -114,9 +114,10 @@ def _setup_bot_interactive():
 
     # Step 3: Save configuration
     config = config_manager.get_config()
-    config["bot"]["token"] = token
-    config["bot"]["allowed_user_ids"] = user_ids
-    config["bot"]["enabled"] = True
+    bot_settings = config.setdefault("settings", {}).setdefault("bot", {})
+    bot_settings["token"] = token
+    bot_settings["allowed_user_ids"] = user_ids
+    bot_settings["enabled"] = True
     config_manager.save_config()
     
     print_fast(f"\n{COLOR_SUCCESS}✅ Configuration saved successfully.{RESET_COLOR}")
@@ -137,7 +138,7 @@ def _setup_bot_interactive():
     start_success, message = service_manager.start_service()
     if start_success:
         print_fast(f"{COLOR_SUCCESS}✅ Bot service started successfully.{RESET_COLOR}")
-        _notify_users_on_start(config["bot"], "bot_setup_and_started")
+        _notify_users_on_start(bot_settings, "bot_setup_and_started")
     else:
         print_fast(f"{COLOR_ERROR}❌ {message}{RESET_COLOR}")
 
@@ -160,12 +161,10 @@ def _delete_bot():
         service_manager.uninstall_service()
 
     config = config_manager.get_config()
-    config["bot"] = {
-        "enabled": False,
-        "token": "",
-        "allowed_user_ids": [],
-        "lang": config.get("bot", {}).get("lang", "en")
-    }
+    bot_settings = config.setdefault("settings", {}).setdefault("bot", {})
+    bot_settings["enabled"] = False
+    bot_settings["token"] = ""
+    bot_settings["allowed_user_ids"] = []
     config_manager.save_config()
 
     print_fast(f"\n{COLOR_SUCCESS}✅ Bot has been successfully deleted.{RESET_COLOR}")
@@ -198,8 +197,8 @@ def manage_allowed_users_menu():
     while True:
         clear_screen()
         config = config_manager.get_config()
-        bot_config = config.get("bot", {})
-        allowed_ids = bot_config.get("allowed_user_ids", [])
+        bot_settings = config.get("settings", {}).get("bot", {})
+        allowed_ids = bot_settings.get("allowed_user_ids", [])
 
         print_fast(f"{COLOR_TITLE}\n--- Manage Allowed User IDs ---{RESET_COLOR}")
         if allowed_ids:
@@ -271,20 +270,28 @@ def manage_allowed_users_menu():
             print_fast(f"{COLOR_ERROR}❌ Invalid choice.{RESET_COLOR}")
             input("\nPress Enter to continue...")
 
-def telegram_bot_menu():
-    """Displays and handles the Telegram bot settings menu."""
+def telegram_bot_menu(from_settings=False):
+    """
+    Displays and handles the Telegram bot settings menu.
+    
+    Args:
+        from_settings (bool): If True, the "Back" button will return to the
+                              main settings menu. Otherwise, it exits.
+    """
     while True:
         clear_screen()
         config = config_manager.get_config()
-        bot_config = config.get("bot", {})
-        is_setup = bot_config.get("token")
+        bot_settings = config.get("settings", {}).get("bot", {})
+        is_setup = bot_settings.get("token")
+
+        back_text = "Back to Settings Menu" if from_settings else "Back to Main Menu"
 
         if not is_setup:
             print_fast(f"{COLOR_TITLE}\n--- Telegram Bot Settings ---{RESET_COLOR}")
             print_fast(f"{COLOR_WARNING}The bot is not set up yet. Would you like to set it up now?{RESET_COLOR}")
             print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
             print_fast("1. Yes, set up the bot")
-            print_fast("0. No, return to the main menu")
+            print_fast(f"0. No, {back_text.lower()}")
             print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
             
             choice = input("👉 Enter your choice: ").strip()
@@ -296,29 +303,29 @@ def telegram_bot_menu():
                 print_fast(f"{COLOR_ERROR}❌ Invalid choice.{RESET_COLOR}")
                 input("\nPress Enter to continue...")
         else:
-            enabled_status = f"{COLOR_SUCCESS}Enabled{RESET_COLOR}" if bot_config.get("enabled") else f"{COLOR_WARNING}Disabled{RESET_COLOR}"
+            enabled_status = f"{COLOR_SUCCESS}Enabled{RESET_COLOR}" if bot_settings.get("enabled") else f"{COLOR_WARNING}Disabled{RESET_COLOR}"
             token_status = f"{COLOR_SUCCESS}Set{RESET_COLOR}"
-            user_ids_count = len(bot_config.get("allowed_user_ids", []))
+            user_ids_count = len(bot_settings.get("allowed_user_ids", []))
             service_status = service_manager.get_status()
 
             print_fast(f"{COLOR_TITLE}\n--- Telegram Bot Management ---{RESET_COLOR}")
             print_fast(f"Status: {enabled_status} | Token: {token_status} | Users: {user_ids_count} | Service: {service_status}")
             print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
             
-            print_fast(f"1. {'Disable' if bot_config.get('enabled') else 'Enable'} Bot")
+            print_fast(f"1. {'Disable' if bot_settings.get('enabled') else 'Enable'} Bot")
             print_fast("2. Edit Token")
             print_fast("3. Manage Allowed User IDs")
             print_fast("4. Restart Bot")
             print_fast("5. View Logs")
             print_fast("6. Delete Bot")
-            print_fast("0. Back to Settings Menu")
+            print_fast(f"0. {back_text}")
             print_fast(f"{COLOR_SEPARATOR}{OPTION_SEPARATOR}{RESET_COLOR}")
 
             choice = input("👉 Enter your choice: ").strip()
 
             if choice == "1": # Enable/Disable Bot
-                new_status = not bot_config.get("enabled", False)
-                bot_config["enabled"] = new_status
+                new_status = not bot_settings.get("enabled", False)
+                bot_settings["enabled"] = new_status
                 config_manager.save_config()
                 
                 status_text = "Enabled" if new_status else "Disabled"
@@ -327,7 +334,7 @@ def telegram_bot_menu():
                 if new_status:
                     success, message = service_manager.start_service()
                     if success:
-                        _notify_users_on_start(bot_config, "bot_enabled_and_started")
+                        _notify_users_on_start(bot_settings, "bot_enabled_and_started")
                 else:
                     success, message = service_manager.stop_service()
                 
@@ -338,7 +345,7 @@ def telegram_bot_menu():
                 input("\nPress Enter to continue...")
 
             elif choice == "2": # Edit Token
-                current_token = bot_config.get('token', '')
+                current_token = bot_settings.get('token', '')
                 current_token_display = f" (current: ...{current_token[-4:]})"
                 prompt = f"Enter new Telegram Bot Token{current_token_display} or press Enter to cancel: "
                 new_token = _get_sanitized_input(prompt)
@@ -349,13 +356,13 @@ def telegram_bot_menu():
                     
                     if is_valid:
                         print_fast(f"{COLOR_SUCCESS}✅ Token validated for bot: @{message}{RESET_COLOR}")
-                        bot_config["token"] = new_token
+                        bot_settings["token"] = new_token
                         config_manager.save_config()
                         print_fast(f"{COLOR_SUCCESS}✅ Bot token updated. Restarting service...{RESET_COLOR}")
                         success, restart_message = service_manager.restart_service()
                         if success:
                             print_fast(f"{COLOR_SUCCESS}✅ Service restarted successfully.{RESET_COLOR}")
-                            _notify_users_on_start(bot_config, "bot_restarted_new_token")
+                            _notify_users_on_start(bot_settings, "bot_restarted_new_token")
                         else:
                             print_fast(f"{COLOR_ERROR}❌ {restart_message}{RESET_COLOR}")
                     else:
@@ -372,7 +379,7 @@ def telegram_bot_menu():
                 success, message = service_manager.restart_service()
                 if success:
                     print_fast(f"{COLOR_SUCCESS}✅ Service restarted successfully.{RESET_COLOR}")
-                    _notify_users_on_start(bot_config, "bot_restarted")
+                    _notify_users_on_start(bot_settings, "bot_restarted")
                 else:
                     print_fast(f"{COLOR_ERROR}❌ {message}{RESET_COLOR}")
                 input("\nPress Enter to continue...")

@@ -2,6 +2,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from src.bot.utils import lri, pdi, escape_html
 from src.bot.i18n import t
+from src.core.utils import format_datetime
 
 def account_selection_menu_for_zones(accounts, page=1, lang="en"):
     """
@@ -50,8 +51,8 @@ def account_selection_menu_for_zones(accounts, page=1, lang="en"):
             
             keyboard.append(pagination_row)
 
-    # Global "Back" button
-    keyboard.append([InlineKeyboardButton(t("back", lang), callback_data="menu_main")])
+        # Global "Back" button
+        keyboard.append([InlineKeyboardButton(t("back", lang), callback_data="menu_main")])
     
     return InlineKeyboardMarkup(keyboard)
 
@@ -112,8 +113,8 @@ def get_zone_details_menu(zone_details, account_name, page, lang="en"):
     status = zone_details.status or 'N/A'
     plan_name = zone_details.plan.name if hasattr(zone_details, 'plan') and zone_details.plan else 'N/A'
     nameservers = ", ".join(zone_details.name_servers) if hasattr(zone_details, 'name_servers') else 'N/A'
-    created_on = zone_details.created_on.isoformat() if hasattr(zone_details, 'created_on') else 'N/A'
-    modified_on = zone_details.modified_on.isoformat() if hasattr(zone_details, 'modified_on') else 'N/A'
+    created_on = format_datetime(zone_details.created_on) if hasattr(zone_details, 'created_on') else 'N/A'
+    modified_on = format_datetime(zone_details.modified_on) if hasattr(zone_details, 'modified_on') else 'N/A'
 
     text = (
         f"{t('zone_details_title', lang)}\n\n"

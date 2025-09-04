@@ -8,7 +8,7 @@ from .core.config import config_manager
 def get_config_setting(key, default):
     """Helper to get a setting from the config file."""
     config = config_manager.get_config()
-    return config.get("settings", {}).get(key, default)
+    return config.get("settings", {}).get("cli", {}).get(key, default)
 
 def get_fast_mode_status():
     """

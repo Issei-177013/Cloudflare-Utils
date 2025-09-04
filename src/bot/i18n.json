@@ -92,7 +92,12 @@
     "zone_plan": "Plan",
     "zone_nameservers": "Nameservers",
     "zone_created_on": "Created",
-    "zone_modified_on": "Modified"
+    "zone_modified_on": "Modified",
+    "configure_timezone": "Configure Time Zone",
+    "language_set": "Language set to English.",
+    "manage_user_ids": "Manage Allowed User IDs",
+    "delete": "Delete",
+    "add_user_id": "Add User ID"
   },
   "fa": {
     "main_menu": "یک گزینه انتخاب کنید:",
@@ -187,6 +192,11 @@
     "zone_plan": "پلن",
     "zone_nameservers": "نیم‌سرورها",
     "zone_created_on": "ایجاد شده در",
-    "zone_modified_on": "تغییر یافته در"
+    "zone_modified_on": "تغییر یافته در",
+    "configure_timezone": "پیکربندی منطقه زمانی",
+    "language_set": "زبان به فارسی تنظیم شد.",
+    "manage_user_ids": "مدیریت شناسه‌های کاربری مجاز",
+    "delete": "حذف",
+    "add_user_id": "افزودن شناسه کاربری"
   }
 }

@@ -8,6 +8,8 @@ class TestBotHandlers(unittest.TestCase):
 
     def setUp(self):
         """Set up the test environment."""
+        from src.core.config import config_manager
+        config_manager.load_config(data=config_manager._get_default_config())
         self.update = MagicMock()
         self.update.effective_chat.type = ChatType.PRIVATE
         self.update.callback_query = MagicMock()
