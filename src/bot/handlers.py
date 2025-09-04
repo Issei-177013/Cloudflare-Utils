@@ -15,6 +15,7 @@ from src.bot.menus.zones import (
     get_zone_details_menu
 )
 from src.bot.menus.firewall import firewall_menu
+from src.bot.menus.ip_rotator import ip_rotator_menu
 from src.bot.menus.settings import settings_menu
 from src.bot.menus.language import language_menu
 from src.bot.menus.user_management import user_management_menu
@@ -268,6 +269,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "menu_firewall":
         await query.answer()
         await query.edit_message_text(t("firewall_menu_title", lang), reply_markup=firewall_menu(lang))
+
+    elif query.data == "menu_ip_rotator":
+        await query.answer()
+        await query.edit_message_text(t("ip_rotator_title", lang), reply_markup=ip_rotator_menu(lang))
 
     elif query.data == "menu_settings":
         await query.answer()
